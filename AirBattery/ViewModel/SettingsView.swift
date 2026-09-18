@@ -287,7 +287,7 @@ struct DeviceDiscoveryView: View {
 
                 SGroupBox(label: "Precedence") {
                     HStack {
-                        Text("The broad Name Filter is applied first and can exclude matching devices from discovery entirely. For devices that pass it, the exact rule here controls whether AirBattery may actively connect.")
+                        Text("The broad Name Filter is applied first and can exclude matching devices from discovery entirely. For devices that pass it, the exact rule here controls whether AirBattery may actively connect. A paired-name match is only a review hint and never grants permission.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -334,16 +334,9 @@ struct DeviceDiscoveryView: View {
                             .help("Suggested for review")
                     }
                 }
-                HStack(spacing: 6) {
-                    Text(shortIdentifier(candidate.identifier))
-                    Text("\(candidate.rssi) dBm")
-                    Text("seen \(candidate.seenCount)×")
-                    if candidate.matchesPairedName { Text("paired-name match") }
-                    if candidate.advertisesBatteryService { Text("battery service") }
-                    if !candidate.isConnectable { Text("passive only") }
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
+                Text(candidateSummary(candidate))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 if let result = candidate.lastProbeResult {
                     Text(result)
                         .font(.caption)
@@ -393,6 +386,18 @@ struct DeviceDiscoveryView: View {
         return candidate.matchesPairedName ||
             candidate.advertisesBatteryService ||
             candidate.lastProbeResult != nil
+    }
+
+    private func candidateSummary(_ candidate: BLEDiscoveryCandidate) -> String {
+        var parts = [
+            shortIdentifier(candidate.identifier),
+            "\(candidate.rssi) dBm",
+            "seen \(candidate.seenCount)×"
+        ]
+        if candidate.matchesPairedName { parts.append("name matches paired device") }
+        if candidate.advertisesBatteryService { parts.append("battery service advertised") }
+        if !candidate.isConnectable { parts.append("not connectable") }
+        return parts.joined(separator: " · ")
     }
 
     private func shortIdentifier(_ identifier: String) -> String {
