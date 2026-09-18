@@ -99,6 +99,13 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
     var scanTimer: Timer?
+
+    // Generic BLE discovery may require an active connection, which can trigger
+    // a macOS pairing prompt. Remember failed/non-battery probes for this app
+    // launch so the same nearby device is not retried every scan cycle.
+    private var genericProbePeripheralIDs: Set<UUID> = []
+    private var genericProbeInFlight: Set<UUID> = []
+    private var genericProbeRejected: Set<UUID> = []
     //var a = 1
     //var mfgData: Data!
     
@@ -143,18 +150,38 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         peripheral.delegate = self
         peripheral.discoverServices(nil)
     }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        rejectGenericProbe(peripheral, reason: "connection failed")
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        if genericProbeInFlight.contains(peripheral.identifier) {
+            rejectGenericProbe(peripheral, reason: "disconnected before battery discovery")
+        }
+    }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
         var get = false
+        var genericProbe = false
         let now = Double(Date().timeIntervalSince1970)
         if let deviceName = peripheral.name{
             if AirBatteryModel.checkIfBlocked(name: deviceName) { return }
             if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
                 if data[0] != 76 {
                     //获取非Apple的普通BLE设备数据
-                    if readBLEDevice {
+                    if readBLEDevice &&
+                        !genericProbeRejected.contains(peripheral.identifier) &&
+                        !genericProbeInFlight.contains(peripheral.identifier) {
                         if let device = AirBatteryModel.getByName(deviceName) {
-                            if now - device.lastUpdate > Double(60 * updateInterval) { get = true } } else { get = true }
+                            if now - device.lastUpdate > Double(60 * updateInterval) {
+                                get = true
+                                genericProbe = true
+                            }
+                        } else {
+                            get = true
+                            genericProbe = true
+                        }
                     }
                 } else {
                     if data.count > 2 {
@@ -171,39 +198,82 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }
         }
         if get {
+            if genericProbe {
+                genericProbePeripheralIDs.insert(peripheral.identifier)
+                genericProbeInFlight.insert(peripheral.identifier)
+            }
             self.peripherals.append(peripheral)
             self.centralManager.connect(peripheral, options: nil)
         }
     }
+
+    private func rejectGenericProbe(_ peripheral: CBPeripheral, reason: String) {
+        let identifier = peripheral.identifier
+        guard genericProbePeripheralIDs.contains(identifier) else { return }
+        genericProbeRejected.insert(identifier)
+        genericProbeInFlight.remove(identifier)
+        genericProbePeripheralIDs.remove(identifier)
+        if let index = self.peripherals.firstIndex(of: peripheral) {
+            self.peripherals.remove(at: index)
+        }
+        centralManager.cancelPeripheralConnection(peripheral)
+        print("ℹ️ Skipping future BLE battery probes for \(peripheral.name ?? identifier.uuidString): \(reason)")
+    }
+
+    private func finishGenericProbe(_ peripheral: CBPeripheral) {
+        let identifier = peripheral.identifier
+        genericProbeInFlight.remove(identifier)
+        genericProbePeripheralIDs.remove(identifier)
+    }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
-        guard let services = peripheral.services else { return }
+        if error != nil {
+            rejectGenericProbe(peripheral, reason: "service discovery failed")
+            return
+        }
+        guard let services = peripheral.services else {
+            rejectGenericProbe(peripheral, reason: "no services discovered")
+            return
+        }
+
+        if genericProbePeripheralIDs.contains(peripheral.identifier) &&
+            !services.contains(where: { $0.uuid == CBUUID(string: "180F") }) {
+            rejectGenericProbe(peripheral, reason: "no Battery Service")
+            return
+        }
+
         for service in services {
             peripheral.discoverCharacteristics(nil, for: service)
         }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        //guard let name = peripheral.name else { return }
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
-        guard let characteristics = service.characteristics else { return }
-        var clear = true
-        if service.uuid == CBUUID(string: "180F") || service.uuid == CBUUID(string: "180A") {
-            for characteristic in characteristics {
-                if characteristic.uuid == CBUUID(string: "2A19") || characteristic.uuid == CBUUID(string: "2A24") || characteristic.uuid == CBUUID(string: "2A29") {
-                    clear = false
-                    peripheral.readValue(for: characteristic)
-                }
+        if error != nil {
+            if service.uuid == CBUUID(string: "180F") {
+                rejectGenericProbe(peripheral, reason: "battery characteristic discovery failed")
+            }
+            return
+        }
+        guard let characteristics = service.characteristics else {
+            if service.uuid == CBUUID(string: "180F") {
+                rejectGenericProbe(peripheral, reason: "Battery Service has no characteristics")
+            }
+            return
+        }
+
+        if service.uuid == CBUUID(string: "180F") {
+            guard let batteryLevel = characteristics.first(where: { $0.uuid == CBUUID(string: "2A19") }) else {
+                rejectGenericProbe(peripheral, reason: "Battery Service has no Battery Level characteristic")
+                return
+            }
+            peripheral.readValue(for: batteryLevel)
+        } else if service.uuid == CBUUID(string: "180A") {
+            for characteristic in characteristics where
+                characteristic.uuid == CBUUID(string: "2A24") ||
+                characteristic.uuid == CBUUID(string: "2A29") {
+                peripheral.readValue(for: characteristic)
             }
         }
-        if clear { if let index = self.peripherals.firstIndex(of: peripheral) { self.peripherals.remove(at: index) } }
-        
     }
     
     //电量信息
@@ -225,6 +295,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                     //if level < lastLevel { charging = 0 }
                 }
                 bleDevicesLevel[deviceName] = data[0]
+                finishGenericProbe(peripheral)
                 if var device = AirBatteryModel.getByName(deviceName) {
                     device.deviceID = peripheral.identifier.uuidString
                     device.batteryLevel = level
