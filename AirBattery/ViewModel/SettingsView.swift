@@ -210,6 +210,7 @@ struct NearbilityView: View {
 
 struct DeviceDiscoveryView: View {
     @AppStorage("readBLEDevice") private var readBLEDevice = false
+    @AppStorage("ideviceOverBLE") private var ideviceOverBLE = false
     @AppStorage("bleDiscoveryMode") private var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
 
@@ -381,8 +382,10 @@ struct DeviceDiscoveryView: View {
 
     private func needsReview(_ candidate: BLEDiscoveryCandidate) -> Bool {
         guard discoveryMode == .review else { return false }
+        guard readBLEDevice || ideviceOverBLE else { return false }
         guard policyStore.explicitPolicy(identifier: candidate.identifier) == nil else { return false }
         guard candidate.seenCount >= 3 else { return false }
+        guard !candidate.hasPassiveBatteryData else { return false }
         return candidate.matchesPairedName ||
             candidate.advertisesBatteryService ||
             candidate.lastProbeResult != nil
@@ -396,6 +399,7 @@ struct DeviceDiscoveryView: View {
         ]
         if candidate.matchesPairedName { parts.append("name matches paired device") }
         if candidate.advertisesBatteryService { parts.append("battery service advertised") }
+        if candidate.hasPassiveBatteryData { parts.append("passive battery data") }
         if !candidate.isConnectable { parts.append("not connectable") }
         return parts.joined(separator: " · ")
     }
