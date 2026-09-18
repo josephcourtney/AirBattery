@@ -86,24 +86,24 @@ import Foundation
 import CoreBluetooth
 
 enum BLEDiscoveryMode: String, CaseIterable, Codable {
-    case pairedOnly
+    case passive
     case review
     case automatic
 
     var title: String {
         switch self {
-        case .pairedOnly: return "Paired devices only"
-        case .review: return "Ask before probing"
+        case .passive: return "Observe unless allowed"
+        case .review: return "Suggest before probing"
         case .automatic: return "Automatically probe"
         }
     }
 
     var detail: String {
         switch self {
-        case .pairedOnly:
-            return "AirBattery may connect to devices already paired with this Mac. Unknown devices stay passive."
+        case .passive:
+            return "Unknown devices remain passive. Only devices explicitly set to Allow may be queried."
         case .review:
-            return "Unknown devices stay passive until you explicitly allow battery queries."
+            return "Unknown devices remain passive. AirBattery highlights stable candidates for you to review and allow."
         case .automatic:
             return "AirBattery may connect to newly discovered BLE devices automatically. Failed probes are not retried this launch."
         }
@@ -141,7 +141,7 @@ struct BLEDiscoveryCandidate: Hashable, Identifiable {
     var seenCount: Int
     var isConnectable: Bool
     var advertisesBatteryService: Bool
-    var isPaired: Bool
+    var matchesPairedName: Bool
     var lastProbeResult: String?
 
     var id: String { identifier }
@@ -193,7 +193,7 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         rssi: Int,
         isConnectable: Bool,
         advertisesBatteryService: Bool,
-        isPaired: Bool
+        matchesPairedName: Bool
     ) {
         guard explicitPolicy(identifier: identifier) != .ignore else { return }
         let now = Date()
@@ -205,7 +205,8 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
             candidates[index].isConnectable = isConnectable
             candidates[index].advertisesBatteryService =
                 candidates[index].advertisesBatteryService || advertisesBatteryService
-            candidates[index].isPaired = candidates[index].isPaired || isPaired
+            candidates[index].matchesPairedName =
+                candidates[index].matchesPairedName || matchesPairedName
         } else {
             candidates.append(
                 BLEDiscoveryCandidate(
@@ -217,7 +218,7 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
                     seenCount: 1,
                     isConnectable: isConnectable,
                     advertisesBatteryService: advertisesBatteryService,
-                    isPaired: isPaired,
+                    matchesPairedName: matchesPairedName,
                     lastProbeResult: nil
                 )
             )
@@ -241,16 +242,13 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
 
     func effectivePolicy(
         identifier: String,
-        mode: BLEDiscoveryMode,
-        isPaired: Bool
+        mode: BLEDiscoveryMode
     ) -> BLEDevicePolicy {
         if let explicit = explicitPolicy(identifier: identifier) {
             return explicit
         }
         switch mode {
-        case .pairedOnly:
-            return isPaired ? .allow : .observe
-        case .review:
+        case .passive, .review:
             return .observe
         case .automatic:
             return .allow
@@ -258,10 +256,12 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 
     var reviewCount: Int {
-        candidates.filter { candidate in
+        let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
+        guard mode == .review else { return 0 }
+        return candidates.filter { candidate in
             guard explicitPolicy(identifier: candidate.identifier) == nil else { return false }
             guard candidate.seenCount >= 3 else { return false }
-            return candidate.isPaired ||
+            return candidate.matchesPairedName ||
                 candidate.advertisesBatteryService ||
                 candidate.lastProbeResult != nil
         }.count
@@ -279,7 +279,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     //@AppStorage("cStatusOfBLE") var cStatusOfBLE = false
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
-    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.pairedOnly.rawValue
+    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @AppStorage("updateInterval") var updateInterval = 1
     @AppStorage("twsMerge") var twsMerge = 5
     
@@ -375,16 +375,15 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             rssi: RSSI.intValue,
             isConnectable: isConnectable,
             advertisesBatteryService: advertisesBatteryService,
-            isPaired: isPaired
+            matchesPairedName: isPaired
         )
 
         if discoveryPolicy.explicitPolicy(identifier: identifier) == .ignore { return }
 
-        let mode = BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .pairedOnly
+        let mode = BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
         let activePolicy = discoveryPolicy.effectivePolicy(
             identifier: identifier,
-            mode: mode,
-            isPaired: isPaired
+            mode: mode
         )
 
         if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
