@@ -308,7 +308,7 @@ struct DeviceDiscoveryView: View {
             Spacer()
             policyPicker(
                 identifier: rule.identifier,
-                name: rule.name,
+                name: rule.name
             )
             Button {
                 policyStore.clearPolicy(identifier: rule.identifier)
@@ -351,14 +351,14 @@ struct DeviceDiscoveryView: View {
             Spacer()
             policyPicker(
                 identifier: candidate.identifier,
-                name: candidate.name,
+                name: candidate.name
             )
         }
     }
 
     private func policyPicker(
         identifier: String,
-        name: String,
+        name: String
     ) -> some View {
         Picker(
             "",
@@ -385,6 +385,7 @@ struct DeviceDiscoveryView: View {
     }
 
     private func needsReview(_ candidate: BLEDiscoveryCandidate) -> Bool {
+        guard discoveryMode == .review else { return false }
         guard policyStore.explicitPolicy(identifier: candidate.identifier) == nil else { return false }
         guard candidate.seenCount >= 3 else { return false }
         return candidate.matchesPairedName ||
