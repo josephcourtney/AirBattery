@@ -423,7 +423,7 @@ func getMacDeviceType() -> String {
 
 func getMacDeviceUUID() -> String? {
     let dev = IOServiceMatching("IOPlatformExpertDevice")
-    let platformExpert: io_service_t = IOServiceGetMatchingService(kIOMasterPortDefault, dev)
+    let platformExpert: io_service_t = IOServiceGetMatchingService(kIOMainPortDefault, dev)
     if platformExpert != 0 {
         if let serialNumberAsCFString = IORegistryEntryCreateCFProperty(platformExpert, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)?.takeUnretainedValue() {
             IOObjectRelease(platformExpert)
@@ -808,7 +808,7 @@ func getDeviceIcon(_ d: Device) -> String {
         return "airpodspro.case.fill"
     case "mac", "applevirtualmachine1":
         return "display"
-    case "macbook", "macbookpro", "macbookair":
+    case "macbook", "macbookpro", "macbookair","macbookneo":
         if let icon = macBookList[macID] { return icon }
         return "macbook"
     case "macmini":
