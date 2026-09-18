@@ -268,10 +268,11 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             }
             peripheral.readValue(for: batteryLevel)
         } else if service.uuid == CBUUID(string: "180A") {
-            for characteristic in characteristics where
-                characteristic.uuid == CBUUID(string: "2A24") ||
-                characteristic.uuid == CBUUID(string: "2A29") {
-                peripheral.readValue(for: characteristic)
+            for characteristic in characteristics {
+                if characteristic.uuid == CBUUID(string: "2A24") ||
+                    characteristic.uuid == CBUUID(string: "2A29") {
+                    peripheral.readValue(for: characteristic)
+                }
             }
         }
     }
@@ -284,10 +285,17 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         //if !blockedItems.contains(name) && whitelistMode { return }
         
         if characteristic.uuid == CBUUID(string: "2A19"){
-            if let data = characteristic.value, let deviceName = peripheral.name {
+            if error != nil {
+                rejectGenericProbe(peripheral, reason: "battery level read failed")
+                return
+            }
+            if let data = characteristic.value, !data.isEmpty, let deviceName = peripheral.name {
                 let now = Date().timeIntervalSince1970
                 let level = Int(data[0])
-                if level > 100 { return }
+                if level > 100 {
+                    rejectGenericProbe(peripheral, reason: "invalid battery level")
+                    return
+                }
                 var charging = 0
                 //if let lastLevel = bleDevicesLevel[deviceName], cStatusOfBLE {
                 if let lastLevel = bleDevicesLevel[deviceName] {
@@ -306,6 +314,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                     let device = Device(deviceID: peripheral.identifier.uuidString, deviceType: getType(deviceName), deviceName: deviceName, batteryLevel: level, isCharging: charging, lastUpdate: now)
                     AirBatteryModel.updateDevice(device)
                 }
+            } else {
+                rejectGenericProbe(peripheral, reason: "battery level missing")
             }
         }
         
