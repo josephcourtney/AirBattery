@@ -12,6 +12,7 @@ import AppKit
 struct SettingsView: View {
     @State private var selectedItem: String? = "General"
     @AppStorage("showDebug") var showDebug: Bool = false
+    @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
     
     var body: some View {
         NavigationView {
@@ -31,8 +32,21 @@ struct SettingsView: View {
                 NavigationLink(destination: WidgetView(), tag: "Widget", selection: $selectedItem) {
                     Label("Widget", image: "widget")
                 }
-                NavigationLink(destination: BlacklistView(), tag: "Blocklist", selection: $selectedItem) {
-                    Label("Blocklist", image: "blacklist")
+                NavigationLink(destination: DeviceDiscoveryView(), tag: "Device Discovery", selection: $selectedItem) {
+                    HStack {
+                        Label("Device Discovery", image: "nearbility")
+                        Spacer()
+                        if discoveryPolicy.reviewCount > 0 {
+                            Text("\(discoveryPolicy.reviewCount)")
+                                .font(.caption2)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                        }
+                    }
+                }
+                NavigationLink(destination: BlacklistView(), tag: "Visibility Filter", selection: $selectedItem) {
+                    Label("Visibility Filter", image: "blacklist")
                 }
                 if showDebug {
                     NavigationLink(destination: DebugView(selectedItem: $selectedItem), tag: "Debug", selection: $selectedItem) {
@@ -134,6 +148,7 @@ struct NearbilityView: View {
     @AppStorage("ideviceOverBLE") var ideviceOverBLE = false
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
+    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.pairedOnly.rawValue
     @AppStorage("readPencil") var readPencil = false
     @AppStorage("readIDevice") var readIDevice = true
     @AppStorage("readBTHID") var readBTHID = true
@@ -151,13 +166,23 @@ struct NearbilityView: View {
                 Divider().opacity(0.5)
                 SToggle("Discover more BT devices", isOn: $readBTHID, tips: "Get the battery usage of more third-party Bluetooth devices\n\nBattery data will be updated when devices are reconnected to the Mac or the Mac wakes up.")
                 Divider().opacity(0.5)
-                SToggle("Discover more BLE devices", isOn: $readBLEDevice, tips: "Try to get the battery usage of any Bluetooth device that AirBattery can find\n\nWARNING: This is a BETA feature and may cause unexpected errors!")
-                    .foregroundColor(.orange)
-                    .onChange(of: readBLEDevice) { newValue in
-                        if newValue {
-                            _ = createAlert(title: "AirBattery Tips".local, message: "If you see a bluetooth pairing request from any device that isn't yours, add it to your blocklist!".local, button1: "OK").runModal()
+                SToggle(
+                    "Discover more BLE devices",
+                    isOn: $readBLEDevice,
+                    tips: "Passively observe nearby BLE devices and, when policy permits, query their standard battery service."
+                )
+                if readBLEDevice {
+                    Divider().opacity(0.5)
+                    SPicker(
+                        "Active BLE probing",
+                        selection: $bleDiscoveryMode,
+                        tips: "Controls when AirBattery may actively connect to a newly discovered BLE device. Passive AirPods and Beats battery advertisements do not require probing."
+                    ) {
+                        ForEach(BLEDiscoveryMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.title).tag(mode.rawValue)
                         }
                     }
+                }
                 Divider().opacity(0.5)
                 SToggle("Apple Pencil from your iPad", isOn: $readPencil, tips: "Read the battery status of the connected Apple Pencil through your iPad\n(It may take 10 minutes or longer to discover the Pencil for the first time)\n\nWARNING: This is a BETA feature and may drain your iPad's battery faster!")
                     .foregroundColor(.orange)
@@ -178,6 +203,202 @@ struct NearbilityView: View {
                 SSteper("Earbud Merging Threshold", value: $twsMerge, min: 1, max: 99, tips: "If the difference in battery usage between the left and right earbuds is less than this value, AirBattery will show them as one device.")
             }
         }
+    }
+}
+
+
+struct DeviceDiscoveryView: View {
+    @AppStorage("readBLEDevice") private var readBLEDevice = false
+    @AppStorage("bleDiscoveryMode") private var bleDiscoveryMode = BLEDiscoveryMode.pairedOnly.rawValue
+    @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
+
+    private var discoveryMode: BLEDiscoveryMode {
+        BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .pairedOnly
+    }
+
+    var body: some View {
+        ScrollView {
+            SForm(noSpacer: true) {
+                SGroupBox(label: "Connection Policy") {
+                    SToggle(
+                        "Discover more BLE devices",
+                        isOn: $readBLEDevice,
+                        tips: "Nearby BLE devices are observed passively. Active battery queries follow the policy below."
+                    )
+                    Divider().opacity(0.5)
+                    SPicker("Active BLE probing", selection: $bleDiscoveryMode) {
+                        ForEach(BLEDiscoveryMode.allCases, id: \.rawValue) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    HStack {
+                        Text(discoveryMode.detail)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+
+                SGroupBox(label: "Known Devices") {
+                    if policyStore.rules.isEmpty {
+                        HStack {
+                            Text("No device-specific connection rules.")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        ForEach(policyStore.rules) { rule in
+                            deviceRuleRow(rule)
+                            if rule.id != policyStore.rules.last?.id {
+                                Divider().opacity(0.5)
+                            }
+                        }
+                    }
+                }
+
+                SGroupBox(label: "Nearby Devices") {
+                    HStack {
+                        Text("Observed passively during this AirBattery launch.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if !policyStore.candidates.isEmpty {
+                            Button("Clear") { policyStore.clearNearby() }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+
+                    if policyStore.candidates.isEmpty {
+                        HStack {
+                            Text("No nearby BLE devices observed yet.")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        ForEach(Array(policyStore.candidates.prefix(30))) { candidate in
+                            candidateRow(candidate)
+                            if candidate.id != policyStore.candidates.prefix(30).last?.id {
+                                Divider().opacity(0.5)
+                            }
+                        }
+                    }
+                }
+
+                SGroupBox(label: "Visibility") {
+                    HStack {
+                        Text("The separate Visibility Filter remains name-based and controls whether devices are shown. Discovery policy controls whether AirBattery may actively connect.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func deviceRuleRow(_ rule: BLEDeviceRule) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rule.name)
+                Text(shortIdentifier(rule.identifier))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            policyPicker(
+                identifier: rule.identifier,
+                name: rule.name,
+                isPaired: false
+            )
+            Button {
+                policyStore.clearPolicy(identifier: rule.identifier)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Use the default discovery policy")
+        }
+    }
+
+    @ViewBuilder
+    private func candidateRow(_ candidate: BLEDiscoveryCandidate) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(candidate.name)
+                    if needsReview(candidate) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 6))
+                            .foregroundColor(.orange)
+                            .help("Suggested for review")
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text("\(candidate.rssi) dBm")
+                    Text("seen \(candidate.seenCount)×")
+                    if candidate.isPaired { Text("paired") }
+                    if candidate.advertisesBatteryService { Text("battery service") }
+                    if !candidate.isConnectable { Text("passive only") }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                if let result = candidate.lastProbeResult {
+                    Text(result)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
+            policyPicker(
+                identifier: candidate.identifier,
+                name: candidate.name,
+                isPaired: candidate.isPaired
+            )
+        }
+    }
+
+    private func policyPicker(
+        identifier: String,
+        name: String,
+        isPaired: Bool
+    ) -> some View {
+        Picker(
+            "",
+            selection: Binding(
+                get: {
+                    policyStore.effectivePolicy(
+                        identifier: identifier,
+                        mode: discoveryMode,
+                        isPaired: isPaired
+                    ).rawValue
+                },
+                set: { rawValue in
+                    guard let policy = BLEDevicePolicy(rawValue: rawValue) else { return }
+                    policyStore.setPolicy(identifier: identifier, name: name, policy: policy)
+                }
+            )
+        ) {
+            ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
+                Text(policy.title).tag(policy.rawValue)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .frame(width: 115)
+    }
+
+    private func needsReview(_ candidate: BLEDiscoveryCandidate) -> Bool {
+        guard policyStore.explicitPolicy(identifier: candidate.identifier) == nil else { return false }
+        guard candidate.seenCount >= 3 else { return false }
+        return candidate.isPaired ||
+            candidate.advertisesBatteryService ||
+            candidate.lastProbeResult != nil
+    }
+
+    private func shortIdentifier(_ identifier: String) -> String {
+        guard identifier.count > 13 else { return identifier }
+        return "\(identifier.prefix(8))…\(identifier.suffix(4))"
     }
 }
 
@@ -393,7 +614,7 @@ struct BlacklistView: View {
     
     var body: some View {
         SForm(noSpacer: true) {
-            SGroupBox(label: "Blocklist") {
+            SGroupBox(label: "Visibility Filter") {
                     SToggle("Allowlist Mode", isOn: $whitelistMode)
                     Divider().opacity(0.5)
                     HStack {
