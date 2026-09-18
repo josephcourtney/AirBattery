@@ -148,7 +148,7 @@ struct NearbilityView: View {
     @AppStorage("ideviceOverBLE") var ideviceOverBLE = false
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
-    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.pairedOnly.rawValue
+    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @AppStorage("readPencil") var readPencil = false
     @AppStorage("readIDevice") var readIDevice = true
     @AppStorage("readBTHID") var readBTHID = true
@@ -209,11 +209,11 @@ struct NearbilityView: View {
 
 struct DeviceDiscoveryView: View {
     @AppStorage("readBLEDevice") private var readBLEDevice = false
-    @AppStorage("bleDiscoveryMode") private var bleDiscoveryMode = BLEDiscoveryMode.pairedOnly.rawValue
+    @AppStorage("bleDiscoveryMode") private var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
 
     private var discoveryMode: BLEDiscoveryMode {
-        BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .pairedOnly
+        BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
     }
 
     var body: some View {
@@ -309,7 +309,6 @@ struct DeviceDiscoveryView: View {
             policyPicker(
                 identifier: rule.identifier,
                 name: rule.name,
-                isPaired: false
             )
             Button {
                 policyStore.clearPolicy(identifier: rule.identifier)
@@ -337,7 +336,7 @@ struct DeviceDiscoveryView: View {
                 HStack(spacing: 6) {
                     Text("\(candidate.rssi) dBm")
                     Text("seen \(candidate.seenCount)×")
-                    if candidate.isPaired { Text("paired") }
+                    if candidate.matchesPairedName { Text("paired-name match") }
                     if candidate.advertisesBatteryService { Text("battery service") }
                     if !candidate.isConnectable { Text("passive only") }
                 }
@@ -353,7 +352,6 @@ struct DeviceDiscoveryView: View {
             policyPicker(
                 identifier: candidate.identifier,
                 name: candidate.name,
-                isPaired: candidate.isPaired
             )
         }
     }
@@ -361,7 +359,6 @@ struct DeviceDiscoveryView: View {
     private func policyPicker(
         identifier: String,
         name: String,
-        isPaired: Bool
     ) -> some View {
         Picker(
             "",
@@ -369,8 +366,7 @@ struct DeviceDiscoveryView: View {
                 get: {
                     policyStore.effectivePolicy(
                         identifier: identifier,
-                        mode: discoveryMode,
-                        isPaired: isPaired
+                        mode: discoveryMode
                     ).rawValue
                 },
                 set: { rawValue in
@@ -391,7 +387,7 @@ struct DeviceDiscoveryView: View {
     private func needsReview(_ candidate: BLEDiscoveryCandidate) -> Bool {
         guard policyStore.explicitPolicy(identifier: candidate.identifier) == nil else { return false }
         guard candidate.seenCount >= 3 else { return false }
-        return candidate.isPaired ||
+        return candidate.matchesPairedName ||
             candidate.advertisesBatteryService ||
             candidate.lastProbeResult != nil
     }
