@@ -141,6 +141,7 @@ struct BLEDiscoveryCandidate: Hashable, Identifiable {
     var seenCount: Int
     var isConnectable: Bool
     var advertisesBatteryService: Bool
+    var hasPassiveBatteryData: Bool
     var matchesPairedName: Bool
     var lastProbeResult: String?
 
@@ -193,6 +194,7 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         rssi: Int,
         isConnectable: Bool,
         advertisesBatteryService: Bool,
+        hasPassiveBatteryData: Bool,
         matchesPairedName: Bool
     ) {
         guard explicitPolicy(identifier: identifier) != .ignore else { return }
@@ -205,6 +207,8 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
             candidates[index].isConnectable = isConnectable
             candidates[index].advertisesBatteryService =
                 candidates[index].advertisesBatteryService || advertisesBatteryService
+            candidates[index].hasPassiveBatteryData =
+                candidates[index].hasPassiveBatteryData || hasPassiveBatteryData
             candidates[index].matchesPairedName =
                 candidates[index].matchesPairedName || matchesPairedName
         } else {
@@ -218,6 +222,7 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
                     seenCount: 1,
                     isConnectable: isConnectable,
                     advertisesBatteryService: advertisesBatteryService,
+                    hasPassiveBatteryData: hasPassiveBatteryData,
                     matchesPairedName: matchesPairedName,
                     lastProbeResult: nil
                 )
@@ -258,9 +263,11 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     var reviewCount: Int {
         let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
         guard mode == .review else { return 0 }
+        guard ud.bool(forKey: "readBLEDevice") || ud.bool(forKey: "ideviceOverBLE") else { return 0 }
         return candidates.filter { candidate in
             guard explicitPolicy(identifier: candidate.identifier) == nil else { return false }
             guard candidate.seenCount >= 3 else { return false }
+            guard !candidate.hasPassiveBatteryData else { return false }
             return candidate.matchesPairedName ||
                 candidate.advertisesBatteryService ||
                 candidate.lastProbeResult != nil
@@ -367,6 +374,12 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         let isPaired = pairedDeviceNames.contains(deviceName)
         let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         let advertisesBatteryService = serviceUUIDs.contains(CBUUID(string: "180F"))
+        let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+        let hasPassiveBatteryData = manufacturerData.map { data in
+            data.count > 2 &&
+                data[0] == 76 &&
+                ((data.count == 25 && data[2] == 18) || (data.count == 29 && data[2] == 7))
+        } ?? false
         let isConnectable = (advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue ?? true
 
         discoveryPolicy.recordObservation(
@@ -375,6 +388,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             rssi: RSSI.intValue,
             isConnectable: isConnectable,
             advertisesBatteryService: advertisesBatteryService,
+            hasPassiveBatteryData: hasPassiveBatteryData,
             matchesPairedName: isPaired
         )
 
@@ -386,7 +400,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             mode: mode
         )
 
-        if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
+        if let data = manufacturerData, data.count > 0 {
             if data[0] != 76 {
                 // Generic BLE devices are always discovered passively first.
                 // An active connection is made only when the effective policy allows it.
