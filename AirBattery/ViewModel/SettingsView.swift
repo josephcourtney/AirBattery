@@ -12,6 +12,7 @@ import AppKit
 struct SettingsView: View {
     @State private var selectedItem: String? = "General"
     @AppStorage("showDebug") var showDebug: Bool = false
+    @AppStorage("bleDiscoveryMode") private var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
     
     var body: some View {
@@ -45,8 +46,8 @@ struct SettingsView: View {
                         }
                     }
                 }
-                NavigationLink(destination: BlacklistView(), tag: "Visibility Filter", selection: $selectedItem) {
-                    Label("Visibility Filter", image: "blacklist")
+                NavigationLink(destination: BlacklistView(), tag: "Name Filter", selection: $selectedItem) {
+                    Label("Name Filter", image: "blacklist")
                 }
                 if showDebug {
                     NavigationLink(destination: DebugView(selectedItem: $selectedItem), tag: "Debug", selection: $selectedItem) {
@@ -284,9 +285,9 @@ struct DeviceDiscoveryView: View {
                     }
                 }
 
-                SGroupBox(label: "Visibility") {
+                SGroupBox(label: "Precedence") {
                     HStack {
-                        Text("The separate Visibility Filter remains name-based and controls whether devices are shown. Discovery policy controls whether AirBattery may actively connect.")
+                        Text("The broad Name Filter is applied first and can exclude matching devices from discovery entirely. For devices that pass it, the exact rule here controls whether AirBattery may actively connect.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -334,6 +335,7 @@ struct DeviceDiscoveryView: View {
                     }
                 }
                 HStack(spacing: 6) {
+                    Text(shortIdentifier(candidate.identifier))
                     Text("\(candidate.rssi) dBm")
                     Text("seen \(candidate.seenCount)×")
                     if candidate.matchesPairedName { Text("paired-name match") }
@@ -611,12 +613,12 @@ struct BlacklistView: View {
     
     var body: some View {
         SForm(noSpacer: true) {
-            SGroupBox(label: "Visibility Filter") {
+            SGroupBox(label: "Name Filter") {
                     SToggle("Allowlist Mode", isOn: $whitelistMode)
                     Divider().opacity(0.5)
                     HStack {
                         Spacer()
-                        Text(whitelistMode ? "Only the following devices will be showed" : "The following devices will be ignored")
+                        Text(whitelistMode ? "Only matching device names pass this filter" : "Matching device names are excluded from discovery and display")
                             .foregroundColor(.secondary)
                         Spacer()
                     }
