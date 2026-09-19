@@ -437,7 +437,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     @AppStorage("readBLEDevice") var readBLEDevice = false
     @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @AppStorage("updateInterval") var updateInterval = 1
-    @AppStorage("twsMerge") var twsMerge = 5
     
     var centralManager: CBCentralManager!
     var peripherals: [CBPeripheral?] = []
@@ -839,14 +838,38 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             if !["Airpods Max", "Beats Solo Pro", "Beats Solo 3", "Beats Studio Pro"].contains(model) {
                 if caseLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName + " (Case)".local, deviceModel: model, batteryLevel: Int(caseLevel), isCharging: caseCharging, lastUpdate: now)) }
                 
-                if leftLevel != 255 && rightLevel != 255 && (abs(Int(leftLevel) - Int(rightLevel)) < twsMerge) && leftCharging == rightCharging {
-                    AirBatteryModel.hideDevice(deviceName + " 🄻")
-                    AirBatteryModel.hideDevice(deviceName + " 🅁")
-                    AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_All", deviceType: "ap_pod_all", deviceName: deviceName + " 🄻🅁", deviceModel: model, batteryLevel: Int(min(leftLevel, rightLevel)), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now))
-                } else {
-                    AirBatteryModel.hideDevice(deviceName + " 🄻🅁")
-                    if leftLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Left", deviceType: "ap_pod_left", deviceName: deviceName + " 🄻", deviceModel: model, batteryLevel: Int(leftLevel), isCharging: leftCharging, isHidden: false, parentName: deviceName + " (Case)".local ,lastUpdate: now)) }
-                    if rightLevel != 255 { AirBatteryModel.updateDevice(Device(deviceID: deviceID + "_Right", deviceType: "ap_pod_right", deviceName: deviceName + " 🅁", deviceModel: model, batteryLevel: Int(rightLevel), isCharging: rightCharging, isHidden: false, parentName: deviceName + " (Case)".local, lastUpdate: now)) }
+                // Keep the physical component readings as the source of truth.
+                // Earbud merging is a presentation choice and must never discard L/R values.
+                AirBatteryModel.hideDevice(deviceName + " 🄻🅁")
+                if leftLevel != 255 {
+                    AirBatteryModel.updateDevice(
+                        Device(
+                            deviceID: deviceID + "_Left",
+                            deviceType: "ap_pod_left",
+                            deviceName: deviceName + " 🄻",
+                            deviceModel: model,
+                            batteryLevel: Int(leftLevel),
+                            isCharging: leftCharging,
+                            isHidden: false,
+                            parentName: deviceName + " (Case)".local,
+                            lastUpdate: now
+                        )
+                    )
+                }
+                if rightLevel != 255 {
+                    AirBatteryModel.updateDevice(
+                        Device(
+                            deviceID: deviceID + "_Right",
+                            deviceType: "ap_pod_right",
+                            deviceName: deviceName + " 🅁",
+                            deviceModel: model,
+                            batteryLevel: Int(rightLevel),
+                            isCharging: rightCharging,
+                            isHidden: false,
+                            parentName: deviceName + " (Case)".local,
+                            lastUpdate: now
+                        )
+                    )
                 }
             } else {
                 if model == "Beats Studio Pro" {

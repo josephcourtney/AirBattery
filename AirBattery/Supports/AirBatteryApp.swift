@@ -50,6 +50,9 @@ struct AirBatteryApp: App {
                                 w.titlebarAppearsTransparent = false
                                 w.isOpaque = true
                                 w.backgroundColor = .windowBackgroundColor
+                                w.styleMask.insert(.resizable)
+                                w.contentMinSize = NSSize(width: 720, height: 520)
+                                w.setFrameAutosaveName("AirBatterySettingsWindow")
                                 guard let nsSplitView = findNSSplitVIew(view: w.contentView),
                                       let controller = nsSplitView.delegate as? NSSplitViewController else { return }
                                 controller.splitViewItems.first?.canCollapse = false
@@ -125,7 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     ncDeviceCount += count
                 }
             }
-            let localRowCount = max(allDevices.count, 1)
+            let localRowCount = max(AirBatteryModel.groupedDisplayRowCount(allDevices), 1)
             let menuHeight = CGFloat((max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 44 + ncCount)
             let mouse = NSEvent.mouseLocation
             var menuX = mouse.x
@@ -382,7 +385,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 ncDeviceCount += count
             }
         }
-        let localRowCount = max(allDevices.count, 1)
+        let localRowCount = max(AirBatteryModel.groupedDisplayRowCount(allDevices), 1)
         contentView.frame = NSRect(
             x: 0,
             y: 0,
