@@ -54,7 +54,7 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .padding(.top, 9)
         }
-        .frame(width: 720, height: 520)
+        .frame(minWidth: 720, idealWidth: 900, minHeight: 520, idealHeight: 700)
         .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("AirBattery Settings")
     }
@@ -150,6 +150,7 @@ struct DiscoveryView: View {
     @AppStorage("readIDevice") private var readIDevice = true
     @AppStorage("readBTHID") private var readBTHID = true
     @AppStorage("updateInterval") private var updateInterval = 1
+    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
 
     private var discoveryMode: BLEDiscoveryMode {
@@ -245,13 +246,24 @@ struct DiscoveryView: View {
                         }
                     }
                     Divider().opacity(0.5)
-                    SSteper(
-                        "Earbud merging threshold",
-                        value: $twsMerge,
-                        min: 1,
-                        max: 99,
-                        tips: "When left and right earbud percentages differ by less than this amount, AirBattery may report a combined earbud measurement. The UI still keeps the measurements logically grouped."
-                    )
+                    SPicker(
+                        "Earbud merging",
+                        selection: $twsMergeEnabled,
+                        tips: "When off, left and right battery levels are always shown separately. When enabled, they are merged only when both charging states match and their battery levels are within the configured threshold."
+                    ) {
+                        Text("Off").tag(false)
+                        Text("Within threshold").tag(true)
+                    }
+                    if twsMergeEnabled {
+                        Divider().opacity(0.5)
+                        SSteper(
+                            "Merge threshold (%)",
+                            value: $twsMerge,
+                            min: 0,
+                            max: 99,
+                            tips: "Merge left and right earbud levels when their difference is at most this percentage."
+                        )
+                    }
                 }
             }
         }
@@ -274,6 +286,8 @@ struct DevicesView: View {
     @State private var expandedKnown: Set<String> = []
     @State private var expandedNearby: Set<String> = []
     @State private var showOtherNearby = false
+    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
+    @AppStorage("twsMerge") private var twsMerge = 5
 
     var body: some View {
         ScrollView {
@@ -347,7 +361,24 @@ struct DevicesView: View {
                 }
             )
         ) {
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 9) {
+                if let group = AirBatteryModel.airPodsGroup(observedAs: device.name) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Battery components")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                        airPodsComponentRows(group)
+                    }
+                    if !device.identities.isEmpty {
+                        Divider().opacity(0.5)
+                        Text("Bluetooth identities")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 if device.identities.isEmpty {
                     Text("Not observed during this launch.")
                         .font(.caption)
@@ -531,7 +562,10 @@ struct DevicesView: View {
     private func logicalDeviceSummary(_ device: BLELogicalDeviceSnapshot) -> String {
         var parts: [String] = []
         let batteryDevices = AirBatteryModel.batteryDevices(observedAs: device.name)
-        if let newest = batteryDevices.max(by: { $0.lastUpdate < $1.lastUpdate }) {
+
+        if let group = AirBatteryModel.airPodsGroup(observedAs: device.name) {
+            parts.append(airPodsBatterySummary(group))
+        } else if let newest = batteryDevices.max(by: { $0.lastUpdate < $1.lastUpdate }) {
             parts.append("Battery reading \(relativeAge(newest.lastUpdate))")
         } else if device.identities.contains(where: \.hasPassiveBatteryData) {
             parts.append("Battery advertisement seen; no retained reading")
@@ -549,6 +583,83 @@ struct DevicesView: View {
             parts.append("not observed this launch")
         }
         return parts.joined(separator: " · ")
+    }
+
+    private func airPodsBatterySummary(_ group: AirPodsBatteryGroup) -> String {
+        var parts: [String] = []
+        if let caseDevice = group.caseDevice {
+            parts.append("Case \(caseDevice.batteryLevel)%")
+        }
+
+        if let merged = group.mergedEarbudLevel(enabled: twsMergeEnabled, threshold: twsMerge) {
+            parts.append("Earbuds \(merged)%")
+        } else {
+            if let left = group.leftEarbud {
+                parts.append("L \(left.batteryLevel)%")
+            }
+            if let right = group.rightEarbud {
+                parts.append("R \(right.batteryLevel)%")
+            }
+            if group.leftEarbud == nil,
+               group.rightEarbud == nil,
+               let legacy = group.legacyMergedEarbuds {
+                parts.append("Earbuds \(legacy.batteryLevel)%")
+            }
+        }
+
+        return parts.isEmpty ? "No battery reading" : parts.joined(separator: " · ")
+    }
+
+    @ViewBuilder
+    private func airPodsComponentRows(_ group: AirPodsBatteryGroup) -> some View {
+        if let caseDevice = group.caseDevice {
+            batteryComponentRow("Case", device: caseDevice)
+        }
+
+        if let merged = group.mergedEarbudLevel(enabled: twsMergeEnabled, threshold: twsMerge) {
+            HStack {
+                Text("Earbuds")
+                    .frame(width: 82, alignment: .leading)
+                Text("\(merged)%")
+                if group.mergedEarbudCharging(enabled: twsMergeEnabled, threshold: twsMerge) != 0 {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption2)
+                }
+                Text("merged")
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .font(.caption)
+        } else {
+            if let left = group.leftEarbud {
+                batteryComponentRow("Left", device: left)
+            }
+            if let right = group.rightEarbud {
+                batteryComponentRow("Right", device: right)
+            }
+            if group.leftEarbud == nil,
+               group.rightEarbud == nil,
+               let legacy = group.legacyMergedEarbuds {
+                batteryComponentRow("Earbuds", device: legacy)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func batteryComponentRow(_ label: String, device: Device) -> some View {
+        HStack {
+            Text(label)
+                .frame(width: 82, alignment: .leading)
+            Text("\(device.batteryLevel)%")
+            if device.isCharging != 0 {
+                Image(systemName: "bolt.fill")
+                    .font(.caption2)
+            }
+            Text(relativeAge(device.lastUpdate))
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+        .font(.caption)
     }
 
     private func candidatePrimarySummary(_ candidate: BLEDiscoveryCandidate) -> String {
