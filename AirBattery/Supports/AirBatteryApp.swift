@@ -125,11 +125,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     ncDeviceCount += count
                 }
             }
-            let groupedChildCount = allDevices.filter { item in
-                !item.parentName.isEmpty &&
-                    allDevices.contains { $0.deviceName == item.parentName && $0.deviceType == "ap_case" }
-            }.count
-            let localRowCount = max(allDevices.count - groupedChildCount, 1)
+            let localRowCount = max(allDevices.count, 1)
             let menuHeight = CGFloat((max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 44 + ncCount)
             let mouse = NSEvent.mouseLocation
             var menuX = mouse.x
@@ -386,11 +382,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 ncDeviceCount += count
             }
         }
-        let groupedChildCount = allDevices.filter { item in
-            !item.parentName.isEmpty &&
-                allDevices.contains { $0.deviceName == item.parentName && $0.deviceType == "ap_case" }
-        }.count
-        let localRowCount = max(allDevices.count - groupedChildCount, 1)
+        let localRowCount = max(allDevices.count, 1)
         contentView.frame = NSRect(
             x: 0,
             y: 0,
