@@ -341,32 +341,31 @@ struct popover: View {
                             }
                         }
                 }
-                HStack(spacing: 4) {
-                    if fromDock {
-                        PopoverToolbarButton(systemName: "minus.circle.fill", help: "Hide".local, hoverColor: .myYellow) {
-                            dockWindow.orderOut(nil)
+                HStack(spacing: 2) {
+                    if !fromDock {
+                        PopoverToolbarButton(
+                            systemName: "xmark.circle.fill",
+                            help: "Quit AirBattery".local,
+                            hoverColor: .red
+                        ) {
+                            NSApp.terminate(self)
                         }
                     } else {
-                        PopoverToolbarButton(systemName: "xmark.circle.fill", help: "Close".local) {
-                            menuPopover.performClose(nil)
+                        PopoverToolbarButton(
+                            systemName: "minus.circle.fill",
+                            help: "Hide".local,
+                            hoverColor: .myYellow
+                        ) {
+                            dockWindow.orderOut(nil)
                         }
                     }
 
-                    Spacer()
-
-                    if nearCast {
-                        PopoverToolbarButton(systemName: "antenna.radiowaves.left.and.right.circle", help: "Refresh Nearcast".local) {
-                            netcastService.refeshAll()
-                            if fromDock {
-                                dockWindow.orderOut(nil)
-                            } else {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    allDevices = AirBatteryModel.getAll()
-                                    let ibStatus = InternalBattery.status
-                                    if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
-                                    allNearcast = getFiles(withExtension: "json", in: ncFolder)
-                                }
-                            }
+                    PopoverToolbarButton(systemName: "info.circle.fill", help: "About AirBattery".local) {
+                        dockWindow.orderOut(nil)
+                        statusBarItem.menu?.cancelTracking()
+                        openAboutPanel()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            NSApp.activate(ignoringOtherApps: true)
                         }
                     }
 
@@ -376,28 +375,28 @@ struct popover: View {
                         openSettingPanel()
                     }
 
-                    Menu {
-                        Button("About AirBattery") {
-                            dockWindow.orderOut(nil)
-                            statusBarItem.menu?.cancelTracking()
-                            openAboutPanel()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                NSApp.activate(ignoringOtherApps: true)
+                    Spacer()
+
+                    if nearCast {
+                        PopoverToolbarButton(
+                            systemName: "antenna.radiowaves.left.and.right.circle",
+                            help: "Refresh Nearcast".local
+                        ) {
+                            netcastService.refeshAll()
+                            if fromDock {
+                                dockWindow.orderOut(nil)
+                            } else {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    allDevices = AirBatteryModel.getAll()
+                                    let ibStatus = InternalBattery.status
+                                    if ibStatus.hasBattery {
+                                        allDevices.insert(ib2ab(ibStatus), at: 0)
+                                    }
+                                    allNearcast = getFiles(withExtension: "json", in: ncFolder)
+                                }
                             }
                         }
-                        Divider()
-                        Button("Quit AirBattery") {
-                            NSApp.terminate(self)
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 15, weight: .regular))
-                            .frame(width: 28, height: 28)
-                            .foregroundColor(.secondary)
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("More")
                 }
                 .padding(.top, fromDock ? 8 : 6)
                 .padding(.bottom, 4)
