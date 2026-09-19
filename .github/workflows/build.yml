@@ -17,3 +17,6 @@ jobs:
 
       - name: Build
         run: just ci
+
+      - name: Verify signed local build
+        run: just build-signed
