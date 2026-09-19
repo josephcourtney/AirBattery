@@ -108,12 +108,20 @@ build-signed configuration="Debug":
       printf 'Re-signing with: %s\n' "$identity"; \
       if [[ -n "$team" ]]; then printf 'Development team: %s\n' "$team"; fi; \
       sign_one() { \
-        /usr/bin/codesign \
-          --force \
-          --sign "$identity" \
-          --timestamp=none \
-          --preserve-metadata=identifier,entitlements,flags,runtime \
-          "$1"; \
+        if /usr/bin/codesign -d "$1" >/dev/null 2>&1; then \
+          /usr/bin/codesign \
+            --force \
+            --sign "$identity" \
+            --timestamp=none \
+            --preserve-metadata=identifier,entitlements,flags,runtime \
+            "$1"; \
+        else \
+          /usr/bin/codesign \
+            --force \
+            --sign "$identity" \
+            --timestamp=none \
+            "$1"; \
+        fi; \
       }; \
       while IFS=$'\t' read -r _ path; do \
         [[ -n "$path" ]] && sign_one "$path"; \
