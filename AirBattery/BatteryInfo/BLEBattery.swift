@@ -85,11 +85,208 @@ import SwiftUI
 import Foundation
 import CoreBluetooth
 
+enum BLEDiscoveryMode: String, CaseIterable, Codable {
+    case passive
+    case review
+    case automatic
+
+    var title: String {
+        switch self {
+        case .passive: return "Observe unless allowed"
+        case .review: return "Suggest before probing"
+        case .automatic: return "Automatically probe"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .passive:
+            return "Unknown devices remain passive. Only devices explicitly set to Allow may be queried."
+        case .review:
+            return "Unknown devices remain passive. AirBattery highlights stable candidates for you to review and allow."
+        case .automatic:
+            return "AirBattery may connect to newly discovered BLE devices automatically. Failed probes are not retried this launch."
+        }
+    }
+}
+
+enum BLEDevicePolicy: String, CaseIterable, Codable {
+    case allow
+    case observe
+    case ignore
+
+    var title: String {
+        switch self {
+        case .allow: return "Allow"
+        case .observe: return "Observe only"
+        case .ignore: return "Ignore"
+        }
+    }
+}
+
+struct BLEDeviceRule: Codable, Hashable, Identifiable {
+    let identifier: String
+    var name: String
+    var policy: BLEDevicePolicy
+
+    var id: String { identifier }
+}
+
+struct BLEDiscoveryCandidate: Hashable, Identifiable {
+    let identifier: String
+    var name: String
+    var rssi: Int
+    var firstSeen: Date
+    var lastSeen: Date
+    var seenCount: Int
+    var isConnectable: Bool
+    var advertisesBatteryService: Bool
+    var hasPassiveBatteryData: Bool
+    var matchesPairedName: Bool
+    var lastProbeResult: String?
+
+    var id: String { identifier }
+}
+
+final class BLEDiscoveryPolicyStore: ObservableObject {
+    static let shared = BLEDiscoveryPolicyStore()
+
+    @Published private(set) var rules: [BLEDeviceRule]
+    @Published private(set) var candidates: [BLEDiscoveryCandidate] = []
+
+    private let rulesKey = "bleDevicePolicyRules"
+
+    private init() {
+        if let data = ud.data(forKey: rulesKey),
+           let storedRules = try? JSONDecoder().decode([BLEDeviceRule].self, from: data) {
+            rules = storedRules
+        } else {
+            rules = []
+        }
+    }
+
+    func explicitPolicy(identifier: String) -> BLEDevicePolicy? {
+        rules.first(where: { $0.identifier == identifier })?.policy
+    }
+
+    func setPolicy(identifier: String, name: String, policy: BLEDevicePolicy) {
+        if let index = rules.firstIndex(where: { $0.identifier == identifier }) {
+            rules[index].name = name
+            rules[index].policy = policy
+        } else {
+            rules.append(BLEDeviceRule(identifier: identifier, name: name, policy: policy))
+        }
+        rules.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        saveRules()
+        if policy == .ignore {
+            candidates.removeAll(where: { $0.identifier == identifier })
+        }
+    }
+
+    func clearPolicy(identifier: String) {
+        rules.removeAll(where: { $0.identifier == identifier })
+        saveRules()
+    }
+
+    func recordObservation(
+        identifier: String,
+        name: String,
+        rssi: Int,
+        isConnectable: Bool,
+        advertisesBatteryService: Bool,
+        hasPassiveBatteryData: Bool,
+        matchesPairedName: Bool
+    ) {
+        guard explicitPolicy(identifier: identifier) != .ignore else { return }
+        let now = Date()
+        if let index = candidates.firstIndex(where: { $0.identifier == identifier }) {
+            candidates[index].name = name
+            candidates[index].rssi = rssi
+            candidates[index].lastSeen = now
+            candidates[index].seenCount += 1
+            candidates[index].isConnectable = isConnectable
+            candidates[index].advertisesBatteryService =
+                candidates[index].advertisesBatteryService || advertisesBatteryService
+            candidates[index].hasPassiveBatteryData =
+                candidates[index].hasPassiveBatteryData || hasPassiveBatteryData
+            candidates[index].matchesPairedName =
+                candidates[index].matchesPairedName || matchesPairedName
+        } else {
+            candidates.append(
+                BLEDiscoveryCandidate(
+                    identifier: identifier,
+                    name: name,
+                    rssi: rssi,
+                    firstSeen: now,
+                    lastSeen: now,
+                    seenCount: 1,
+                    isConnectable: isConnectable,
+                    advertisesBatteryService: advertisesBatteryService,
+                    hasPassiveBatteryData: hasPassiveBatteryData,
+                    matchesPairedName: matchesPairedName,
+                    lastProbeResult: nil
+                )
+            )
+        }
+
+        candidates = Array(
+            candidates
+                .sorted { $0.lastSeen > $1.lastSeen }
+                .prefix(100)
+        )
+    }
+
+    func recordProbeResult(identifier: String, result: String) {
+        guard let index = candidates.firstIndex(where: { $0.identifier == identifier }) else { return }
+        candidates[index].lastProbeResult = result
+    }
+
+    func clearNearby() {
+        candidates.removeAll()
+    }
+
+    func effectivePolicy(
+        identifier: String,
+        mode: BLEDiscoveryMode
+    ) -> BLEDevicePolicy {
+        if let explicit = explicitPolicy(identifier: identifier) {
+            return explicit
+        }
+        switch mode {
+        case .passive, .review:
+            return .observe
+        case .automatic:
+            return .allow
+        }
+    }
+
+    var reviewCount: Int {
+        let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
+        guard mode == .review else { return 0 }
+        guard ud.bool(forKey: "readBLEDevice") || ud.bool(forKey: "ideviceOverBLE") else { return 0 }
+        return candidates.filter { candidate in
+            guard explicitPolicy(identifier: candidate.identifier) == nil else { return false }
+            guard candidate.seenCount >= 3 else { return false }
+            guard !candidate.hasPassiveBatteryData else { return false }
+            return candidate.matchesPairedName ||
+                candidate.advertisesBatteryService ||
+                candidate.lastProbeResult != nil
+        }.count
+    }
+
+    private func saveRules() {
+        if let data = try? JSONEncoder().encode(rules) {
+            ud.set(data, forKey: rulesKey)
+        }
+    }
+}
+
 class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     @AppStorage("ideviceOverBLE") var ideviceOverBLE = false
     //@AppStorage("cStatusOfBLE") var cStatusOfBLE = false
     @AppStorage("readBTDevice") var readBTDevice = true
     @AppStorage("readBLEDevice") var readBLEDevice = false
+    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
     @AppStorage("updateInterval") var updateInterval = 1
     @AppStorage("twsMerge") var twsMerge = 5
     
@@ -99,6 +296,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
     var scanTimer: Timer?
+    private let discoveryPolicy = BLEDiscoveryPolicyStore.shared
+    private var pairedDeviceNames: Set<String> = []
 
     // Generic BLE discovery may require an active connection, which can trigger
     // a macOS pairing prompt. Remember failed/non-battery probes for this app
@@ -135,6 +334,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     @objc func scan(longScan: Bool = false) {
         if centralManager.state == .poweredOn && !centralManager.isScanning {
+            pairedDeviceNames = Set(getPaired())
             centralManager.scanForPeripherals(withServices: nil, options: nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + (longScan ? 15.0 : 5.0)) {
                 self.stopScan()
@@ -165,38 +365,86 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         var get = false
         var genericProbe = false
         let now = Double(Date().timeIntervalSince1970)
-        if let deviceName = peripheral.name{
-            if AirBatteryModel.checkIfBlocked(name: deviceName) { return }
-            if let data = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data, data.count > 0 {
-                if data[0] != 76 {
-                    //获取非Apple的普通BLE设备数据
-                    if readBLEDevice &&
-                        !genericProbeRejected.contains(peripheral.identifier) &&
-                        !genericProbeInFlight.contains(peripheral.identifier) {
-                        if let device = AirBatteryModel.getByName(deviceName) {
-                            if now - device.lastUpdate > Double(60 * updateInterval) {
-                                get = true
-                                genericProbe = true
-                            }
-                        } else {
+        let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        guard let deviceName = peripheral.name ?? advertisedName, !deviceName.isEmpty else { return }
+
+        if AirBatteryModel.checkIfBlocked(name: deviceName) { return }
+
+        let identifier = peripheral.identifier.uuidString
+        let isPaired = pairedDeviceNames.contains(deviceName)
+        let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
+        let advertisesBatteryService = serviceUUIDs.contains(CBUUID(string: "180F"))
+        let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+        let hasPassiveBatteryData = manufacturerData.map { data in
+            data.count > 2 &&
+                data[0] == 76 &&
+                ((data.count == 25 && data[2] == 18) || (data.count == 29 && data[2] == 7))
+        } ?? false
+        let isConnectable = (advertisementData[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue ?? true
+
+        discoveryPolicy.recordObservation(
+            identifier: identifier,
+            name: deviceName,
+            rssi: RSSI.intValue,
+            isConnectable: isConnectable,
+            advertisesBatteryService: advertisesBatteryService,
+            hasPassiveBatteryData: hasPassiveBatteryData,
+            matchesPairedName: isPaired
+        )
+
+        if discoveryPolicy.explicitPolicy(identifier: identifier) == .ignore { return }
+
+        let mode = BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
+        let activePolicy = discoveryPolicy.effectivePolicy(
+            identifier: identifier,
+            mode: mode
+        )
+
+        if let data = manufacturerData, data.count > 0 {
+            if data[0] != 76 {
+                // Generic BLE devices are always discovered passively first.
+                // An active connection is made only when the effective policy allows it.
+                if readBLEDevice &&
+                    activePolicy == .allow &&
+                    isConnectable &&
+                    !genericProbeRejected.contains(peripheral.identifier) &&
+                    !genericProbeInFlight.contains(peripheral.identifier) {
+                    if let device = AirBatteryModel.getByName(deviceName) {
+                        if now - device.lastUpdate > Double(60 * updateInterval) {
                             get = true
                             genericProbe = true
                         }
+                    } else {
+                        get = true
+                        genericProbe = true
                     }
-                } else {
-                    if data.count > 2 {
-                        //获取ios个人热点广播数据
-                        if [16, 12].contains(data[2]) && !otherAppleDevices.contains(deviceName) && ideviceOverBLE {
-                            if let device = AirBatteryModel.getByName(deviceName), let _ = device.deviceModel { if now - device.lastUpdate > Double(60 * updateInterval) { get = true } } else { get = true }
-                        }
-                        //获取Airpods合盖状态消息
-                        if data.count == 25 && data[2] == 18 && readBTDevice { getAirpods(peripheral: peripheral, data: data, messageType: "close") }
-                        //获取Airpods开盖状态消息
-                        if data.count == 29 && data[2] == 7 && readBTDevice { getAirpods(peripheral: peripheral, data: data, messageType: "open") }
+                }
+            } else if data.count > 2 {
+                // iOS-over-BLE can also require an active connection, so it follows
+                // the same per-device permission policy.
+                if [16, 12].contains(data[2]) &&
+                    !otherAppleDevices.contains(deviceName) &&
+                    ideviceOverBLE &&
+                    activePolicy == .allow &&
+                    isConnectable {
+                    if let device = AirBatteryModel.getByName(deviceName), device.deviceModel != nil {
+                        if now - device.lastUpdate > Double(60 * updateInterval) { get = true }
+                    } else {
+                        get = true
                     }
+                }
+
+                // AirPods and Beats battery advertisements are passive and remain
+                // available in Observe-only mode.
+                if data.count == 25 && data[2] == 18 && readBTDevice {
+                    getAirpods(peripheral: peripheral, data: data, messageType: "close")
+                }
+                if data.count == 29 && data[2] == 7 && readBTDevice {
+                    getAirpods(peripheral: peripheral, data: data, messageType: "open")
                 }
             }
         }
+
         if get {
             if genericProbe {
                 genericProbePeripheralIDs.insert(peripheral.identifier)
@@ -212,6 +460,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         guard genericProbePeripheralIDs.contains(identifier) else { return }
         genericProbeRejected.insert(identifier)
         genericProbeInFlight.remove(identifier)
+        discoveryPolicy.recordProbeResult(identifier: identifier.uuidString, result: reason)
         genericProbePeripheralIDs.remove(identifier)
         if let index = self.peripherals.firstIndex(of: peripheral) {
             self.peripherals.remove(at: index)
@@ -224,6 +473,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         let identifier = peripheral.identifier
         genericProbeInFlight.remove(identifier)
         genericProbePeripheralIDs.remove(identifier)
+        discoveryPolicy.recordProbeResult(identifier: identifier.uuidString, result: "Battery query succeeded")
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
