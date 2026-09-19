@@ -239,10 +239,15 @@ class AirBatteryModel {
     
     static func checkIfBlocked(name: String) -> Bool {
         let whitelistMode = ud.bool(forKey: "whitelistMode")
-        let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        if (blockedItems.contains(name) && !whitelistMode) || (!blockedItems.contains(name) && whitelistMode) {
-            return true
+        let filteredNames = (ud.object(forKey: "blockedDevices") as? [String]) ?? []
+
+        if whitelistMode {
+            // An empty allowlist should not make Bluetooth discovery silently
+            // discard every device. Treat it as no broad name filter until at
+            // least one allowed name is configured.
+            return !filteredNames.isEmpty && !filteredNames.contains(name)
         }
-        return false
+
+        return filteredNames.contains(name)
     }
 }
