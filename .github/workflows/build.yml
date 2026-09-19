@@ -12,18 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Xcode version
-        run: xcodebuild -version
-
-      - name: Resolve packages
-        run: xcodebuild -resolvePackageDependencies -project AirBattery.xcodeproj -scheme AirBattery
+      - name: Install just
+        run: brew install just
 
       - name: Build
-        run: >
-          xcodebuild
-          -project AirBattery.xcodeproj
-          -scheme AirBattery
-          -configuration Debug
-          -destination 'platform=macOS'
-          CODE_SIGNING_ALLOWED=NO
-          build
+        run: just ci
