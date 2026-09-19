@@ -230,17 +230,30 @@ struct doubleRowBatteryWidgetEntryView: View {
     private func shortDeviceLabel(_ item: Device) -> String {
         if item.deviceID == "@MacInternalBattery" { return "Mac" }
         switch item.deviceType {
-        case "ap_case": return "Case"
-        case "ap_pod_left": return "L"
-        case "ap_pod_right": return "R"
-        case "ap_pod_all": return "L/R"
+        case "ap_case":
+            if item.deviceName.contains("(Case)") { return "Case" }
+        case "ap_pod_left":
+            return "L"
+        case "ap_pod_right":
+            return "R"
+        case "ap_pod_all":
+            return "L/R"
         default:
-            let name = item.deviceName
-                .replacingOccurrences(of: "Joseph’s ", with: "")
-                .replacingOccurrences(of: "Joseph's ", with: "")
-            if name.count <= 9 { return name }
-            return String(name.prefix(8)) + "…"
+            break
         }
+
+        var name = item.deviceName
+        for separator in ["’s ", "'s "] {
+            if let range = name.range(of: separator) {
+                name = String(name[range.upperBound...])
+                break
+            }
+        }
+        if let range = name.range(of: " ("), name.hasSuffix(")") {
+            name = String(name[..<range.lowerBound])
+        }
+        if name.count <= 9 { return name }
+        return String(name.prefix(8)) + "…"
     }
 }
 
@@ -378,8 +391,8 @@ struct batteryWidget2New: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Batteries")
-        .description("Displays the battery usage of a specific device")
+        .configurationDisplayName("Single Battery")
+        .description("Displays one selected device from AirBattery")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemSmall])
     }
@@ -395,8 +408,8 @@ struct batteryWidget2: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Batteries")
-        .description("More ways to displays battery usage for your devices")
+        .configurationDisplayName("Battery Rings")
+        .description("Displays up to eight labeled device batteries")
         .disableContentMarginsIfNeeded()
         .supportFamily()
     }
