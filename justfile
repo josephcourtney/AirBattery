@@ -215,15 +215,18 @@ install-local configuration="Debug":
 stop:
     @/usr/bin/pkill -TERM -x AirBattery >/dev/null 2>&1 || true
     @/usr/bin/pkill -TERM -x AirBatteryHelper >/dev/null 2>&1 || true
+    @/usr/bin/pkill -TERM -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
     @for _ in 1 2 3 4 5 6 7 8 9 10; do \
       if ! /usr/bin/pgrep -x AirBattery >/dev/null 2>&1 && \
-         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1; then \
+         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1 && \
+         ! /usr/bin/pgrep -x AirBatteryWidgetExtension >/dev/null 2>&1; then \
         exit 0; \
       fi; \
       /bin/sleep 0.1; \
     done; \
     /usr/bin/pkill -KILL -x AirBattery >/dev/null 2>&1 || true; \
-    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true
+    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true; \
+    /usr/bin/pkill -KILL -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
 
 # Stop existing instances, install, and launch exactly one signed local build.
 # Launching the containing app allows macOS to register its WidgetKit extension.
@@ -253,8 +256,16 @@ bluetooth-diagnose:
       /usr/bin/codesign -d -r- "$app" 2>&1; \
       printf '%s\n' '--- Signature verification ---'; \
       /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"; \
+      printf '%s\n' '--- Bluetooth-related preferences ---'; \
+      for key in whitelistMode blockedDevices readBTDevice readBLEDevice ideviceOverBLE bleDiscoveryMode readBTHID; do \
+        printf '%s=' "$key"; \
+        /usr/bin/defaults read "{{app_bundle_id}}" "$key" 2>/dev/null || echo '<unset>'; \
+      done; \
       printf '%s\n' '--- Running processes ---'; \
-      /usr/bin/pgrep -alf 'AirBattery|AirBatteryHelper' || true; \
+      /usr/bin/pgrep -alf 'AirBattery|AirBatteryHelper|AirBatteryWidgetExtension' || true; \
+      printf '%s\n' '--- Recent Bluetooth/BLE logs ---'; \
+      /usr/bin/log show --last 10m --style compact --predicate 'process == "AirBattery"' 2>/dev/null | \
+        /usr/bin/grep -E 'Bluetooth|BLE|permission|scanning' | /usr/bin/tail -n 80 || true; \
       printf '%s\n' '--- Available signing identities ---'; \
       /usr/bin/security find-identity -v -p codesigning
 
