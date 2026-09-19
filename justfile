@@ -108,6 +108,7 @@ build-signed configuration="Debug":
       printf 'Re-signing with: %s\n' "$identity"; \
       if [[ -n "$team" ]]; then printf 'Development team: %s\n' "$team"; fi; \
       sign_one() { \
+        printf 'Signing code object: %s\n' "$1"; \
         if /usr/bin/codesign -d "$1" >/dev/null 2>&1; then \
           /usr/bin/codesign \
             --force \
@@ -126,9 +127,9 @@ build-signed configuration="Debug":
       while IFS=$'\t' read -r _ path; do \
         [[ -n "$path" ]] && sign_one "$path"; \
       done < <( \
-        /usr/bin/find "$app/Contents" -type f -print0 | \
+        /usr/bin/find -L "$app/Contents" -type f -print0 | \
           while IFS= read -r -d '' path; do \
-            if /usr/bin/file "$path" | /usr/bin/grep -q 'Mach-O'; then \
+            if /usr/bin/file -L "$path" | /usr/bin/grep -q 'Mach-O'; then \
               slashes="${path//[^\\/]/}"; \
               depth="${#slashes}"; \
               printf '%s\t%s\n' "$depth" "$path"; \
