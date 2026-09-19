@@ -377,11 +377,6 @@ struct popover: View {
                     }
 
                     Menu {
-                        Button("Settings") {
-                            dockWindow.orderOut(nil)
-                            statusBarItem.menu?.cancelTracking()
-                            openSettingPanel()
-                        }
                         Button("About AirBattery") {
                             dockWindow.orderOut(nil)
                             statusBarItem.menu?.cancelTracking()
