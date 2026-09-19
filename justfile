@@ -121,7 +121,8 @@ build-signed configuration="Debug":
         /usr/bin/find "$app/Contents" -type f -print0 | \
           while IFS= read -r -d '' path; do \
             if /usr/bin/file "$path" | /usr/bin/grep -q 'Mach-O'; then \
-              depth="$(( ${#path} - ${#path//\//} ))"; \
+              slashes="${path//[^\\/]/}"; \
+              depth="${#slashes}"; \
               printf '%s\t%s\n' "$depth" "$path"; \
             fi; \
           done | /usr/bin/sort -rn \
@@ -133,7 +134,8 @@ build-signed configuration="Debug":
           \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' -o -name '*.bundle' \) \
           -print | \
           while IFS= read -r path; do \
-            depth="$(( ${#path} - ${#path//\//} ))"; \
+            slashes="${path//[^\\/]/}"; \
+            depth="${#slashes}"; \
             printf '%s\t%s\n' "$depth" "$path"; \
           done | /usr/bin/sort -rn \
       ); \
