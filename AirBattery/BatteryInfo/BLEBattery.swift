@@ -470,7 +470,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         case .allowedAlways:
             break
         case .notDetermined:
-            print("ℹ️ Bluetooth permission has not been decided yet.")
+            print("ℹ️ Bluetooth permission has not been decided yet; starting discovery so macOS can resolve authorization.")
         case .denied:
             print("⚠️ Bluetooth permission is denied for AirBattery.")
         case .restricted:
@@ -479,7 +479,12 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             print("⚠️ Unknown Bluetooth authorization state: \(authorization.rawValue)")
         }
 
-        if central.state == .poweredOn && authorization == .allowedAlways {
+        // The central manager state is the authoritative indication that the
+        // adapter is usable. Do not require .allowedAlways here: on macOS the
+        // authorization value can still be .notDetermined when the manager is
+        // already powered on, and beginning CoreBluetooth use is what allows
+        // the system to resolve/request that permission.
+        if central.state == .poweredOn {
             scan(longScan: true)
         }
     }
