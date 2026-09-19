@@ -53,6 +53,44 @@ struct Device: Hashable, Codable {
     }
 }
 
+
+struct AirPodsBatteryGroup: Hashable {
+    let name: String
+    let caseDevice: Device?
+    let leftEarbud: Device?
+    let rightEarbud: Device?
+    let legacyMergedEarbuds: Device?
+
+    var components: [Device] {
+        [caseDevice, leftEarbud, rightEarbud].compactMap { $0 }
+    }
+
+    var componentCount: Int {
+        components.count
+    }
+
+    func mergedEarbudLevel(enabled: Bool, threshold: Int) -> Int? {
+        guard enabled,
+              let leftEarbud,
+              let rightEarbud,
+              leftEarbud.isCharging == rightEarbud.isCharging,
+              abs(leftEarbud.batteryLevel - rightEarbud.batteryLevel) <= threshold
+        else {
+            return nil
+        }
+        return min(leftEarbud.batteryLevel, rightEarbud.batteryLevel)
+    }
+
+    func mergedEarbudCharging(enabled: Bool, threshold: Int) -> Int? {
+        guard mergedEarbudLevel(enabled: enabled, threshold: threshold) != nil,
+              let leftEarbud
+        else {
+            return nil
+        }
+        return leftEarbud.isCharging
+    }
+}
+
 class AirBatteryModel {
     static var lock = false
     static var Devices: [Device] = []
@@ -103,6 +141,71 @@ class AirBatteryModel {
 
     private static func normalizedObservationName(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func airPodsBaseName(for device: Device) -> String? {
+        guard device.deviceType == "ap_case" || device.deviceType.hasPrefix("ap_pod") else {
+            return nil
+        }
+
+        var name = device.deviceType.hasPrefix("ap_pod") && !device.parentName.isEmpty
+            ? device.parentName
+            : device.deviceName
+        for suffix in [" (Case)", "（充电盒）", " 🄻🅁", " 🄻", " 🅁"] where name.hasSuffix(suffix) {
+            name.removeLast(suffix.count)
+        }
+        return name
+    }
+
+    static func airPodsGroup(for device: Device, in devices: [Device]) -> AirPodsBatteryGroup? {
+        guard let baseName = airPodsBaseName(for: device) else { return nil }
+        let matching = devices.filter { candidate in
+            guard let candidateBase = airPodsBaseName(for: candidate) else { return false }
+            return normalizedObservationName(candidateBase) == normalizedObservationName(baseName)
+        }
+
+        let caseDevice = matching.first {
+            $0.deviceType == "ap_case" &&
+                ($0.deviceName.hasSuffix(" (Case)") || $0.deviceName.hasSuffix("（充电盒）"))
+        }
+        let left = matching.first { $0.deviceType == "ap_pod_left" }
+        let right = matching.first { $0.deviceType == "ap_pod_right" }
+        let legacyMerged = matching.first { $0.deviceType == "ap_pod_all" }
+
+        guard caseDevice != nil, left != nil || right != nil || legacyMerged != nil else {
+            return nil
+        }
+        return AirPodsBatteryGroup(
+            name: baseName,
+            caseDevice: caseDevice,
+            leftEarbud: left,
+            rightEarbud: right,
+            legacyMergedEarbuds: legacyMerged
+        )
+    }
+
+    static func airPodsGroup(observedAs name: String) -> AirPodsBatteryGroup? {
+        let devices = getAll(noFilter: true)
+        guard let representative = devices.first(where: {
+            guard let base = airPodsBaseName(for: $0) else { return false }
+            return normalizedObservationName(base) == normalizedObservationName(name)
+        }) else {
+            return nil
+        }
+        return airPodsGroup(for: representative, in: devices)
+    }
+
+    static func isAirPodsSecondaryRow(_ device: Device, in devices: [Device]) -> Bool {
+        guard device.deviceType.hasPrefix("ap_pod"),
+              airPodsGroup(for: device, in: devices) != nil
+        else {
+            return false
+        }
+        return true
+    }
+
+    static func groupedDisplayRowCount(_ devices: [Device]) -> Int {
+        devices.filter { !isAirPodsSecondaryRow($0, in: devices) }.count
     }
     
     static func updateDevice(_ device: Device) {
