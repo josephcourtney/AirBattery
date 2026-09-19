@@ -80,44 +80,75 @@ release: (build "Release")
 signing-identities:
     @/usr/bin/security find-identity -v -p codesigning
 
-# Build local app targets using Xcode automatic development signing.
-# The first installed Apple Development certificate supplies the team ID unless
-# DEVELOPMENT_TEAM is set explicitly. Do not force CODE_SIGN_IDENTITY globally:
-# that leaks into Swift Package targets and breaks their build/signing behavior.
+# Build with Xcode's reliable ad-hoc path, then re-sign every nested code object
+# from the inside out with a stable Apple Development identity. This avoids
+# Xcode account/provisioning requirements while giving TCC a persistent signer.
+# Set SIGNING_IDENTITY explicitly to override discovery; '-' is for CI only.
 build-signed configuration="Debug":
-    @mkdir -p "{{derived_data}}"
-    @team="${DEVELOPMENT_TEAM:-}"; \
-      identity=""; \
-      if [[ -z "$team" ]]; then \
-        identity="$(/usr/bin/security find-identity -v -p codesigning | \
+    just build-adhoc "{{configuration}}"
+    @requested="{{signing_identity}}"; \
+      team=""; \
+      if [[ -n "$requested" ]]; then \
+        identity="$requested"; \
+      else \
+        match="$(/usr/bin/security find-identity -v -p codesigning | \
           /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*\(([A-Z0-9]{10})\))"$/\1|\2/p' | \
           /usr/bin/head -n 1)"; \
-        if [[ -z "$identity" ]]; then \
+        if [[ -z "$match" ]]; then \
           printf '%s\n' \
             "No Apple Development signing identity is installed." \
             "Run 'just signing-identities' to inspect available identities." >&2; \
           exit 1; \
         fi; \
-        team="${identity##*|}"; \
-        identity="${identity%|*}"; \
+        team="${match##*|}"; \
+        identity="${match%|*}"; \
       fi; \
-      printf 'Development team: %s\n' "$team"; \
-      if [[ -n "$identity" ]]; then printf 'Certificate: %s\n' "$identity"; fi; \
-      xcodebuild \
-        -project "{{project}}" \
-        -scheme "{{scheme}}" \
-        -configuration "{{configuration}}" \
-        -destination 'platform=macOS' \
-        -derivedDataPath "{{derived_data}}" \
-        -allowProvisioningUpdates \
-        CODE_SIGNING_ALLOWED=YES \
-        CODE_SIGNING_REQUIRED=YES \
-        DEVELOPMENT_TEAM="$team" \
-        build
+      app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
+      test -d "$app" || { echo "Missing $app after ad-hoc build." >&2; exit 1; }; \
+      printf 'Re-signing with: %s\n' "$identity"; \
+      if [[ -n "$team" ]]; then printf 'Development team: %s\n' "$team"; fi; \
+      sign_one() { \
+        /usr/bin/codesign \
+          --force \
+          --sign "$identity" \
+          --timestamp=none \
+          --preserve-metadata=identifier,entitlements,flags,runtime \
+          "$1"; \
+      }; \
+      while IFS=$'\t' read -r _ path; do \
+        [[ -n "$path" ]] && sign_one "$path"; \
+      done < <( \
+        /usr/bin/find "$app/Contents" -type f -print0 | \
+          while IFS= read -r -d '' path; do \
+            if /usr/bin/file "$path" | /usr/bin/grep -q 'Mach-O'; then \
+              depth="$(( ${#path} - ${#path//\//} ))"; \
+              printf '%s\t%s\n' "$depth" "$path"; \
+            fi; \
+          done | /usr/bin/sort -rn \
+      ); \
+      while IFS=$'\t' read -r _ path; do \
+        [[ -n "$path" ]] && sign_one "$path"; \
+      done < <( \
+        /usr/bin/find "$app/Contents" -type d \
+          \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' -o -name '*.bundle' \) \
+          -print | \
+          while IFS= read -r path; do \
+            depth="$(( ${#path} - ${#path//\//} ))"; \
+            printf '%s\t%s\n' "$depth" "$path"; \
+          done | /usr/bin/sort -rn \
+      ); \
+      sign_one "$app"; \
+      if [[ "$identity" != "-" ]]; then \
+        actual_team="$(/usr/bin/codesign -dvv "$app" 2>&1 | /usr/bin/sed -n 's/^TeamIdentifier=//p')"; \
+        if [[ -n "$team" && "$actual_team" != "$team" ]]; then \
+          echo "Expected TeamIdentifier=$team, got $actual_team" >&2; \
+          exit 1; \
+        fi; \
+      fi
     just verify-signing "{{configuration}}"
 
-# Build all products ad-hoc. Intended for CI only; do not use this for local
-# testing of Bluetooth or other TCC-protected resources.
+# Build all products ad-hoc. This is the stable Xcode build path and the first
+# stage of build-signed. Do not install it directly for TCC-sensitive testing.
 build-adhoc configuration="Debug":
     @mkdir -p "{{derived_data}}"
     xcodebuild \
