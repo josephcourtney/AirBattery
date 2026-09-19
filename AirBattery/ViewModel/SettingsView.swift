@@ -450,8 +450,7 @@ struct DevicesView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(shortIdentifier(candidate.identifier))
-                    .font(.caption)
-                    .monospaced()
+                    .font(.system(.caption, design: .monospaced))
                 Spacer()
                 Menu {
                     ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
