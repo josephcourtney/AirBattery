@@ -19,4 +19,4 @@ jobs:
         run: just ci
 
       - name: Verify signed local build
-        run: just build-signed
+        run: SIGNING_IDENTITY=- just build-signed
