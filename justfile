@@ -121,12 +121,27 @@ install-local configuration="Debug":
       codesign --verify --deep --strict --verbose=2 "$dst"; \
       printf '%s\n' "$dst"
 
-# Install and launch the signed local development build.
+# Stop every locally running AirBattery app/helper process.
+# TERM first for a clean shutdown; force-kill anything that does not exit.
+stop:
+    @/usr/bin/pkill -TERM -x AirBattery >/dev/null 2>&1 || true
+    @/usr/bin/pkill -TERM -x AirBatteryHelper >/dev/null 2>&1 || true
+    @for _ in 1 2 3 4 5 6 7 8 9 10; do \
+      if ! /usr/bin/pgrep -x AirBattery >/dev/null 2>&1 && \
+         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1; then \
+        exit 0; \
+      fi; \
+      /bin/sleep 0.1; \
+    done; \
+    /usr/bin/pkill -KILL -x AirBattery >/dev/null 2>&1 || true; \
+    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true
+
+# Stop existing instances, install, and launch exactly one signed local build.
 # Launching the containing app allows macOS to register its WidgetKit extension.
 run configuration="Debug":
+    just stop
     just install-local "{{configuration}}"
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      /usr/bin/pkill -x AirBattery >/dev/null 2>&1 || true; \
       /usr/bin/open "$install_dir/AirBattery.app"
 
 # Show whether macOS currently knows about the AirBattery WidgetKit extension.
@@ -135,8 +150,8 @@ widget-status:
 
 # Remove the locally installed development build.
 uninstall-local:
+    just stop
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      /usr/bin/pkill -x AirBattery >/dev/null 2>&1 || true; \
       rm -rf "$install_dir/AirBattery.app"
 
 # Run the normal local verification path.
