@@ -13,6 +13,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>AirBattery uses Bluetooth to discover nearby devices and read their battery status.</string>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>NSDisableAutomaticTermination</key>
