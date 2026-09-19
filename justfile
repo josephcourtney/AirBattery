@@ -127,7 +127,17 @@ build-signed configuration="Debug":
       while IFS=$'\t' read -r _ path; do \
         [[ -n "$path" ]] && sign_one "$path"; \
       done < <( \
-        /usr/bin/find -L "$app/Contents" -type f -print0 | \
+        { \
+          for root in \
+            "$app/Contents/MacOS" \
+            "$app/Contents/Frameworks" \
+            "$app/Contents/PlugIns" \
+            "$app/Contents/Library"; do \
+            [[ -e "$root" ]] && /usr/bin/find -L "$root" -type f -print0; \
+          done; \
+          [[ -f "$app/Contents/Resources/abt" ]] && \
+            printf '%s\0' "$app/Contents/Resources/abt"; \
+        } | \
           while IFS= read -r -d '' path; do \
             if /usr/bin/file -L "$path" | /usr/bin/grep -q 'Mach-O'; then \
               slashes="${path//[^\\/]/}"; \
