@@ -91,7 +91,7 @@ struct LargeWidgetView2: View {
 
 struct doubleRowBatteryWidgetEntryView: View {
     var entry: ViewSizeTimelineProvider.Entry
-    let lineWidth = 5.5
+    let lineWidth = 5.0
 
     private var items: [Device] {
         Array(entry.data.filter(\.hasBattery).prefix(8))
@@ -122,14 +122,14 @@ struct doubleRowBatteryWidgetEntryView: View {
                     batteryRow(secondRow)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
         }
     }
 
     @ViewBuilder
     private func batteryRow(_ row: [Device]) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             ForEach(row, id: \.self) { item in
                 batteryTile(item)
             }
@@ -202,9 +202,9 @@ struct doubleRowBatteryWidgetEntryView: View {
                 Image(getDeviceIcon(item))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 23, height: 23)
+                    .frame(width: 21, height: 21)
             }
-            .frame(width: 50, height: 50)
+            .frame(width: 46, height: 46)
 
             HStack(spacing: 2) {
                 Text("\(item.batteryLevel)%")
@@ -215,16 +215,16 @@ struct doubleRowBatteryWidgetEntryView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .font(.system(size: 9, weight: .medium))
+            .font(.system(size: 8.5, weight: .medium))
 
             Text(shortDeviceLabel(item))
-                .font(.system(size: 8))
+                .font(.system(size: 7.5))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(width: 58)
+                .frame(width: 54)
         }
-        .frame(width: 62)
+        .frame(width: 58)
     }
 
     private func shortDeviceLabel(_ item: Device) -> String {
