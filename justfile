@@ -87,26 +87,22 @@ signing-identities:
 build-signed configuration="Debug":
     just build-adhoc "{{configuration}}"
     @requested="{{signing_identity}}"; \
-      team=""; \
       if [[ -n "$requested" ]]; then \
         identity="$requested"; \
       else \
-        match="$(/usr/bin/security find-identity -v -p codesigning | \
-          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*\(([A-Z0-9]{10})\))"$/\1|\2/p' | \
+        identity="$(/usr/bin/security find-identity -v -p codesigning | \
+          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*)"$/\1/p' | \
           /usr/bin/head -n 1)"; \
-        if [[ -z "$match" ]]; then \
+        if [[ -z "$identity" ]]; then \
           printf '%s\n' \
             "No Apple Development signing identity is installed." \
             "Run 'just signing-identities' to inspect available identities." >&2; \
           exit 1; \
         fi; \
-        team="${match##*|}"; \
-        identity="${match%|*}"; \
       fi; \
       app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       test -d "$app" || { echo "Missing $app after ad-hoc build." >&2; exit 1; }; \
       printf 'Re-signing with: %s\n' "$identity"; \
-      if [[ -n "$team" ]]; then printf 'Development team: %s\n' "$team"; fi; \
       sign_one() { \
         printf 'Signing code object: %s\n' "$1"; \
         if /usr/bin/codesign -d "$1" >/dev/null 2>&1; then \
@@ -161,10 +157,11 @@ build-signed configuration="Debug":
       sign_one "$app"; \
       if [[ "$identity" != "-" ]]; then \
         actual_team="$(/usr/bin/codesign -dvv "$app" 2>&1 | /usr/bin/sed -n 's/^TeamIdentifier=//p')"; \
-        if [[ -n "$team" && "$actual_team" != "$team" ]]; then \
-          echo "Expected TeamIdentifier=$team, got $actual_team" >&2; \
+        [[ -n "$actual_team" && "$actual_team" != "not set" ]] || { \
+          echo "Development-signed app has no TeamIdentifier." >&2; \
           exit 1; \
-        fi; \
+        }; \
+        printf 'TeamIdentifier: %s\n' "$actual_team"; \
       fi
     just verify-signing "{{configuration}}"
 
