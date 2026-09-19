@@ -4,7 +4,7 @@ project := "AirBattery.xcodeproj"
 scheme := "AirBattery"
 derived_data := ".build/xcode"
 xcode_app := env("XCODE_APP", "/Applications/Xcode.app")
-signing_identity := env("SIGNING_IDENTITY", "-")
+signing_identity := env("SIGNING_IDENTITY", "")
 app_bundle_id := "com.josephcourtney.AirBattery"
 widget_bundle_id := "com.josephcourtney.AirBattery.widget"
 helper_bundle_id := "com.josephcourtney.AirBatteryHelper"
@@ -76,9 +76,49 @@ build configuration="Debug":
 # Build a Release configuration without code signing.
 release: (build "Release")
 
-# Build all local app targets using an ad-hoc signature by default.
-# Override SIGNING_IDENTITY to use another installed signing identity.
+# Show installed code-signing identities.
+signing-identities:
+    @/usr/bin/security find-identity -v -p codesigning
+
+# Build local app targets using Xcode automatic development signing.
+# The first installed Apple Development certificate supplies the team ID unless
+# DEVELOPMENT_TEAM is set explicitly. Do not force CODE_SIGN_IDENTITY globally:
+# that leaks into Swift Package targets and breaks their build/signing behavior.
 build-signed configuration="Debug":
+    @mkdir -p "{{derived_data}}"
+    @team="${DEVELOPMENT_TEAM:-}"; \
+      identity=""; \
+      if [[ -z "$team" ]]; then \
+        identity="$(/usr/bin/security find-identity -v -p codesigning | \
+          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*\(([A-Z0-9]{10})\))"$/\1|\2/p' | \
+          /usr/bin/head -n 1)"; \
+        if [[ -z "$identity" ]]; then \
+          printf '%s\n' \
+            "No Apple Development signing identity is installed." \
+            "Run 'just signing-identities' to inspect available identities." >&2; \
+          exit 1; \
+        fi; \
+        team="${identity##*|}"; \
+        identity="${identity%|*}"; \
+      fi; \
+      printf 'Development team: %s\n' "$team"; \
+      if [[ -n "$identity" ]]; then printf 'Certificate: %s\n' "$identity"; fi; \
+      xcodebuild \
+        -project "{{project}}" \
+        -scheme "{{scheme}}" \
+        -configuration "{{configuration}}" \
+        -destination 'platform=macOS' \
+        -derivedDataPath "{{derived_data}}" \
+        -allowProvisioningUpdates \
+        CODE_SIGNING_ALLOWED=YES \
+        CODE_SIGNING_REQUIRED=YES \
+        DEVELOPMENT_TEAM="$team" \
+        build
+    just verify-signing "{{configuration}}"
+
+# Build all products ad-hoc. Intended for CI only; do not use this for local
+# testing of Bluetooth or other TCC-protected resources.
+build-adhoc configuration="Debug":
     @mkdir -p "{{derived_data}}"
     xcodebuild \
         -project "{{project}}" \
@@ -89,7 +129,7 @@ build-signed configuration="Debug":
         CODE_SIGNING_ALLOWED=YES \
         CODE_SIGNING_REQUIRED=YES \
         CODE_SIGN_STYLE=Manual \
-        CODE_SIGN_IDENTITY="{{signing_identity}}" \
+        CODE_SIGN_IDENTITY=- \
         DEVELOPMENT_TEAM="" \
         build
     just verify-signing "{{configuration}}"
@@ -148,6 +188,26 @@ run configuration="Debug":
 # The next launch/use of CoreBluetooth should request permission again.
 reset-bluetooth-permission:
     /usr/bin/tccutil reset BluetoothAlways "{{app_bundle_id}}"
+
+# Inspect the installed app identity and Bluetooth privacy declaration.
+bluetooth-diagnose:
+    @app="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}/AirBattery.app"; \
+      test -d "$app" || { echo "AirBattery is not installed at $app" >&2; exit 1; }; \
+      printf '%s\n' '--- Installed app ---' "$app"; \
+      printf '%s\n' '--- Bundle identifier ---'; \
+      /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"; \
+      printf '%s\n' '--- Bluetooth usage description ---'; \
+      /usr/libexec/PlistBuddy -c 'Print :NSBluetoothAlwaysUsageDescription' "$app/Contents/Info.plist"; \
+      printf '%s\n' '--- Signature ---'; \
+      /usr/bin/codesign -d -vvv "$app" 2>&1 | /usr/bin/grep -E '^(Identifier|TeamIdentifier|Authority|Signature|CodeDirectory)=' || true; \
+      printf '%s\n' '--- Designated requirement ---'; \
+      /usr/bin/codesign -d -r- "$app" 2>&1; \
+      printf '%s\n' '--- Signature verification ---'; \
+      /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"; \
+      printf '%s\n' '--- Running processes ---'; \
+      /usr/bin/pgrep -alf 'AirBattery|AirBatteryHelper' || true; \
+      printf '%s\n' '--- Available signing identities ---'; \
+      /usr/bin/security find-identity -v -p codesigning
 
 # Show whether macOS currently knows about the AirBattery WidgetKit extension.
 widget-status:

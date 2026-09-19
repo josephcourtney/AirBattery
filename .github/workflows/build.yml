@@ -18,5 +18,5 @@ jobs:
       - name: Build
         run: just ci
 
-      - name: Verify signed local build
-        run: just build-signed
+      - name: Verify ad-hoc packaging build
+        run: just build-adhoc
