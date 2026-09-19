@@ -80,33 +80,47 @@ release: (build "Release")
 signing-identities:
     @/usr/bin/security find-identity -v -p codesigning
 
-# Build all local app targets with a stable signing identity.
-# By default, use the first installed Apple Development identity. Set
-# SIGNING_IDENTITY explicitly to choose another identity. CI may set it to '-'
-# for ad-hoc signing because CI does not exercise TCC-protected resources.
+# Build local app targets using Xcode automatic development signing.
+# The first installed Apple Development certificate supplies the team ID unless
+# DEVELOPMENT_TEAM is set explicitly. Do not force CODE_SIGN_IDENTITY globally:
+# that leaks into Swift Package targets and breaks their build/signing behavior.
 build-signed configuration="Debug":
     @mkdir -p "{{derived_data}}"
-    @identity="{{signing_identity}}"; \
-      if [[ -z "$identity" ]]; then \
+    @team="${DEVELOPMENT_TEAM:-}"; \
+      identity=""; \
+      if [[ -z "$team" ]]; then \
         identity="$(/usr/bin/security find-identity -v -p codesigning | \
-          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*)"$/\1/p' | \
+          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*\(([A-Z0-9]{10})\))"$/\1|\2/p' | \
           /usr/bin/head -n 1)"; \
+        if [[ -z "$identity" ]]; then \
+          printf '%s\n' \
+            "No Apple Development signing identity is installed." \
+            "Run 'just signing-identities' to inspect available identities." >&2; \
+          exit 1; \
+        fi; \
+        team="${identity##*|}"; \
+        identity="${identity%|*}"; \
       fi; \
-      if [[ -z "$identity" ]]; then \
-        printf '%s\n' \
-          "No Apple Development signing identity is installed." \
-          "Bluetooth and other TCC permissions are unreliable with ad-hoc 'Sign to Run Locally' builds." \
-          "Run 'just signing-identities' to inspect available identities." \
-          "For CI-only ad-hoc signing, use SIGNING_IDENTITY=- just build-signed." >&2; \
-        exit 1; \
-      fi; \
-      team=""; \
-      if [[ "$identity" != "-" && "$identity" =~ \(([A-Z0-9]{10})\)$ ]]; then \
-        team="${BASH_REMATCH[1]}"; \
-      fi; \
-      printf 'Signing with: %s\n' "$identity"; \
-      if [[ -n "$team" ]]; then printf 'Development team: %s\n' "$team"; fi; \
+      printf 'Development team: %s\n' "$team"; \
+      if [[ -n "$identity" ]]; then printf 'Certificate: %s\n' "$identity"; fi; \
       xcodebuild \
+        -project "{{project}}" \
+        -scheme "{{scheme}}" \
+        -configuration "{{configuration}}" \
+        -destination 'platform=macOS' \
+        -derivedDataPath "{{derived_data}}" \
+        -allowProvisioningUpdates \
+        CODE_SIGNING_ALLOWED=YES \
+        CODE_SIGNING_REQUIRED=YES \
+        DEVELOPMENT_TEAM="$team" \
+        build
+    just verify-signing "{{configuration}}"
+
+# Build all products ad-hoc. Intended for CI only; do not use this for local
+# testing of Bluetooth or other TCC-protected resources.
+build-adhoc configuration="Debug":
+    @mkdir -p "{{derived_data}}"
+    xcodebuild \
         -project "{{project}}" \
         -scheme "{{scheme}}" \
         -configuration "{{configuration}}" \
@@ -115,8 +129,8 @@ build-signed configuration="Debug":
         CODE_SIGNING_ALLOWED=YES \
         CODE_SIGNING_REQUIRED=YES \
         CODE_SIGN_STYLE=Manual \
-        CODE_SIGN_IDENTITY="$identity" \
-        DEVELOPMENT_TEAM="$team" \
+        CODE_SIGN_IDENTITY=- \
+        DEVELOPMENT_TEAM="" \
         build
     just verify-signing "{{configuration}}"
 
