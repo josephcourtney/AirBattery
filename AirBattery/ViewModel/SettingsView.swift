@@ -264,22 +264,23 @@ struct DeviceDiscoveryView: View {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                         Spacer()
-                        if !policyStore.candidates.isEmpty {
+                        if !policyStore.nearbyCandidates.isEmpty {
                             Button("Clear") { policyStore.clearNearby() }
                                 .buttonStyle(.borderless)
                         }
                     }
 
-                    if policyStore.candidates.isEmpty {
+                    if policyStore.nearbyCandidates.isEmpty {
                         HStack {
                             Text("No nearby BLE devices observed yet.")
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
                     } else {
-                        ForEach(Array(policyStore.candidates.prefix(30))) { candidate in
+                        let nearby = Array(policyStore.nearbyCandidates.prefix(30))
+                        ForEach(nearby) { candidate in
                             candidateRow(candidate)
-                            if candidate.id != policyStore.candidates.prefix(30).last?.id {
+                            if candidate.id != nearby.last?.id {
                                 Divider().opacity(0.5)
                             }
                         }
@@ -303,9 +304,20 @@ struct DeviceDiscoveryView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(rule.name)
-                Text(shortIdentifier(rule.identifier))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let candidate = policyStore.candidate(identifier: rule.identifier) {
+                    Text(candidateSummary(candidate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if let result = candidate.lastProbeResult {
+                        Text(result)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Text("\(shortIdentifier(rule.identifier)) · not observed this launch")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             Spacer()
             policyPicker(
