@@ -144,6 +144,11 @@ run configuration="Debug":
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       /usr/bin/open "$install_dir/AirBattery.app"
 
+# Reset macOS Bluetooth privacy consent for this fork.
+# The next launch/use of CoreBluetooth should request permission again.
+reset-bluetooth-permission:
+    /usr/bin/tccutil reset BluetoothAlways "{{app_bundle_id}}"
+
 # Show whether macOS currently knows about the AirBattery WidgetKit extension.
 widget-status:
     @/usr/bin/pluginkit -m -A -D -v -i "{{widget_bundle_id}}" || true
