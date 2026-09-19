@@ -204,6 +204,7 @@ struct DiscoveryView: View {
                             Text(mode.title).tag(mode.rawValue)
                         }
                     }
+                    .disabled(!readBLEDevice && !ideviceOverBLE)
                     HStack {
                         Text(discoveryMode.detail)
                             .font(.footnote)
@@ -743,7 +744,7 @@ struct WidgetView: View {
                 Divider().opacity(0.5)
                 SPicker("Refresh Interval", selection: $widgetInterval) {
                     Text("System Default").tag(-1)
-                    Text("Same as Nearbility").tag(0)
+                    Text("Same as Discovery").tag(0)
                 }
                 if #unavailable(macOS 14) {
                     Divider().opacity(0.5)
