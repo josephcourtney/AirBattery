@@ -178,9 +178,6 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         }
         rules.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         saveRules()
-        if policy == .ignore {
-            candidates.removeAll(where: { $0.identifier == identifier })
-        }
     }
 
     func clearPolicy(identifier: String) {
@@ -197,7 +194,6 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         hasPassiveBatteryData: Bool,
         matchesPairedName: Bool
     ) {
-        guard explicitPolicy(identifier: identifier) != .ignore else { return }
         let now = Date()
         if let index = candidates.firstIndex(where: { $0.identifier == identifier }) {
             candidates[index].name = name
@@ -229,11 +225,15 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
             )
         }
 
-        candidates = Array(
-            candidates
-                .sorted { $0.lastSeen > $1.lastSeen }
-                .prefix(100)
-        )
+        trimCandidateHistoryIfNeeded()
+    }
+
+    func candidate(identifier: String) -> BLEDiscoveryCandidate? {
+        candidates.first(where: { $0.identifier == identifier })
+    }
+
+    var nearbyCandidates: [BLEDiscoveryCandidate] {
+        candidates.filter { explicitPolicy(identifier: $0.identifier) == nil }
     }
 
     func recordProbeResult(identifier: String, result: String) {
@@ -242,7 +242,20 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 
     func clearNearby() {
-        candidates.removeAll()
+        candidates.removeAll(where: { explicitPolicy(identifier: $0.identifier) == nil })
+    }
+
+    private func trimCandidateHistoryIfNeeded() {
+        while candidates.count > 100 {
+            let removable = candidates.indices.filter {
+                explicitPolicy(identifier: candidates[$0].identifier) == nil
+            }
+            let pool = removable.isEmpty ? Array(candidates.indices) : removable
+            guard let oldestIndex = pool.min(by: {
+                candidates[$0].lastSeen < candidates[$1].lastSeen
+            }) else { return }
+            candidates.remove(at: oldestIndex)
+        }
     }
 
     func effectivePolicy(
