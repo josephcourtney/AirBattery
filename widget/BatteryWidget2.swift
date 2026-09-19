@@ -91,161 +91,155 @@ struct LargeWidgetView2: View {
 
 struct doubleRowBatteryWidgetEntryView: View {
     var entry: ViewSizeTimelineProvider.Entry
-    let lineWidth = 6.0
-    
+    let lineWidth = 5.5
+
+    private var items: [Device] {
+        Array(entry.data.filter(\.hasBattery).prefix(8))
+    }
+
+    private var firstRow: [Device] {
+        Array(items.prefix(4))
+    }
+
+    private var secondRow: [Device] {
+        items.count > 4 ? Array(items.dropFirst(4)) : []
+    }
+
     var body: some View {
-        if !entry.mainApp{
+        if !entry.mainApp {
             Text("AirBattery is not running\nLaunch the app to make the widget work")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
+        } else if items.isEmpty {
+            Text("No battery data")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
         } else {
-            if entry.data.count == 0 {
-                VStack(spacing: 17){
-                    HStack(spacing: 23) {
-                        ForEach(0..<4) { index in
-                            ZStack {
-                                Circle()
-                                    .trim(from: 0.0, to: 0.78)
-                                    .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                    .frame(width: 58, alignment: .center)
-                                    .rotationEffect(Angle(degrees: 129.6))
-                                    .opacity(0.15)
-                                Text("    ")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .offset(y: 25)
-                            }
-                        }
-                    }
-                    HStack(spacing: 23) {
-                        ForEach(0..<4) { index in
-                            ZStack{
-                                Circle()
-                                    .trim(from: 0.0, to: 0.78)
-                                    .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                    .frame(width: 58, alignment: .center)
-                                    .rotationEffect(Angle(degrees: 129.6))
-                                    .opacity(0.15)
-                                Text("    ")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .offset(y: 25)
-                            }
-                        }
-                    }
-                }
-            } else {
-                VStack(spacing: 17){
-                    HStack(spacing: 23) {
-                        ForEach(entry.data[0..<4], id: \.self) { item in
-                            VStack(spacing: 17){
-                                ZStack{
-                                    Group {
-                                        Group {
-                                            Circle()
-                                                .trim(from: 0.0, to: 0.78)
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .opacity(0.15)
-                                            Circle()
-                                                .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.78, 0.78))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.78, 0.78))-0.0005)))
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .foregroundColor(Color(getPowerColor(item)))
-                                                .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
-                                                .clipShape(
-                                                    Circle()
-                                                        .trim(from: 0.0, to: 0.78)
-                                                        .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                )
-                                                .opacity(item.batteryLevel == 100 ? 0 : 1)
-                                            Circle()
-                                                .trim(from: 0.0, to: Double(item.batteryLevel)/100.0*0.78)
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .foregroundColor(Color(getPowerColor(item)))
-                                        }.rotationEffect(Angle(degrees: 129.6))
-                                        Image(getDeviceIcon(item))
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            //sf.foregroundColor(.blackWhite)
-                                            .frame(width: 26, height: 26, alignment: .center)
-                                        
-                                        if item.isCharging != 0 {
-                                            Image("batt_bolt_mask")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 12, alignment: .center)
-                                                .blendMode(.destinationOut)
-                                                .offset(y:-29.5)
-                                            Image("batt_bolt")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 10, alignment: .center)
-                                                .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
-                                                .offset(y:-29.5)
-                                        }
-                                    }.frame(width: 58, height: 58, alignment: .center)
-                                    Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .offset(x: 1, y: 25)
-                                }.compositingGroup()
-                            }
-                        }
-                    }
-                    HStack(spacing: 23) {
-                        ForEach(entry.data[4..<8], id: \.self) { item in
-                            VStack(spacing: 17){
-                                ZStack{
-                                    Group {
-                                        Group {
-                                            Circle()
-                                                .trim(from: 0.0, to: 0.78)
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .opacity(0.15)
-                                            Circle()
-                                                .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.78, 0.78))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.78, 0.78))-0.0005)))
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .foregroundColor(Color(getPowerColor(item)))
-                                                .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
-                                                .clipShape(
-                                                    Circle()
-                                                        .trim(from: 0.0, to: 0.78)
-                                                        .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                )
-                                                .opacity(item.batteryLevel == 100 ? 0 : 1)
-                                            Circle()
-                                                .trim(from: 0.0, to: Double(item.batteryLevel)/100.0*0.78)
-                                                .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                                .foregroundColor(Color(getPowerColor(item)))
-                                        }.rotationEffect(Angle(degrees: 129.6))
-                                        
-                                        Image(getDeviceIcon(item))
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            //.foregroundColor(.blackWhite)
-                                            .frame(width: 26, height: 26, alignment: .center)
-                                        
-                                        if item.isCharging != 0 {
-                                            Image("batt_bolt_mask")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 12, alignment: .center)
-                                                .blendMode(.destinationOut)
-                                                .offset(y:-29.5)
-                                            Image("batt_bolt")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 10, alignment: .center)
-                                                .foregroundColor(item.batteryLevel == 100 ? .myGreen : .primary)
-                                                .offset(y:-29.5)
-                                        }
-                                    }.frame(width: 58, height: 58, alignment: .center)
-                                    Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .offset(x: 1, y: 25)
-                                }.compositingGroup()
-                            }
-                        }
-                    }
+            VStack(spacing: 7) {
+                batteryRow(firstRow)
+                if !secondRow.isEmpty {
+                    batteryRow(secondRow)
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+        }
+    }
+
+    @ViewBuilder
+    private func batteryRow(_ row: [Device]) -> some View {
+        HStack(spacing: 12) {
+            ForEach(row, id: \.self) { item in
+                batteryTile(item)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func batteryTile(_ item: Device) -> some View {
+        VStack(spacing: 1) {
+            ZStack {
+                Group {
+                    Circle()
+                        .trim(from: 0.0, to: 0.78)
+                        .stroke(
+                            style: StrokeStyle(
+                                lineWidth: lineWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .opacity(0.15)
+                    Circle()
+                        .trim(
+                            from: CGFloat(
+                                abs(
+                                    min(Double(item.batteryLevel) / 100.0 * 0.78, 0.78) - 0.001
+                                )
+                            ),
+                            to: CGFloat(
+                                abs(
+                                    min(Double(item.batteryLevel) / 100.0 * 0.78, 0.78) - 0.0005
+                                )
+                            )
+                        )
+                        .stroke(
+                            style: StrokeStyle(
+                                lineWidth: lineWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .foregroundColor(Color(getPowerColor(item)))
+                        .shadow(color: .black, radius: lineWidth * 0.6)
+                        .clipShape(
+                            Circle()
+                                .trim(from: 0.0, to: 0.78)
+                                .stroke(
+                                    style: StrokeStyle(
+                                        lineWidth: lineWidth,
+                                        lineCap: .round,
+                                        lineJoin: .round
+                                    )
+                                )
+                        )
+                        .opacity(item.batteryLevel == 100 ? 0 : 1)
+                    Circle()
+                        .trim(from: 0.0, to: Double(item.batteryLevel) / 100.0 * 0.78)
+                        .stroke(
+                            style: StrokeStyle(
+                                lineWidth: lineWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .foregroundColor(Color(getPowerColor(item)))
+                }
+                .rotationEffect(Angle(degrees: 129.6))
+
+                Image(getDeviceIcon(item))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 23, height: 23)
+            }
+            .frame(width: 50, height: 50)
+
+            HStack(spacing: 2) {
+                Text("\(item.batteryLevel)%")
+                    .foregroundColor(item.batteryLevel <= 10 ? .darkMyRed : .primary)
+                if item.isCharging != 0 {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .font(.system(size: 9, weight: .medium))
+
+            Text(shortDeviceLabel(item))
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 58)
+        }
+        .frame(width: 62)
+    }
+
+    private func shortDeviceLabel(_ item: Device) -> String {
+        if item.deviceID == "@MacInternalBattery" { return "Mac" }
+        switch item.deviceType {
+        case "ap_case": return "Case"
+        case "ap_pod_left": return "L"
+        case "ap_pod_right": return "R"
+        case "ap_pod_all": return "L/R"
+        default:
+            let name = item.deviceName
+                .replacingOccurrences(of: "Joseph’s ", with: "")
+                .replacingOccurrences(of: "Joseph's ", with: "")
+            if name.count <= 9 { return name }
+            return String(name.prefix(8)) + "…"
         }
     }
 }
