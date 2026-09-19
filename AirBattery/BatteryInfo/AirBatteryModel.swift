@@ -58,6 +58,52 @@ class AirBatteryModel {
     static var Devices: [Device] = []
     static let machineType = ud.string(forKey: "machineType") ?? "Mac"
     static let key = "com.josephcourtney.AirBattery.widget"
+
+    private static let presenceLock = NSLock()
+    private static var lastBLEPresence: [String: Double] = [:]
+
+    static func noteBLEPresence(name: String) {
+        let key = normalizedObservationName(name)
+        presenceLock.lock()
+        lastBLEPresence[key] = Date().timeIntervalSince1970
+        presenceLock.unlock()
+    }
+
+    static func batteryDevices(observedAs name: String) -> [Device] {
+        let key = normalizedObservationName(name)
+        return getAll(noFilter: true).filter {
+            $0.hasBattery && normalizedObservationName(observationName(for: $0)) == key
+        }
+    }
+
+    private static func isRecentlyBLEObserved(_ device: Device, now: Double) -> Bool {
+        let interval = max(1, ud.integer(forKey: "updateInterval"))
+        // BLE scans repeat every 29 * updateInterval seconds. Keep a last-known
+        // battery record visible while the corresponding device is still being
+        // observed, without altering the battery reading's real timestamp.
+        let presenceLifetime = Double(max(90, interval * 65))
+        let key = normalizedObservationName(observationName(for: device))
+        presenceLock.lock()
+        let lastSeen = lastBLEPresence[key]
+        presenceLock.unlock()
+        guard let lastSeen else { return false }
+        return now - lastSeen <= presenceLifetime
+    }
+
+    private static func observationName(for device: Device) -> String {
+        var name = device.deviceName
+        if device.deviceType.hasPrefix("ap_pod") && !device.parentName.isEmpty {
+            name = device.parentName
+        }
+        for suffix in [" (Case)", "（充电盒）", " 🄻🅁", " 🄻", " 🅁"] where name.hasSuffix(suffix) {
+            name.removeLast(suffix.count)
+        }
+        return name
+    }
+
+    private static func normalizedObservationName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
     
     static func updateDevice(_ device: Device) {
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
@@ -100,7 +146,10 @@ class AirBatteryModel {
         let disappearTime = (ud.object(forKey: "disappearTime") ?? 20) as! Int
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let now = Double(Date().timeIntervalSince1970)
-        var list = (reverse ? Array(Devices.reversed()) : Devices).filter { (now - $0.lastUpdate < Double(disappearTime * 60)) }
+        var list = (reverse ? Array(Devices.reversed()) : Devices).filter {
+            now - $0.lastUpdate < Double(disappearTime * 60) ||
+                isRecentlyBLEObserved($0, now: now)
+        }
         if !noFilter { list = list.filter { !blackList.contains($0.deviceName) && !$0.isHidden } }
         var newList: [Device] = list.filter({ $0.parentName == thisMac })
         for d in list {

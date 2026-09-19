@@ -278,7 +278,7 @@ struct DevicesView: View {
     var body: some View {
         ScrollView {
             SForm(noSpacer: true) {
-                SGroupBox(label: "My Devices") {
+                SGroupBox(label: "Known Devices") {
                     if policyStore.knownLogicalDevices.isEmpty {
                         emptyRow("No device-specific connection rules.")
                     } else {
@@ -494,10 +494,11 @@ struct DevicesView: View {
                 detailRow("Pairing", "Name matches a paired device")
             }
             if candidate.hasPassiveBatteryData {
-                detailRow("Battery source", "Passive Apple/Beats advertisement")
+                detailRow("Advertisement", "Battery payload observed during this launch")
             } else if candidate.advertisesBatteryService {
-                detailRow("Battery source", "Battery Service advertised")
+                detailRow("Advertisement", "Battery Service advertised")
             }
+            detailRow("Last seen", relativeAge(candidate.lastSeen.timeIntervalSince1970))
             detailRow("Connection", candidate.isConnectable ? "Connectable" : "Not connectable")
             if let result = candidate.lastProbeResult {
                 detailRow("Last query", result)
@@ -528,17 +529,24 @@ struct DevicesView: View {
     }
 
     private func logicalDeviceSummary(_ device: BLELogicalDeviceSnapshot) -> String {
-        guard !device.identities.isEmpty else { return "Not observed this launch" }
-        let strongest = device.identities.map(\.displayRSSI).max() ?? -100
         var parts: [String] = []
-        if device.identities.contains(where: \.hasPassiveBatteryData) {
-            parts.append("Passive battery data")
-        } else if device.identities.contains(where: \.advertisesBatteryService) {
-            parts.append("Battery service advertised")
+        let batteryDevices = AirBatteryModel.batteryDevices(observedAs: device.name)
+        if let newest = batteryDevices.max(by: { $0.lastUpdate < $1.lastUpdate }) {
+            parts.append("Battery reading \(relativeAge(newest.lastUpdate))")
+        } else if device.identities.contains(where: \.hasPassiveBatteryData) {
+            parts.append("Battery advertisement seen; no retained reading")
+        } else {
+            parts.append("No battery reading")
         }
-        parts.append("\(signalLabel(strongest)) (\(strongest) dBm)")
-        if device.identities.count > 1 {
-            parts.append("\(device.identities.count) identities")
+
+        if !device.identities.isEmpty {
+            let strongest = device.identities.map(\.displayRSSI).max() ?? -100
+            parts.append("\(signalLabel(strongest)) (\(strongest) dBm)")
+            if device.identities.count > 1 {
+                parts.append("\(device.identities.count) identities")
+            }
+        } else {
+            parts.append("not observed this launch")
         }
         return parts.joined(separator: " · ")
     }
@@ -546,7 +554,7 @@ struct DevicesView: View {
     private func candidatePrimarySummary(_ candidate: BLEDiscoveryCandidate) -> String {
         var parts: [String] = []
         if candidate.hasPassiveBatteryData {
-            parts.append("Passive battery data")
+            parts.append("Battery advertisement seen")
         } else if candidate.advertisesBatteryService {
             parts.append("Battery service advertised")
         } else if candidate.matchesPairedName {
@@ -554,6 +562,15 @@ struct DevicesView: View {
         }
         parts.append("\(signalLabel(candidate.displayRSSI)) (\(candidate.displayRSSI) dBm)")
         return parts.joined(separator: " · ")
+    }
+
+    private func relativeAge(_ timestamp: Double) -> String {
+        let seconds = max(0, Date().timeIntervalSince1970 - timestamp)
+        if seconds < 60 { return "now" }
+        let minutes = Int(seconds / 60)
+        if minutes < 60 { return "\(minutes)m ago" }
+        let hours = Int(seconds / 3600)
+        return "\(hours)h ago"
     }
 
     private func signalLabel(_ rssi: Int) -> String {

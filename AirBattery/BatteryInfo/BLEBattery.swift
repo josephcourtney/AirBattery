@@ -543,6 +543,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
         if discoveryPolicy.explicitPolicy(identifier: identifier, name: deviceName) == .ignore { return }
 
+        AirBatteryModel.noteBLEPresence(name: deviceName)
+
         let mode = BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
         let activePolicy = discoveryPolicy.effectivePolicy(
             identifier: identifier,
