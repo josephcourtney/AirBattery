@@ -463,12 +463,24 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn {
-            // 开始扫描
+        let authorization = CBManager.authorization
+        print("ℹ️ Bluetooth state=\(central.state.rawValue) authorization=\(authorization.rawValue)")
+
+        switch authorization {
+        case .allowedAlways:
+            break
+        case .notDetermined:
+            print("ℹ️ Bluetooth permission has not been decided yet.")
+        case .denied:
+            print("⚠️ Bluetooth permission is denied for AirBattery.")
+        case .restricted:
+            print("⚠️ Bluetooth permission is restricted for AirBattery.")
+        @unknown default:
+            print("⚠️ Unknown Bluetooth authorization state: \(authorization.rawValue)")
+        }
+
+        if central.state == .poweredOn && authorization == .allowedAlways {
             scan(longScan: true)
-        } else {
-            // 蓝牙不可用，停止扫描
-            //stopScan()
         }
     }
 
