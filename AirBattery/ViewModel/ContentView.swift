@@ -345,11 +345,10 @@ struct popover: View {
                     if !fromDock {
                         PopoverToolbarButton(
                             systemName: "xmark.circle.fill",
-                            help: "Close".local
+                            help: "Quit AirBattery".local,
+                            hoverColor: .red
                         ) {
-                            DispatchQueue.main.async {
-                                menuPopover.close()
-                            }
+                            NSApp.terminate(self)
                         }
                     } else {
                         PopoverToolbarButton(
