@@ -586,7 +586,7 @@ struct DevicesView: View {
     }
 
     private func airPodsBatterySummary(_ group: AirPodsBatteryGroup) -> String {
-        var parts: [String] = []
+        var parts = ["\(group.componentCount) components"]
         if let caseDevice = group.caseDevice {
             parts.append("Case \(caseDevice.batteryLevel)%")
         }
