@@ -57,8 +57,6 @@ struct MultiBatteryView: View {
     @AppStorage("readBTHID") var readBTHID = true
     @AppStorage("deviceName") var deviceName = "Mac"
     @AppStorage("nearCast") var nearCast = false
-    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
-    @AppStorage("twsMerge") private var twsMerge = 5
     @AppStorage("ncGroupID") var ncGroupID = ""
     
     @StateObject private var appearanceMonitor = AppearanceMonitor()
@@ -312,6 +310,8 @@ struct popover: View {
     var allDevice: [Device]
 
     @AppStorage("nearCast") var nearCast = false
+    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
+    @AppStorage("twsMerge") private var twsMerge = 5
     
     @State private var allDevices = [Device]()
     @State private var hiddenDevices = AirBatteryModel.getBlackList()
