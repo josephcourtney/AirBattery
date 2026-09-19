@@ -364,6 +364,60 @@ struct popover: View {
         return allDevices[(index + 1)...].indices.contains { !isEarbudChild($0) }
     }
 
+    private func configureBatteryAlert(for device: Device) {
+        alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+        let controller = AlertWindowController()
+        if let existing = alertList.first(where: { $0.name == device.deviceName }) {
+            controller.showAlert(
+                with: existing,
+                iconName: getDeviceIcon(device),
+                onConfirm: { newAlert in
+                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+                    alertList.removeAll { $0.name == device.deviceName }
+                    alertList.append(newAlert)
+                    ud.set(object: alertList, forKey: "alertList")
+                },
+                onCancel: {}
+            )
+        } else {
+            let alert = btAlert(
+                name: device.deviceName,
+                full: 80,
+                fullOn: true,
+                fullSound: true,
+                low: 20,
+                lowOn: true,
+                lowSound: true
+            )
+            controller.showAlert(
+                with: alert,
+                iconName: getDeviceIcon(device),
+                onConfirm: { newAlert in
+                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+                    alertList.append(newAlert)
+                    ud.set(object: alertList, forKey: "alertList")
+                },
+                onCancel: {}
+            )
+        }
+    }
+
+    private func togglePin(for device: Device) {
+        pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+        if pinnedList.contains(device.deviceName) {
+            pinnedList.removeAll(where: { $0 == device.deviceName })
+            refeshPinnedBar(unpin: device.deviceName)
+        } else {
+            pinnedList.append(device.deviceName)
+            refeshPinnedBar()
+        }
+        ud.set(pinnedList, forKey: "pinnedList")
+    }
+
+    private func earbudMenuLabel(_ item: Device, primary: Device) -> String {
+        item.deviceID == primary.deviceID ? "Case" : earbudPartLabel(item)
+    }
+
     @ViewBuilder
     private func earbudGroupRow(_ index: Int) -> some View {
         let item = allDevices[index]
@@ -399,6 +453,30 @@ struct popover: View {
             }
 
             Menu {
+                let groupedDevices = [item] + components
+                Menu("Battery Alerts") {
+                    ForEach(groupedDevices, id: \.deviceID) { component in
+                        Button(
+                            alertList.contains(where: { $0.name == component.deviceName })
+                                ? "Edit \(earbudMenuLabel(component, primary: item))"
+                                : "Add \(earbudMenuLabel(component, primary: item))"
+                        ) {
+                            configureBatteryAlert(for: component)
+                        }
+                    }
+                }
+                Menu("Menu Bar Pins") {
+                    ForEach(groupedDevices, id: \.deviceID) { component in
+                        Button(
+                            pinnedList.contains(component.deviceName)
+                                ? "Unpin \(earbudMenuLabel(component, primary: item))"
+                                : "Pin \(earbudMenuLabel(component, primary: item))"
+                        ) {
+                            togglePin(for: component)
+                        }
+                    }
+                }
+                Divider()
                 Button("Copy Device Name") {
                     copyToClipboard(earbudDisplayName(item))
                 }
