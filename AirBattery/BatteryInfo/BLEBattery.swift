@@ -132,10 +132,19 @@ struct BLEDeviceRule: Codable, Hashable, Identifiable {
     var id: String { identifier }
 }
 
+struct BLELogicalDeviceRule: Codable, Hashable, Identifiable {
+    let key: String
+    var name: String
+    var policy: BLEDevicePolicy
+
+    var id: String { key }
+}
+
 struct BLEDiscoveryCandidate: Hashable, Identifiable {
     let identifier: String
     var name: String
     var rssi: Int
+    var smoothedRSSI: Double
     var firstSeen: Date
     var lastSeen: Date
     var seenCount: Int
@@ -146,27 +155,86 @@ struct BLEDiscoveryCandidate: Hashable, Identifiable {
     var lastProbeResult: String?
 
     var id: String { identifier }
+    var displayRSSI: Int { Int(smoothedRSSI.rounded()) }
+}
+
+struct BLELogicalDeviceSnapshot: Identifiable {
+    let key: String
+    let name: String
+    let policy: BLEDevicePolicy?
+    let identities: [BLEDiscoveryCandidate]
+    let exactRules: [BLEDeviceRule]
+
+    var id: String { key }
 }
 
 final class BLEDiscoveryPolicyStore: ObservableObject {
     static let shared = BLEDiscoveryPolicyStore()
 
     @Published private(set) var rules: [BLEDeviceRule]
+    @Published private(set) var logicalRules: [BLELogicalDeviceRule]
     @Published private(set) var candidates: [BLEDiscoveryCandidate] = []
 
     private let rulesKey = "bleDevicePolicyRules"
+    private let logicalRulesKey = "bleLogicalDevicePolicyRulesV1"
 
     private init() {
+        let storedRules: [BLEDeviceRule]
         if let data = ud.data(forKey: rulesKey),
-           let storedRules = try? JSONDecoder().decode([BLEDeviceRule].self, from: data) {
-            rules = storedRules
+           let decoded = try? JSONDecoder().decode([BLEDeviceRule].self, from: data) {
+            storedRules = decoded
         } else {
-            rules = []
+            storedRules = []
+        }
+
+        if let data = ud.data(forKey: logicalRulesKey),
+           let decoded = try? JSONDecoder().decode([BLELogicalDeviceRule].self, from: data) {
+            rules = storedRules
+            logicalRules = decoded
+        } else {
+            var remainingRules = storedRules
+            var migratedRules: [BLELogicalDeviceRule] = []
+            let grouped = Dictionary(grouping: storedRules) {
+                Self.logicalKey(for: $0.name)
+            }
+            for (key, group) in grouped {
+                let policies = Set(group.map(\.policy))
+                guard policies.count == 1, let policy = policies.first, let name = group.first?.name else {
+                    continue
+                }
+                migratedRules.append(BLELogicalDeviceRule(key: key, name: name, policy: policy))
+                remainingRules.removeAll { Self.logicalKey(for: $0.name) == key }
+            }
+            rules = remainingRules
+            logicalRules = migratedRules.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+            if !migratedRules.isEmpty {
+                if let data = try? JSONEncoder().encode(rules) {
+                    ud.set(data, forKey: rulesKey)
+                }
+                if let data = try? JSONEncoder().encode(logicalRules) {
+                    ud.set(data, forKey: logicalRulesKey)
+                }
+            }
         }
     }
 
-    func explicitPolicy(identifier: String) -> BLEDevicePolicy? {
+    static func logicalKey(for name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    func exactPolicy(identifier: String) -> BLEDevicePolicy? {
         rules.first(where: { $0.identifier == identifier })?.policy
+    }
+
+    func logicalPolicy(name: String) -> BLEDevicePolicy? {
+        let key = Self.logicalKey(for: name)
+        return logicalRules.first(where: { $0.key == key })?.policy
+    }
+
+    func explicitPolicy(identifier: String, name: String) -> BLEDevicePolicy? {
+        exactPolicy(identifier: identifier) ?? logicalPolicy(name: name)
     }
 
     func setPolicy(identifier: String, name: String, policy: BLEDevicePolicy) {
@@ -185,6 +253,27 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         saveRules()
     }
 
+    func setLogicalPolicy(name: String, policy: BLEDevicePolicy) {
+        let key = Self.logicalKey(for: name)
+        if let index = logicalRules.firstIndex(where: { $0.key == key }) {
+            logicalRules[index].name = name
+            logicalRules[index].policy = policy
+        } else {
+            logicalRules.append(BLELogicalDeviceRule(key: key, name: name, policy: policy))
+        }
+        // Changing the logical rule establishes a new baseline and clears old overrides.
+        rules.removeAll { Self.logicalKey(for: $0.name) == key }
+        logicalRules.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        saveRules()
+        saveLogicalRules()
+    }
+
+    func clearLogicalPolicy(name: String) {
+        let key = Self.logicalKey(for: name)
+        logicalRules.removeAll(where: { $0.key == key })
+        saveLogicalRules()
+    }
+
     func recordObservation(
         identifier: String,
         name: String,
@@ -198,6 +287,8 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         if let index = candidates.firstIndex(where: { $0.identifier == identifier }) {
             candidates[index].name = name
             candidates[index].rssi = rssi
+            candidates[index].smoothedRSSI =
+                candidates[index].smoothedRSSI * 0.75 + Double(rssi) * 0.25
             candidates[index].lastSeen = now
             candidates[index].seenCount += 1
             candidates[index].isConnectable = isConnectable
@@ -213,6 +304,7 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
                     identifier: identifier,
                     name: name,
                     rssi: rssi,
+                    smoothedRSSI: Double(rssi),
                     firstSeen: now,
                     lastSeen: now,
                     seenCount: 1,
@@ -233,7 +325,40 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 
     var nearbyCandidates: [BLEDiscoveryCandidate] {
-        candidates.filter { explicitPolicy(identifier: $0.identifier) == nil }
+        candidates.filter {
+            explicitPolicy(identifier: $0.identifier, name: $0.name) == nil
+        }
+    }
+
+    var suggestedCandidates: [BLEDiscoveryCandidate] {
+        let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
+        guard mode == .review else { return [] }
+        guard ud.bool(forKey: "readBLEDevice") || ud.bool(forKey: "ideviceOverBLE") else { return [] }
+        return nearbyCandidates.filter(isReviewCandidate)
+    }
+
+    var otherNearbyCandidates: [BLEDiscoveryCandidate] {
+        let suggestedIDs = Set(suggestedCandidates.map(\.identifier))
+        return nearbyCandidates.filter { !suggestedIDs.contains($0.identifier) }
+    }
+
+    var knownLogicalDevices: [BLELogicalDeviceSnapshot] {
+        let keys = Set(logicalRules.map(\.key) + rules.map { Self.logicalKey(for: $0.name) })
+        return keys.compactMap { key in
+            let logicalRule = logicalRules.first(where: { $0.key == key })
+            let exactRules = rules.filter { Self.logicalKey(for: $0.name) == key }
+            let identities = candidates.filter { Self.logicalKey(for: $0.name) == key }
+            let name = logicalRule?.name ?? exactRules.first?.name ?? identities.first?.name
+            guard let name else { return nil }
+            return BLELogicalDeviceSnapshot(
+                key: key,
+                name: name,
+                policy: logicalRule?.policy,
+                identities: identities,
+                exactRules: exactRules
+            )
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     func recordProbeResult(identifier: String, result: String) {
@@ -242,13 +367,18 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 
     func clearNearby() {
-        candidates.removeAll(where: { explicitPolicy(identifier: $0.identifier) == nil })
+        candidates.removeAll {
+            explicitPolicy(identifier: $0.identifier, name: $0.name) == nil
+        }
     }
 
     private func trimCandidateHistoryIfNeeded() {
         while candidates.count > 100 {
             let removable = candidates.indices.filter {
-                explicitPolicy(identifier: candidates[$0].identifier) == nil
+                explicitPolicy(
+                    identifier: candidates[$0].identifier,
+                    name: candidates[$0].name
+                ) == nil
             }
             let pool = removable.isEmpty ? Array(candidates.indices) : removable
             guard let oldestIndex = pool.min(by: {
@@ -260,9 +390,10 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
 
     func effectivePolicy(
         identifier: String,
+        name: String,
         mode: BLEDiscoveryMode
     ) -> BLEDevicePolicy {
-        if let explicit = explicitPolicy(identifier: identifier) {
+        if let explicit = explicitPolicy(identifier: identifier, name: name) {
             return explicit
         }
         switch mode {
@@ -273,23 +404,28 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         }
     }
 
+    func isReviewCandidate(_ candidate: BLEDiscoveryCandidate) -> Bool {
+        guard explicitPolicy(identifier: candidate.identifier, name: candidate.name) == nil else { return false }
+        guard candidate.seenCount >= 3 else { return false }
+        guard !candidate.hasPassiveBatteryData else { return false }
+        return candidate.matchesPairedName ||
+            candidate.advertisesBatteryService ||
+            candidate.lastProbeResult != nil
+    }
+
     var reviewCount: Int {
-        let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
-        guard mode == .review else { return 0 }
-        guard ud.bool(forKey: "readBLEDevice") || ud.bool(forKey: "ideviceOverBLE") else { return 0 }
-        return candidates.filter { candidate in
-            guard explicitPolicy(identifier: candidate.identifier) == nil else { return false }
-            guard candidate.seenCount >= 3 else { return false }
-            guard !candidate.hasPassiveBatteryData else { return false }
-            return candidate.matchesPairedName ||
-                candidate.advertisesBatteryService ||
-                candidate.lastProbeResult != nil
-        }.count
+        suggestedCandidates.count
     }
 
     private func saveRules() {
         if let data = try? JSONEncoder().encode(rules) {
             ud.set(data, forKey: rulesKey)
+        }
+    }
+
+    private func saveLogicalRules() {
+        if let data = try? JSONEncoder().encode(logicalRules) {
+            ud.set(data, forKey: logicalRulesKey)
         }
     }
 }
@@ -405,11 +541,12 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             matchesPairedName: isPaired
         )
 
-        if discoveryPolicy.explicitPolicy(identifier: identifier) == .ignore { return }
+        if discoveryPolicy.explicitPolicy(identifier: identifier, name: deviceName) == .ignore { return }
 
         let mode = BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
         let activePolicy = discoveryPolicy.effectivePolicy(
             identifier: identifier,
+            name: deviceName,
             mode: mode
         )
 
