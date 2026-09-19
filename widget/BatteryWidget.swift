@@ -515,8 +515,8 @@ struct batteryWidget: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Batteries")
-        .description("Displays battery usage for your devices from AirBattery")
+        .configurationDisplayName("Battery List")
+        .description("Displays device batteries as a compact list")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }

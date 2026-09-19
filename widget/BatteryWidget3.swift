@@ -308,8 +308,8 @@ struct batteryWidget3: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Batteries")
-        .description("Displays battery usage for your devices without percentage")
+        .configurationDisplayName("Battery Rings — Icons")
+        .description("Displays device batteries as icon-only rings")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemMedium, .systemSmall])
     }

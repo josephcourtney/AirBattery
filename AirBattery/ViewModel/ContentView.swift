@@ -325,6 +325,180 @@ struct popover: View {
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
+
+    private func isEarbudChild(_ index: Int) -> Bool {
+        let item = allDevices[index]
+        guard !item.parentName.isEmpty else { return false }
+        return allDevices.contains {
+            $0.deviceName == item.parentName && $0.deviceType == "ap_case"
+        }
+    }
+
+    private func isEarbudGroup(_ index: Int) -> Bool {
+        let item = allDevices[index]
+        guard item.deviceType == "ap_case" else { return false }
+        return allDevices.contains { $0.parentName == item.deviceName && $0.hasBattery }
+    }
+
+    private func earbudComponents(_ index: Int) -> [Device] {
+        allDevices.filter { $0.parentName == allDevices[index].deviceName && $0.hasBattery }
+    }
+
+    private func earbudDisplayName(_ item: Device) -> String {
+        item.deviceName
+            .replacingOccurrences(of: " (Case)", with: "")
+            .replacingOccurrences(of: "（充电盒）", with: "")
+    }
+
+    private func earbudPartLabel(_ item: Device) -> String {
+        switch item.deviceType {
+        case "ap_pod_left": return "L"
+        case "ap_pod_right": return "R"
+        case "ap_pod_all": return "L/R"
+        default: return "Earbuds"
+        }
+    }
+
+    private func hasFollowingVisibleRow(after index: Int) -> Bool {
+        guard index + 1 < allDevices.count else { return false }
+        return allDevices[(index + 1)...].indices.contains { !isEarbudChild($0) }
+    }
+
+    private func configureBatteryAlert(for device: Device) {
+        alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+        let controller = AlertWindowController()
+        if let existing = alertList.first(where: { $0.name == device.deviceName }) {
+            controller.showAlert(
+                with: existing,
+                iconName: getDeviceIcon(device),
+                onConfirm: { newAlert in
+                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+                    alertList.removeAll { $0.name == device.deviceName }
+                    alertList.append(newAlert)
+                    ud.set(object: alertList, forKey: "alertList")
+                },
+                onCancel: {}
+            )
+        } else {
+            let alert = btAlert(
+                name: device.deviceName,
+                full: 80,
+                fullOn: true,
+                fullSound: true,
+                low: 20,
+                lowOn: true,
+                lowSound: true
+            )
+            controller.showAlert(
+                with: alert,
+                iconName: getDeviceIcon(device),
+                onConfirm: { newAlert in
+                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+                    alertList.append(newAlert)
+                    ud.set(object: alertList, forKey: "alertList")
+                },
+                onCancel: {}
+            )
+        }
+    }
+
+    private func togglePin(for device: Device) {
+        pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+        if pinnedList.contains(device.deviceName) {
+            pinnedList.removeAll(where: { $0 == device.deviceName })
+            refeshPinnedBar(unpin: device.deviceName)
+        } else {
+            pinnedList.append(device.deviceName)
+            refeshPinnedBar()
+        }
+        ud.set(pinnedList, forKey: "pinnedList")
+    }
+
+    private func earbudMenuLabel(_ item: Device, primary: Device) -> String {
+        item.deviceID == primary.deviceID ? "Case" : earbudPartLabel(item)
+    }
+
+    @ViewBuilder
+    private func earbudGroupRow(_ index: Int) -> some View {
+        let item = allDevices[index]
+        let components = earbudComponents(index)
+        HStack(spacing: 8) {
+            Image(getDeviceIcon(item))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundColor(.blackWhite)
+                .frame(width: 22, height: 22)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(earbudDisplayName(item))
+                    .font(.system(size: 12))
+                    .foregroundColor(.blackWhite)
+                    .lineLimit(1)
+                HStack(spacing: 8) {
+                    Text("Case \(item.batteryLevel)%")
+                    ForEach(components, id: \.deviceID) { component in
+                        Text("\(earbudPartLabel(component)) \(component.batteryLevel)%")
+                    }
+                }
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if item.isCharging != 0 || components.contains(where: { $0.isCharging != 0 }) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.secondary)
+            }
+
+            Menu {
+                let groupedDevices = [item] + components
+                Menu("Battery Alerts") {
+                    ForEach(groupedDevices, id: \.deviceID) { component in
+                        Button(
+                            alertList.contains(where: { $0.name == component.deviceName })
+                                ? "Edit \(earbudMenuLabel(component, primary: item))"
+                                : "Add \(earbudMenuLabel(component, primary: item))"
+                        ) {
+                            configureBatteryAlert(for: component)
+                        }
+                    }
+                }
+                Menu("Menu Bar Pins") {
+                    ForEach(groupedDevices, id: \.deviceID) { component in
+                        Button(
+                            pinnedList.contains(component.deviceName)
+                                ? "Unpin \(earbudMenuLabel(component, primary: item))"
+                                : "Pin \(earbudMenuLabel(component, primary: item))"
+                        ) {
+                            togglePin(for: component)
+                        }
+                    }
+                }
+                Divider()
+                Button("Copy Device Name") {
+                    copyToClipboard(earbudDisplayName(item))
+                }
+                Button("Hide AirPods Group") {
+                    var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+                    let names = [item.deviceName] + components.map(\.deviceName)
+                    for name in names where !blackList.contains(name) {
+                        blackList.append(name)
+                    }
+                    ud.set(blackList, forKey: "blackList")
+                    allDevices.removeAll { names.contains($0.deviceName) }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+    }
     
     var body: some View {
         ZStack{
@@ -341,31 +515,19 @@ struct popover: View {
                             }
                         }
                 }
-                HStack(spacing: 2){
-                    if !fromDock {
-                        PopoverToolbarButton(systemName: "xmark.circle.fill", help: "Quit AirBattery".local, hoverColor: .red) {
-                            NSApp.terminate(self)
-                        }
-                    } else {
+                HStack(spacing: 4) {
+                    if fromDock {
                         PopoverToolbarButton(systemName: "minus.circle.fill", help: "Hide".local, hoverColor: .myYellow) {
                             dockWindow.orderOut(nil)
                         }
-                    }
-                    
-                    PopoverToolbarButton(systemName: "info.circle.fill", help: "About AirBattery".local) {
-                        dockWindow.orderOut(nil)
-                        statusBarItem.menu?.cancelTracking()
-                        openAboutPanel()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2){
-                            NSApp.activate(ignoringOtherApps: true)
+                    } else {
+                        PopoverToolbarButton(systemName: "xmark.circle.fill", help: "Close".local) {
+                            menuPopover.performClose(nil)
                         }
                     }
-                    PopoverToolbarButton(systemName: "gearshape", help: "Settings".local) {
-                        dockWindow.orderOut(nil)
-                        statusBarItem.menu?.cancelTracking()
-                        openSettingPanel()
-                    }
+
                     Spacer()
+
                     if nearCast {
                         PopoverToolbarButton(systemName: "antenna.radiowaves.left.and.right.circle", help: "Refresh Nearcast".local) {
                             netcastService.refeshAll()
@@ -381,6 +543,34 @@ struct popover: View {
                             }
                         }
                     }
+
+                    Menu {
+                        Button("Settings") {
+                            dockWindow.orderOut(nil)
+                            statusBarItem.menu?.cancelTracking()
+                            openSettingPanel()
+                        }
+                        Button("About AirBattery") {
+                            dockWindow.orderOut(nil)
+                            statusBarItem.menu?.cancelTracking()
+                            openAboutPanel()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                NSApp.activate(ignoringOtherApps: true)
+                            }
+                        }
+                        Divider()
+                        Button("Quit AirBattery") {
+                            NSApp.terminate(self)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 15, weight: .regular))
+                            .frame(width: 28, height: 28)
+                            .foregroundColor(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("More")
                 }
                 .padding(.top, fromDock ? 8 : 6)
                 .padding(.bottom, 4)
@@ -423,7 +613,15 @@ struct popover: View {
                         if hiddenDevices.count > 0 { Divider() }
                     }
                     ForEach(allDevices.indices, id: \.self) { index in
-                        VStack(spacing: 0){
+                        if isEarbudChild(index) {
+                            EmptyView()
+                        } else if isEarbudGroup(index) {
+                            VStack(spacing: 0) {
+                                earbudGroupRow(index)
+                                if hasFollowingVisibleRow(after: index) { Divider() }
+                            }
+                        } else {
+                            VStack(spacing: 0){
                             if hidden.contains(index) {
                                 HStack{
                                     Image("blank")
@@ -600,7 +798,7 @@ struct popover: View {
                                         }
                                     }
                                 }
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 4)
                                 .padding(.horizontal, 10)
                                 .background(overStack == index ? Color.blackWhite.opacity(0.15) : .clear)//.cornerRadius(4)
                                 .clipShape(RoundedCornersShape(radius: 2.9, corners: index == allDevices.count - (hiddenDevices.count > 0 ? 0 : 1) ? [.bottomLeft, .bottomRight] : (index == 0 ? [.topLeft, .topRight] : [])))
@@ -684,7 +882,8 @@ struct popover: View {
                                     }
                                 }*/
                             }
-                            if index != allDevices.count-1 { Divider() }
+                            if hasFollowingVisibleRow(after: index) { Divider() }
+                        }
                         }
                     }
                     if hiddenDevices.count > 0 {

@@ -53,8 +53,8 @@ struct AirBatteryApp: App {
                                 guard let nsSplitView = findNSSplitVIew(view: w.contentView),
                                       let controller = nsSplitView.delegate as? NSSplitViewController else { return }
                                 controller.splitViewItems.first?.canCollapse = false
-                                controller.splitViewItems.first?.minimumThickness = 175
-                                controller.splitViewItems.first?.maximumThickness = 175
+                                controller.splitViewItems.first?.minimumThickness = 190
+                                controller.splitViewItems.first?.maximumThickness = 190
                                 w.orderFront(nil)
                             }
                         })
@@ -125,7 +125,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                     ncDeviceCount += count
                 }
             }
-            let menuHeight = CGFloat((max(max(allDevices.count,1)+ncDeviceCount,1)+hiddenRow)*37+44+ncCount)
+            let groupedChildCount = allDevices.filter { item in
+                !item.parentName.isEmpty &&
+                    allDevices.contains { $0.deviceName == item.parentName && $0.deviceType == "ap_case" }
+            }.count
+            let localRowCount = max(allDevices.count - groupedChildCount, 1)
+            let menuHeight = CGFloat((max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 44 + ncCount)
             let mouse = NSEvent.mouseLocation
             var menuX = mouse.x
             var menuY = mouse.y
@@ -381,7 +386,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 ncDeviceCount += count
             }
         }
-        contentView.frame = NSRect(x: 0, y: 0, width: 352, height: (max(max(allDevices.count,1)+ncDeviceCount,1)+hiddenRow)*37+20+ncCount)
+        let groupedChildCount = allDevices.filter { item in
+            !item.parentName.isEmpty &&
+                allDevices.contains { $0.deviceName == item.parentName && $0.deviceType == "ap_case" }
+        }.count
+        let localRowCount = max(allDevices.count - groupedChildCount, 1)
+        contentView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: 352,
+            height: (max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 20 + ncCount
+        )
         let menuItem = NSMenuItem()
         menuItem.view = contentView
         statusMenu.removeAllItems()
