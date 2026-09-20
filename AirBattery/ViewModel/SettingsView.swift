@@ -351,7 +351,7 @@ struct DevicesView: View {
 
                 SGroupBox(label: "Nearby Devices") {
                     HStack {
-                        Text("Currently observable devices that do not yet have a known device record.")
+                        Text("Devices observed through active discovery that do not yet have a known device record.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
