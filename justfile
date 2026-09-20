@@ -52,6 +52,21 @@ doctor:
     @printf '%s\n' '--- Project ---'
     @xcodebuild -list -project "{{project}}"
 
+# Initialize the pinned native source dependencies used for Apple mobile-device support.
+vendor-init:
+    git submodule update --init --recursive
+
+# Build and stage the pinned libimobiledevice runtime and AirBattery-owned helper.
+# The script is fingerprinted and returns immediately when the staged stack is current.
+vendor-mobile:
+    bash scripts/build-mobile-stack.sh
+
+# Remove generated native mobile-device build products while keeping source submodules.
+vendor-mobile-clean:
+    rm -rf ".build/vendor/mobile"
+    rm -rf "AirBattery/libimobiledevice/bin" "AirBattery/libimobiledevice/lib" "AirBattery/libimobiledevice/licenses"
+    rm -f "AirBattery/libimobiledevice/MANIFEST.txt"
+
 # Resolve Swift package dependencies into the local derived-data directory.
 resolve:
     @mkdir -p "{{derived_data}}"
@@ -62,7 +77,7 @@ resolve:
         -derivedDataPath "{{derived_data}}"
 
 # Build AirBattery without code signing. Defaults to Debug.
-build configuration="Debug":
+build configuration="Debug": vendor-mobile
     @mkdir -p "{{derived_data}}"
     xcodebuild \
         -project "{{project}}" \
@@ -128,7 +143,8 @@ build-signed configuration="Debug":
             "$app/Contents/MacOS" \
             "$app/Contents/Frameworks" \
             "$app/Contents/PlugIns" \
-            "$app/Contents/Library"; do \
+            "$app/Contents/Library" \
+            "$app/Contents/Resources/libimobiledevice"; do \
             [[ -e "$root" ]] && /usr/bin/find -L "$root" -type f -print0; \
           done; \
           [[ -f "$app/Contents/Resources/abt" ]] && \
@@ -167,7 +183,7 @@ build-signed configuration="Debug":
 
 # Build all products ad-hoc. This is the stable Xcode build path and the first
 # stage of build-signed. Do not install it directly for TCC-sensitive testing.
-build-adhoc configuration="Debug":
+build-adhoc configuration="Debug": vendor-mobile
     @mkdir -p "{{derived_data}}"
     xcodebuild \
         -project "{{project}}" \
@@ -286,7 +302,7 @@ check:
     just build
 
 # Run the same unsigned build commands used by GitHub Actions.
-ci:
+ci: vendor-mobile
     xcodebuild \
         -resolvePackageDependencies \
         -project "{{project}}" \
@@ -303,6 +319,7 @@ ci:
 app-path configuration="Debug":
     @printf '%s/%s\n' "$PWD" "{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"
 
-# Remove local Xcode build products and package checkouts.
+# Remove local Xcode build products, generated native vendor products, and package checkouts.
 clean:
     rm -rf "{{derived_data}}"
+    just vendor-mobile-clean
