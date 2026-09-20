@@ -54,8 +54,9 @@ just test-hardware
 This is intentionally opt-in. It:
 
 1. reports libimobiledevice visibility separately for network and USB;
-2. reports any iPhone rows in AirBattery's persisted device list, including
-   canonical, libimobiledevice, and BLE identifiers plus the latest battery source;
+2. if AirBattery is already running, asks it to write a fresh in-memory snapshot
+   through `airbattery://writedata`, then reports any iPhone rows with canonical,
+   libimobiledevice, and BLE identifiers plus the latest battery source;
 3. verifies that `ideviceinfo` can read metadata and battery state for every
    libimobiledevice-enumerated device;
 4. selects an iPhone visible to libimobiledevice, if one is available;
@@ -93,6 +94,12 @@ If only an iPad is visible to libimobiledevice, iPad metadata/battery checks
 still run and the companion stress test is skipped. AirBattery itself
 intentionally probes the companion service only for devices whose
 `DeviceClass` is `iPhone`.
+
+The persisted JSON is a widget/export snapshot rather than AirBattery's primary
+live store. The hardware test therefore refreshes it from a running AirBattery
+before reading it. It deliberately does not launch AirBattery merely to obtain
+diagnostics; when the app is not already running, the test labels any existing
+snapshot as potentially stale.
 
 An iPhone can still appear in AirBattery while being absent from both
 `idevice_id -n` and `idevice_id -l`. That can happen when the current battery
