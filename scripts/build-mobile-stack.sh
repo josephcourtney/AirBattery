@@ -492,6 +492,17 @@ copy_prefix_dependencies() {
           runtime_dependency_added=1
         fi
         ;;
+      @rpath/*)
+        local candidate
+        candidate="$PREFIX/lib/${dep#@rpath/}"
+        if [[ -e "$candidate" ]]; then
+          dest="$STAGE/lib/$(basename "$candidate")"
+          if [[ ! -e "$dest" ]]; then
+            cp -L "$candidate" "$dest"
+            runtime_dependency_added=1
+          fi
+        fi
+        ;;
     esac
   done < <(otool -L "$file" | tail -n +2 | awk '{print $1}')
 }
