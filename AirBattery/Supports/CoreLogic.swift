@@ -24,10 +24,10 @@ struct DeviceIdentifierSet: Equatable {
 
         if let mobileDeviceID, !mobileDeviceID.isEmpty {
             canonicalID = mobileDeviceID
+        } else if !incomingCanonicalID.isEmpty {
+            canonicalID = incomingCanonicalID
         } else if let bleDeviceID, !bleDeviceID.isEmpty {
             canonicalID = bleDeviceID
-        } else {
-            canonicalID = incomingCanonicalID
         }
     }
 
