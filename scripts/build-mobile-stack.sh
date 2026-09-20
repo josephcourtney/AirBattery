@@ -26,6 +26,19 @@ require_command() {
   }
 }
 
+# Xcode shell phases do not reliably inherit the interactive shell PATH.
+# Import Homebrew's environment explicitly when it is installed.
+BREW=""
+for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [[ -x "$candidate" ]]; then
+    BREW="$candidate"
+    break
+  fi
+done
+if [[ -n "$BREW" ]]; then
+  eval "$("$BREW" shellenv)"
+fi
+
 for command in git make perl pkg-config autoconf automake autoreconf xcrun otool install_name_tool shasum; do
   require_command "$command"
 done
@@ -34,8 +47,8 @@ done
 # Apple's unrelated /usr/bin/libtool. Autoreconf needs the GNU implementation.
 if command -v glibtoolize >/dev/null 2>&1; then
   export LIBTOOLIZE="$(command -v glibtoolize)"
-elif command -v brew >/dev/null 2>&1; then
-  libtool_gnubin="$(brew --prefix libtool 2>/dev/null || true)/libexec/gnubin"
+elif [[ -n "$BREW" ]]; then
+  libtool_gnubin="$("$BREW" --prefix libtool 2>/dev/null || true)/libexec/gnubin"
   if [[ -d "$libtool_gnubin" ]]; then
     export PATH="$libtool_gnubin:$PATH"
   fi
