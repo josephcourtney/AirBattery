@@ -68,7 +68,6 @@ struct SettingsView: View {
 }
 
 struct GeneralView: View {
-    @AppStorage("showOn") var showOn = "sbar"
     @AppStorage("launchAtLogin") var launchAtLogin = false
     @AppStorage("showDebug") var showDebug: Bool = false
     @State private var debugCount: Int = 0
@@ -84,16 +83,16 @@ struct GeneralView: View {
                         }
                     }
             }
-            SGroupBox {
+            SGroupBox(label: "Tools") {
                 SButton("Command Line Tool", buttonTitle: cltInstalled ? "Uninstall" : "Install",
-                        tips: "After installation, you can run \"airbattery\" in yor terminal to list all devices.") {
+                        tips: "After installation, you can run \"airbattery\" in your terminal to list all devices.") {
                     if cltInstalled {
                         CommandLineTool.uninstall { updateCTL() }
                     } else {
                         CommandLineTool.install { updateCTL() }
                     }
                 }.onAppear { cltInstalled = CommandLineTool.isInstalled() }
-            }.padding(.top, -20)
+            }
             SGroupBox(label: "Update") { UpdaterSettingsView(updater: updaterController.updater) }
             VStack(spacing: 8) {
                 CheckForUpdatesView(updater: updaterController.updater)
