@@ -7,23 +7,6 @@
 import SwiftUI
 import Foundation
 
-enum IDeviceConnectionSource: String, Hashable {
-    case network = "Network"
-    case usb = "USB"
-}
-
-struct IDeviceDiscoveryCandidate: Identifiable, Hashable {
-    let identifier: String
-    var name: String?
-    var deviceType: String?
-    var model: String?
-    var sources: Set<IDeviceConnectionSource>
-    var lastSeen: Date
-    var batteryReadable: Bool
-
-    var id: String { identifier }
-}
-
 class IDeviceBattery: ObservableObject {
     static var shared: IDeviceBattery = IDeviceBattery()
     
@@ -33,12 +16,8 @@ class IDeviceBattery: ObservableObject {
     @AppStorage("updateInterval") var updateInterval = 1
     @Published private(set) var discoveryCandidates: [IDeviceDiscoveryCandidate] = []
 
-    private let scanLock = NSLock()
-    private var scanInFlight = false
-    private let companionProbeLock = NSLock()
-    private var companionProbeDisabledForLaunch = false
-    private var lastCompanionProbe: [String: TimeInterval] = [:]
-    private let companionProbeInterval: TimeInterval = 5 * 60
+    private let scanGate = ExclusiveScanGate()
+    private let companionProbeState = CompanionProbeState(interval: 5 * 60)
 
     private func recordObservation(
         identifier: String,
@@ -50,16 +29,16 @@ class IDeviceBattery: ObservableObject {
     ) {
         guard !identifier.isEmpty else { return }
         DispatchQueue.main.async {
+            let now = Date()
             if let index = self.discoveryCandidates.firstIndex(where: { $0.identifier == identifier }) {
-                self.discoveryCandidates[index].sources.insert(source)
-                self.discoveryCandidates[index].lastSeen = Date()
-                if let name { self.discoveryCandidates[index].name = name }
-                if let deviceType { self.discoveryCandidates[index].deviceType = deviceType }
-                if let model { self.discoveryCandidates[index].model = model }
-                if let batteryReadable {
-                    self.discoveryCandidates[index].batteryReadable =
-                        self.discoveryCandidates[index].batteryReadable || batteryReadable
-                }
+                self.discoveryCandidates[index].merge(
+                    source: source,
+                    name: name,
+                    deviceType: deviceType,
+                    model: model,
+                    batteryReadable: batteryReadable,
+                    lastSeen: now
+                )
             } else {
                 self.discoveryCandidates.append(
                     IDeviceDiscoveryCandidate(
@@ -68,7 +47,7 @@ class IDeviceBattery: ObservableObject {
                         deviceType: deviceType,
                         model: model,
                         sources: [source],
-                        lastSeen: Date(),
+                        lastSeen: now,
                         batteryReadable: batteryReadable ?? false
                     )
                 )
@@ -90,20 +69,10 @@ class IDeviceBattery: ObservableObject {
     }
     
     @objc func scanDevices() {
-        scanLock.lock()
-        guard !scanInFlight else {
-            scanLock.unlock()
-            return
-        }
-        scanInFlight = true
-        scanLock.unlock()
+        guard scanGate.tryBegin() else { return }
 
         Thread.detachNewThread {
-            defer {
-                self.scanLock.lock()
-                self.scanInFlight = false
-                self.scanLock.unlock()
-            }
+            defer { self.scanGate.end() }
 
             if !self.readIDevice { return }
             self.getIDeviceBattery()
@@ -151,46 +120,17 @@ class IDeviceBattery: ObservableObject {
         }
     }
     
-    private func shouldProbeCompanion(parentID: String, deviceType: String) -> Bool {
-        guard deviceType.caseInsensitiveCompare("iPhone") == .orderedSame else {
-            return false
-        }
-
-        let now = Date().timeIntervalSince1970
-        companionProbeLock.lock()
-        defer { companionProbeLock.unlock() }
-
-        guard !companionProbeDisabledForLaunch else { return false }
-        if let lastProbe = lastCompanionProbe[parentID],
-           now - lastProbe < companionProbeInterval {
-            return false
-        }
-
-        // Reserve the slot before launching the helper so overlapping refreshes
-        // cannot start duplicate companion-proxy probes.
-        lastCompanionProbe[parentID] = now
-        return true
-    }
-
-    private struct CompanionBatteryResponse: Decodable {
-        struct Watch: Decodable {
-            let id: String
-            let name: String
-            let productType: String
-            let batteryLevel: Int
-            let isCharging: Bool
-        }
-
-        let watches: [Watch]
-    }
-
     private func updateWatchBattery(
         parentID: String,
         parentName: String,
         deviceType: String,
         lastUpdate: TimeInterval
     ) {
-        guard shouldProbeCompanion(parentID: parentID, deviceType: deviceType) else {
+        guard companionProbeState.shouldProbe(
+            parentID: parentID,
+            deviceType: deviceType,
+            now: Date().timeIntervalSince1970
+        ) else {
             return
         }
 
@@ -203,9 +143,7 @@ class IDeviceBattery: ObservableObject {
         guard let result else { return }
 
         if result.terminationReason == .uncaughtSignal {
-            companionProbeLock.lock()
-            companionProbeDisabledForLaunch = true
-            companionProbeLock.unlock()
+            companionProbeState.disableForLaunch()
             print(
                 "⚠️ Disabling Apple Watch companion probing for this launch: " +
                 "airbattery-mobile terminated by signal \(result.terminationStatus)"
@@ -220,7 +158,7 @@ class IDeviceBattery: ObservableObject {
             return
         }
 
-        for watch in response.watches where (0...100).contains(watch.batteryLevel) {
+        for watch in response.validWatches {
             AirBatteryModel.updateDevice(
                 Device(
                     deviceID: watch.id,
@@ -245,39 +183,47 @@ class IDeviceBattery: ObservableObject {
             // 修复 iOS"私有无线局域网地址"导致配对记录 MAC 与 Bonjour 广播 MAC 不匹配、拔线后无法通过 Wi-Fi 连接的问题
             _ = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/wificonnection", arguments: ["-u", id, "syncmac"])
         }
-        if let deviceInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/ideviceinfo", arguments: [connectType, "-u", id]){
-            let i = deviceInfo.components(separatedBy: .newlines)
-            if let deviceName = i.filter({ $0.contains("DeviceName") }).first?.components(separatedBy: ": ").last,
-               let model = i.filter({ $0.contains("ProductType") }).first?.components(separatedBy: ": ").last,
-               let type = i.filter({ $0.contains("DeviceClass") }).first?.components(separatedBy: ": ").last {
+        if let deviceInfo = process(
+            path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/ideviceinfo",
+            arguments: [connectType, "-u", id]
+        ), let metadata = IDeviceInfoParser.metadata(from: deviceInfo) {
+            recordObservation(
+                identifier: id,
+                source: source,
+                name: metadata.name,
+                deviceType: metadata.deviceClass,
+                model: metadata.productType
+            )
+
+            if let batteryInfo = process(
+                path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/ideviceinfo",
+                arguments: [connectType, "-u", id, "-q", "com.apple.mobile.battery"]
+            ), let battery = IDeviceInfoParser.battery(from: batteryInfo) {
+                AirBatteryModel.updateDevice(
+                    Device(
+                        deviceID: id,
+                        deviceType: metadata.deviceClass,
+                        deviceName: metadata.name,
+                        deviceModel: metadata.productType,
+                        batteryLevel: battery.level,
+                        isCharging: battery.isCharging ? 1 : 0,
+                        lastUpdate: lastUpdate
+                    )
+                )
                 recordObservation(
                     identifier: id,
                     source: source,
-                    name: deviceName,
-                    deviceType: type,
-                    model: model
+                    name: metadata.name,
+                    deviceType: metadata.deviceClass,
+                    model: metadata.productType,
+                    batteryReadable: true
                 )
-                if let batteryInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/ideviceinfo", arguments: [connectType, "-u", id, "-q", "com.apple.mobile.battery"]) {
-                    let b = batteryInfo.components(separatedBy: .newlines)
-                    if let level = b.filter({ $0.contains("BatteryCurrentCapacity") }).first?.components(separatedBy: ": ").last,
-                       let charging = b.filter({ $0.contains("BatteryIsCharging") }).first!.components(separatedBy: ": ").last {
-                        AirBatteryModel.updateDevice(Device(deviceID: id, deviceType: type, deviceName: deviceName, deviceModel: model, batteryLevel: Int(level)!, isCharging: Bool(charging)! ? 1 : 0, lastUpdate: lastUpdate))
-                        recordObservation(
-                            identifier: id,
-                            source: source,
-                            name: deviceName,
-                            deviceType: type,
-                            model: model,
-                            batteryReadable: true
-                        )
-                        updateWatchBattery(
-                            parentID: id,
-                            parentName: deviceName,
-                            deviceType: type,
-                            lastUpdate: lastUpdate
-                        )
-                    }
-                }
+                updateWatchBattery(
+                    parentID: id,
+                    parentName: metadata.name,
+                    deviceType: metadata.deviceClass,
+                    lastUpdate: lastUpdate
+                )
             }
         }
     }
