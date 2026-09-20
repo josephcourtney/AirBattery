@@ -55,10 +55,10 @@ brew install lihaoyun6/tap/airbattery
 
 ## Thanks
 [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) @libimobiledevice  
-> AirBattery uses executable files and runtime libraries compiled from libimobiledevice based on version `73b6fd1`. Feel free to compile and replace them if in doubt.
+> AirBattery builds its mobile-device runtime from pinned upstream source submodules rather than checking compiled third-party binaries into the repository. The Apple Watch companion helper is AirBattery-owned source and keeps libimobiledevice outside the Swift process. See [VENDORING.md](./VENDORING.md) for exact revisions, provenance, and build instructions.
 
-[comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) @nikias  
-> AirBattery uses executable files compiled based on this source code. Feel free to compile and replace them if in doubt.  
+[Nikias Bassen's companion-proxy example](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) @nikias  
+> Historical versions of AirBattery's `comptest` helper were based on this example. The prebuilt helper has been retired; the current implementation is maintained as source in `tools/mobile/airbattery-mobile.c`.  
 
 [MultipeerKit](https://github.com/insidegui/MultipeerKit) @insidegui  
 > AirBattery uses MultipeerKit for symmetric multi-end communication within the LAN  
