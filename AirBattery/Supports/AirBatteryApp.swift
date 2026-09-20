@@ -65,6 +65,14 @@ struct AirBatteryApp: App {
                 )
         }
         .resizableSettingsWindowIfAvailable()
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    openSettingPanel()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
     }
 }
 
