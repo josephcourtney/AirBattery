@@ -89,9 +89,27 @@ brew install autoconf automake libtool pkg-config
 8. copies license notices and a generated manifest; and
 9. stages the result under `AirBattery/libimobiledevice/`.
 
-The script fingerprints its source inputs, helper sources, architecture, and
-compiler. Re-running it is effectively a no-op while those inputs are
-unchanged.
+The script uses **per-component fingerprints** rather than one global cache
+key. Each component is rebuilt only when one of its own inputs or an upstream
+dependency changes. For example:
+
+- changing `tools/mobile/wificonnection.c` rebuilds only `wificonnection`
+  and restages/re-signs the runtime;
+- changing `tools/mobile/airbattery-mobile.c` rebuilds only that helper and
+  restages/re-signs the runtime;
+- changing the libimobiledevice pin rebuilds libimobiledevice and the two
+  AirBattery helpers, but reuses OpenSSL, libplist, glue, usbmuxd, and libtatsu;
+- changing libplist rebuilds libplist and every component whose fingerprint
+  depends on it.
+
+The cache lives under `.build/vendor/mobile/stamps/`. Recipe versions are kept
+separately in `scripts/build-mobile-stack.sh`, so changes to staging logic do
+not automatically invalidate unrelated compiled libraries.
+
+When migrating from the previous all-or-nothing builder, the script can reuse a
+partially completed build only if all six materialized third-party source
+revisions match the currently pinned submodules and the expected artifacts have
+the requested architecture.
 
 Generated paths are:
 
