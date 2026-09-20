@@ -41,30 +41,7 @@ struct AirBatteryApp: App {
     var body: some Scene {
         Settings {
             SettingsView()
-                .background(
-                    WindowAccessor(
-                        onWindowOpen: { w in
-                            if let w = w {
-                                //w.level = .floating
-                                w.titlebarSeparatorStyle = .automatic
-                                w.titlebarAppearsTransparent = false
-                                w.isOpaque = true
-                                w.backgroundColor = .windowBackgroundColor
-                                w.styleMask.insert(.resizable)
-                                w.contentMinSize = NSSize(width: 720, height: 520)
-                                w.contentMaxSize = NSSize(width: 10_000, height: 10_000)
-                                w.setFrameAutosaveName("AirBatterySettingsWindow")
-                                guard let nsSplitView = findNSSplitVIew(view: w.contentView),
-                                      let controller = nsSplitView.delegate as? NSSplitViewController else { return }
-                                controller.splitViewItems.first?.canCollapse = false
-                                controller.splitViewItems.first?.minimumThickness = 190
-                                controller.splitViewItems.first?.maximumThickness = 190
-                                w.orderFront(nil)
-                            }
-                        })
-                )
         }
-
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
