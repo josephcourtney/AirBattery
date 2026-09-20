@@ -70,24 +70,27 @@ struct AirPodsBatteryGroup: Hashable {
     }
 
     func mergedEarbudLevel(enabled: Bool, threshold: Int) -> Int? {
-        guard enabled,
-              let leftEarbud,
-              let rightEarbud,
-              leftEarbud.isCharging == rightEarbud.isCharging,
-              abs(leftEarbud.batteryLevel - rightEarbud.batteryLevel) <= threshold
-        else {
-            return nil
-        }
-        return min(leftEarbud.batteryLevel, rightEarbud.batteryLevel)
+        guard let leftEarbud, let rightEarbud else { return nil }
+        return EarbudMergePolicy.mergedLevel(
+            enabled: enabled,
+            threshold: threshold,
+            leftLevel: leftEarbud.batteryLevel,
+            leftCharging: leftEarbud.isCharging,
+            rightLevel: rightEarbud.batteryLevel,
+            rightCharging: rightEarbud.isCharging
+        )
     }
 
     func mergedEarbudCharging(enabled: Bool, threshold: Int) -> Int? {
-        guard mergedEarbudLevel(enabled: enabled, threshold: threshold) != nil,
-              let leftEarbud
-        else {
-            return nil
-        }
-        return leftEarbud.isCharging
+        guard let leftEarbud, let rightEarbud else { return nil }
+        return EarbudMergePolicy.mergedCharging(
+            enabled: enabled,
+            threshold: threshold,
+            leftLevel: leftEarbud.batteryLevel,
+            leftCharging: leftEarbud.isCharging,
+            rightLevel: rightEarbud.batteryLevel,
+            rightCharging: rightEarbud.isCharging
+        )
     }
 }
 
