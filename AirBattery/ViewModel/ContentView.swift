@@ -1251,14 +1251,7 @@ func openAboutPanel() {
 
 func openSettingPanel() {
     dockWindow.orderOut(nil)
-    NSApp.activate(ignoringOtherApps: true)
-    if #available(macOS 14, *) {
-        NSApp.mainMenu?.items.first?.submenu?.item(at: 2)?.performAction()
-    }else if #available(macOS 13, *) {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    } else {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-    }
+    SettingsWindowController.shared.present()
 }
 
 func findNSSplitVIew(view: NSView?) -> NSSplitView? {
