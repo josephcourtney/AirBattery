@@ -376,6 +376,7 @@
 			buildPhases = (
 				1841D4472AA6071C0022A1BE /* Sources */,
 				1841D4482AA6071C0022A1BE /* Frameworks */,
+				18F0A0012F6E000100AB0001 /* Build Mobile Vendor Stack */,
 				1841D4492AA6071C0022A1BE /* Resources */,
 				18892A9A2B81F8330017377E /* Embed Foundation Extensions */,
 				18283DB02B8549B2009B1B13 /* CopyFiles */,
@@ -522,6 +523,32 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		18F0A0012F6E000100AB0001 /* Build Mobile Vendor Stack */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/scripts/build-mobile-stack.sh",
+				"$(SRCROOT)/tools/mobile/airbattery-mobile.c",
+				"$(SRCROOT)/tools/mobile/wificonnection.c",
+			);
+			name = "Build Mobile Vendor Stack";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\nbash \"$SRCROOT/scripts/build-mobile-stack.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		18283D9D2B854776009B1B13 /* Sources */ = {
