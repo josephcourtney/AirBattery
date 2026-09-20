@@ -38,17 +38,7 @@ struct AirBatteryApp: App {
         registerNotificationCategory()
     }
     
-    @SceneBuilder
     var body: some Scene {
-        if #available(macOS 13.0, *) {
-            settingsScene
-                .windowResizability(.contentMinSize)
-        } else {
-            settingsScene
-        }
-    }
-
-    private var settingsScene: some Scene {
         Settings {
             SettingsView()
                 .background(
