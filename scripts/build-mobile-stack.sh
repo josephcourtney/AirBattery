@@ -65,10 +65,10 @@ for path in "${SUBMODULES[@]}"; do
     exit 2
   fi
 
-  expected="$(git -C "$ROOT" ls-tree HEAD "$path" | awk '{print $3}')"
+  expected="$(git -C "$ROOT" ls-files --stage -- "$path" | awk '{print $2}')"
   actual="$(git -C "$ROOT/$path" rev-parse HEAD)"
   if [[ -z "$expected" || "$actual" != "$expected" ]]; then
-    printf 'Submodule %s is not at the commit pinned by AirBattery.\n' "$path" >&2
+    printf 'Submodule %s is not at the commit pinned in the AirBattery index.\n' "$path" >&2
     printf 'Expected: %s\nActual:   %s\n' "$expected" "$actual" >&2
     printf '%s\n' 'Run: git submodule update --init --recursive' >&2
     exit 2
