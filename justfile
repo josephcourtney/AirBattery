@@ -64,7 +64,54 @@ vendor-mobile: vendor-init
 # Report pinned submodule and generated-runtime state without cloning or building.
 vendor-mobile-status:
     @printf '%s\n' '--- Pinned source dependencies ---'; \
-      git config -f .gitmodules --get-regexp '^submodule\..*\.path
+      git config -f .gitmodules --get-regexp path | awk '{print $2}' | \
+      while read -r path; do \
+        expected="$(git ls-files --stage -- "$path" | awk '{print $2}')"; \
+        if git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then \
+          actual="$(git -C "$path" rev-parse HEAD)"; \
+          if [[ "$actual" == "$expected" ]]; then state='ready'; else state='DIFFERS'; fi; \
+          printf '%-38s %-16s %s\n' "$path" "$state" "$actual"; \
+        else \
+          printf '%-38s %-16s %s\n' "$path" 'not initialized' "$expected"; \
+        fi; \
+      done; \
+      printf '%s\n' '--- Generated runtime ---'; \
+      stage="AirBattery/libimobiledevice"; \
+      if [[ -f "$stage/MANIFEST.txt" ]]; then \
+        printf '%s\n' 'present'; \
+        cat "$stage/MANIFEST.txt"; \
+      else \
+        printf '%s\n' 'not built'; \
+      fi
+
+# Inspect an already-generated mobile runtime. This command never clones or builds.
+vendor-mobile-diagnose:
+    @stage="AirBattery/libimobiledevice"; \
+      if [[ ! -f "$stage/MANIFEST.txt" || ! -d "$stage/bin" || ! -d "$stage/lib" ]]; then \
+        printf '%s\n' \
+          'Mobile vendor runtime has not been built.' \
+          'Run just vendor-mobile to build it, or just vendor-mobile-diagnose-build to build and diagnose in one command.' >&2; \
+        exit 2; \
+      fi; \
+      printf '%s\n' '--- Manifest ---'; \
+      cat "$stage/MANIFEST.txt"; \
+      printf '%s\n' '--- Runtime files ---'; \
+      find "$stage/bin" "$stage/lib" -maxdepth 1 -type f -print | sort; \
+      printf '%s\n' '--- Mach-O linkage ---'; \
+      for file in "$stage"/bin/* "$stage"/lib/*; do \
+        [[ -f "$file" && ! -L "$file" ]] || continue; \
+        if /usr/bin/file "$file" | /usr/bin/grep -q 'Mach-O'; then \
+          printf '\n[%s]\n' "$file"; \
+          /usr/bin/file "$file"; \
+          /usr/bin/otool -L "$file"; \
+          /usr/bin/codesign --verify --verbose=1 "$file"; \
+        fi; \
+      done
+
+# Build/update the mobile runtime, then run the observational diagnostics.
+vendor-mobile-diagnose-build: vendor-mobile
+    just vendor-mobile-diagnose
+
 # Remove generated native mobile-device build products while keeping source submodules.
 vendor-mobile-clean:
     rm -rf ".build/vendor/mobile"
