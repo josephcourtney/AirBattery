@@ -58,7 +58,7 @@ vendor-init:
 
 # Build and stage the pinned libimobiledevice runtime and AirBattery-owned helper.
 # The script is fingerprinted and returns immediately when the staged stack is current.
-vendor-mobile:
+vendor-mobile: vendor-init
     bash scripts/build-mobile-stack.sh
 
 # Remove generated native mobile-device build products while keeping source submodules.
