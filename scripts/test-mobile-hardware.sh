@@ -62,6 +62,7 @@ query_device() {
       return 1
     }
   fi
+
   name="$(printf '%s\n' "$info" | info_value DeviceName)"
   class="$(printf '%s\n' "$info" | info_value DeviceClass)"
   if [[ -z "$name" || -z "$class" ]]; then
@@ -80,8 +81,10 @@ query_device() {
       return 1
     }
   fi
+
   level="$(printf '%s\n' "$battery" | info_value BatteryCurrentCapacity)"
   charging="$(printf '%s\n' "$battery" | info_value BatteryIsCharging)"
+
   case "$level" in
     ''|*[!0-9]*)
       printf 'FAIL %s %s (%s): invalid battery level %q\n' "$class" "$name" "$transport" "$level" >&2
@@ -92,6 +95,7 @@ query_device() {
     printf 'FAIL %s %s (%s): battery level out of range: %s\n' "$class" "$name" "$transport" "$level" >&2
     return 1
   fi
+
   case "$(printf '%s' "$charging" | tr '[:upper:]' '[:lower:]')" in
     true|false|yes|no|0|1) ;;
     *)
@@ -128,13 +132,16 @@ find_iphone() {
 print_id_list() {
   local label="$1"
   local ids="$2"
-  local count=0 udid
+  local count=0
+  local udid
+
   printf '%s\n' "$label"
   while IFS= read -r udid; do
     [[ -n "$udid" ]] || continue
     printf '  %s\n' "$udid"
     count=$((count + 1))
   done <<<"$ids"
+
   if [[ "$count" -eq 0 ]]; then
     printf '%s\n' '  (none)'
   fi
@@ -160,6 +167,8 @@ airbattery_iphone_rows() {
 
 print_airbattery_visibility() {
   local rows="$1"
+  local name type model id
+
   printf '%s\n' 'AirBattery persisted iPhone rows (discovery source is not persisted):'
   if [[ -z "$rows" ]]; then
     if [[ -f "$AIRBATTERY_DATA" ]]; then
@@ -170,8 +179,15 @@ print_airbattery_visibility() {
     return
   fi
 
-  local name type model id
-  while IFS=
+  while IFS="$(printf '\t')" read -r name type model id; do
+    [[ -n "$name" ]] || continue
+    [[ -n "$model" ]] || model="-"
+    [[ -n "$id" ]] || id="-"
+    printf '  %-24s type=%-12s model=%-14s id=%s\n' \
+      "$name" "$type" "$model" "$id"
+  done <<<"$rows"
+}
+
 printf '%s\n' '--- Native helper CLI smoke test ---'
 set +e
 "$BIN/airbattery-mobile" >/dev/null 2>&1
@@ -243,10 +259,12 @@ for ((i = 1; i <= ITERATIONS; i++)); do
   output="$("$BIN/airbattery-mobile" companion-battery "$iphone_udid" 2>&1)"
   rc=$?
   set -e
+
   if [[ "$rc" -ne 0 ]]; then
     printf 'FAIL companion query %d/%d exited %d:\n%s\n' "$i" "$ITERATIONS" "$rc" "$output" >&2
     exit 1
   fi
+
   if ! jq -e '
       (.watches | type == "array") and
       all(.watches[];
@@ -261,93 +279,7 @@ for ((i = 1; i <= ITERATIONS; i++)); do
     exit 1
   fi
 
-  if (( i == 1 || i % 10 == 0 || i == ITERATIONS )); then
-    printf 'PASS companion query %d/%d watches=%s\n' \
-      "$i" "$ITERATIONS" "$(jq '.watches | length' <<<"$output")"
-  fi
-done
-
-printf 'PASS %s consecutive companion queries completed without crash or malformed output\n' "$ITERATIONS"
-\t' read -r name type model id; do
-    printf '  %-24s type=%-12s model=%-14s id=%s\n' \
-      "$name" "$type" "${model:--}" "${id:--}"
-  done <<<"$rows"
-}
-
-printf '%s\n' '--- Native helper CLI smoke test ---'
-set +e
-"$BIN/airbattery-mobile" >/dev/null 2>&1
-rc=$?
-set -e
-if [[ "$rc" -ne 2 ]]; then
-  printf 'FAIL airbattery-mobile usage exit status: expected 2, got %s\n' "$rc" >&2
-  exit 1
-fi
-printf '%s\n' 'PASS airbattery-mobile rejects missing arguments with status 2'
-
-printf '%s\n' '--- Enumerated mobile devices ---'
-network_ids="$("$BIN/idevice_id" -n 2>/dev/null || true)"
-usb_ids="$("$BIN/idevice_id" -l 2>/dev/null || true)"
-
-device_count=0
-while IFS= read -r udid; do
-  [[ -n "$udid" ]] || continue
-  query_device "$udid" network
-  device_count=$((device_count + 1))
-done <<<"$network_ids"
-
-while IFS= read -r udid; do
-  [[ -n "$udid" ]] || continue
-  query_device "$udid" usb
-  device_count=$((device_count + 1))
-done <<<"$usb_ids"
-
-if [[ "$device_count" -eq 0 ]]; then
-  printf '%s\n' 'SKIP no USB or network mobile devices are currently visible'
-fi
-
-printf '%s\n' '--- Companion proxy stress test ---'
-iphone_udid=""
-if [[ -n "$REQUESTED_UDID" ]]; then
-  iphone_udid="$REQUESTED_UDID"
-elif iphone_udid="$(find_iphone network "$network_ids")"; then
-  :
-elif iphone_udid="$(find_iphone usb "$usb_ids")"; then
-  :
-else
-  iphone_udid=""
-fi
-
-if [[ -z "$iphone_udid" ]]; then
-  printf '%s\n' 'SKIP no visible iPhone; companion-battery is intentionally not probed for iPad'
-  exit 0
-fi
-
-printf 'Using iPhone id=%s for %s companion queries\n' "$(short_id "$iphone_udid")" "$ITERATIONS"
-for ((i = 1; i <= ITERATIONS; i++)); do
-  set +e
-  output="$("$BIN/airbattery-mobile" companion-battery "$iphone_udid" 2>&1)"
-  rc=$?
-  set -e
-  if [[ "$rc" -ne 0 ]]; then
-    printf 'FAIL companion query %d/%d exited %d:\n%s\n' "$i" "$ITERATIONS" "$rc" "$output" >&2
-    exit 1
-  fi
-  if ! jq -e '
-      (.watches | type == "array") and
-      all(.watches[];
-        (.id | type == "string") and
-        (.name | type == "string") and
-        (.productType | type == "string") and
-        (.batteryLevel | type == "number" and . >= 0 and . <= 100) and
-        (.isCharging | type == "boolean")
-      )
-    ' >/dev/null <<<"$output"; then
-    printf 'FAIL companion query %d/%d returned invalid JSON:\n%s\n' "$i" "$ITERATIONS" "$output" >&2
-    exit 1
-  fi
-
-  if (( i == 1 || i % 10 == 0 || i == ITERATIONS )); then
+  if ((i == 1 || i % 10 == 0 || i == ITERATIONS)); then
     printf 'PASS companion query %d/%d watches=%s\n' \
       "$i" "$ITERATIONS" "$(jq '.watches | length' <<<"$output")"
   fi
