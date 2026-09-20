@@ -413,10 +413,19 @@ struct popover: View {
     }
 
     @ViewBuilder
-    private func airPodsLevel(label: String, level: Int, charging: Int) -> some View {
+    private func airPodsLevel(
+        iconDevice: Device,
+        level: Int,
+        charging: Int,
+        help: String
+    ) -> some View {
         HStack(spacing: 2) {
-            Text(label)
+            Image(getDeviceIcon(iconDevice))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .foregroundColor(.secondary)
+                .frame(width: 13, height: 13)
+                .help(help)
             Text("\(level)%")
                 .foregroundColor(level <= 10 ? .darkMyRed : .primary)
             if charging != 0 {
@@ -427,6 +436,24 @@ struct popover: View {
         }
         .font(.system(size: 10, weight: .medium))
         .fixedSize()
+        .help(help)
+    }
+
+    private func mergedAirPodsIconDevice(
+        _ group: AirPodsBatteryGroup,
+        level: Int,
+        charging: Int
+    ) -> Device {
+        let source = group.leftEarbud ?? group.rightEarbud ?? group.caseDevice
+        return Device(
+            deviceID: source?.deviceID ?? "@AirPodsMerged",
+            deviceType: "ap_pod_all",
+            deviceName: group.name,
+            deviceModel: source?.deviceModel,
+            batteryLevel: level,
+            isCharging: charging,
+            lastUpdate: source?.lastUpdate ?? Date().timeIntervalSince1970
+        )
     }
 
     @ViewBuilder
@@ -451,9 +478,10 @@ struct popover: View {
             HStack(spacing: 6) {
                 if let caseDevice = group.caseDevice {
                     airPodsLevel(
-                        label: "C",
+                        iconDevice: caseDevice,
                         level: caseDevice.batteryLevel,
-                        charging: caseDevice.isCharging
+                        charging: caseDevice.isCharging,
+                        help: "Case"
                     )
                 }
 
@@ -461,28 +489,45 @@ struct popover: View {
                     enabled: twsMergeEnabled,
                     threshold: twsMerge
                 ) {
+                    let charging = group.mergedEarbudCharging(
+                        enabled: twsMergeEnabled,
+                        threshold: twsMerge
+                    ) ?? 0
                     airPodsLevel(
-                        label: "L/R",
+                        iconDevice: mergedAirPodsIconDevice(
+                            group,
+                            level: merged,
+                            charging: charging
+                        ),
                         level: merged,
-                        charging: group.mergedEarbudCharging(
-                            enabled: twsMergeEnabled,
-                            threshold: twsMerge
-                        ) ?? 0
+                        charging: charging,
+                        help: "Left and right earbuds"
                     )
                 } else {
                     if let left = group.leftEarbud {
-                        airPodsLevel(label: "L", level: left.batteryLevel, charging: left.isCharging)
+                        airPodsLevel(
+                            iconDevice: left,
+                            level: left.batteryLevel,
+                            charging: left.isCharging,
+                            help: "Left earbud"
+                        )
                     }
                     if let right = group.rightEarbud {
-                        airPodsLevel(label: "R", level: right.batteryLevel, charging: right.isCharging)
+                        airPodsLevel(
+                            iconDevice: right,
+                            level: right.batteryLevel,
+                            charging: right.isCharging,
+                            help: "Right earbud"
+                        )
                     }
                     if group.leftEarbud == nil,
                        group.rightEarbud == nil,
                        let legacy = group.legacyMergedEarbuds {
                         airPodsLevel(
-                            label: "L/R",
+                            iconDevice: legacy,
                             level: legacy.batteryLevel,
-                            charging: legacy.isCharging
+                            charging: legacy.isCharging,
+                            help: "Left and right earbuds"
                         )
                     }
                 }

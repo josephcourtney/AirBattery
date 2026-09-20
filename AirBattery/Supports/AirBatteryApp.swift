@@ -52,6 +52,10 @@ struct AirBatteryApp: App {
                                 w.backgroundColor = .windowBackgroundColor
                                 w.styleMask.insert(.resizable)
                                 w.contentMinSize = NSSize(width: 720, height: 520)
+                                // Settings defaults to content-sized resizability.
+                                // Give the AppKit fallback no effective maximum,
+                                // while macOS 13+ uses .contentMinSize above.
+                                w.contentMaxSize = NSSize(width: 10_000, height: 10_000)
                                 w.setFrameAutosaveName("AirBatterySettingsWindow")
                                 guard let nsSplitView = findNSSplitVIew(view: w.contentView),
                                       let controller = nsSplitView.delegate as? NSSplitViewController else { return }
