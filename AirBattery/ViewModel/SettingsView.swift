@@ -477,9 +477,11 @@ struct DevicesView: View {
             let idCandidates = iDeviceBattery.discoveryCandidates.filter { candidate in
                 snapshot.devices.contains(where: { $0.deviceID == candidate.identifier }) ||
                 candidate.name.map { inventoryKey($0) == inventoryKey(snapshot.name) } == true ||
-                snapshot.devices.contains(where: {
-                    !$0.parentName.isEmpty &&
-                    candidate.name.map { inventoryKey($0) == inventoryKey($0.parentName) } == true
+                snapshot.devices.contains(where: { device in
+                    !device.parentName.isEmpty &&
+                    candidate.name.map {
+                        inventoryKey($0) == inventoryKey(device.parentName)
+                    } == true
                 })
             }
             snapshot.iDeviceCandidates = idCandidates
