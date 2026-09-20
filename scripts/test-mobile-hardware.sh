@@ -167,7 +167,10 @@ airbattery_iphone_rows() {
         (.deviceName // "iPhone"),
         (.deviceType // "unknown"),
         (.deviceModel // ""),
-        (.deviceID // "")
+        (.deviceID // ""),
+        (.mobileDeviceID // ""),
+        (.bleDeviceID // ""),
+        (.batterySource // "")
       ]
     | @tsv
   ' "$AIRBATTERY_DATA" 2>/dev/null || true
@@ -175,9 +178,9 @@ airbattery_iphone_rows() {
 
 print_airbattery_visibility() {
   local rows="$1"
-  local name type model id
+  local name type model id mobile_id ble_id source
 
-  printf '%s\n' 'AirBattery persisted iPhone rows (discovery source is not persisted):'
+  printf '%s\n' 'AirBattery persisted iPhone rows:'
   if [[ -z "$rows" ]]; then
     if [[ -f "$AIRBATTERY_DATA" ]]; then
       printf '%s\n' '  (none)'
@@ -187,12 +190,17 @@ print_airbattery_visibility() {
     return
   fi
 
-  while IFS="$(printf '\t')" read -r name type model id; do
+  while IFS="$(printf '\t')" read -r name type model id mobile_id ble_id source; do
     [[ -n "$name" ]] || continue
     [[ -n "$model" ]] || model="-"
     [[ -n "$id" ]] || id="-"
-    printf '  %-24s type=%-12s model=%-14s id=%s\n' \
-      "$name" "$type" "$model" "$id"
+    [[ -n "$mobile_id" ]] || mobile_id="-"
+    [[ -n "$ble_id" ]] || ble_id="-"
+    [[ -n "$source" ]] || source="legacy/unknown"
+    printf '  %-24s type=%-12s model=%-14s source=%s\n' \
+      "$name" "$type" "$model" "$source"
+    printf '    canonical=%s\n    mobile=%s\n    ble=%s\n' \
+      "$id" "$mobile_id" "$ble_id"
   done <<<"$rows"
 }
 
@@ -250,9 +258,9 @@ if [[ -z "$iphone_udid" ]]; then
   printf '%s\n' 'SKIP no iPhone is visible to libimobiledevice over network or USB.'
   if [[ -n "$airbattery_iphones" ]]; then
     printf '%s\n' \
-      'AirBattery does have a persisted iPhone row, but its discovery source is not recorded.' \
-      'Because libimobiledevice cannot currently see that iPhone, the row may be BLE-derived' \
-      'or retained from an earlier observation; it cannot drive the companion-proxy Watch test.'
+      'AirBattery does have a persisted iPhone row. Its source-specific identifiers are shown above.' \
+      'If a mobile UDID is retained there, AirBattery preserves it even while the phone is currently' \
+      'visible only through BLE; companion-proxy still requires live libimobiledevice visibility.'
   else
     printf '%s\n' \
       'AirBattery can still show iPhones discovered over BLE or retained from recent state,' \
