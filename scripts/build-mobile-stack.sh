@@ -346,7 +346,7 @@ maybe_bootstrap_component \
   "$PREFIX/lib/libusbmuxd-2.0.dylib"
 maybe_bootstrap_component \
   libtatsu "$tatsu_fp" third_party/libtatsu \
-  "$PREFIX/lib/libtatsu-1.0.dylib"
+  "$PREFIX/lib/libtatsu.dylib"
 maybe_bootstrap_component \
   libimobiledevice "$limd_fp" third_party/libimobiledevice \
   "$PREFIX/lib/libimobiledevice-1.0.dylib" \
@@ -388,7 +388,7 @@ else
   write_stamp libusbmuxd "$usbmuxd_fp"
 fi
 
-if component_cached libtatsu "$tatsu_fp" "$PREFIX/lib/libtatsu-1.0.dylib"; then
+if component_cached libtatsu "$tatsu_fp" "$PREFIX/lib/libtatsu.dylib"; then
   printf '%s\n' '==> libtatsu: cached'
 else
   printf '%s\n' '==> Building libtatsu'
