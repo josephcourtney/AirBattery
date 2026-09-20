@@ -88,3 +88,10 @@ fastlane/test_output
 # https://github.com/johnno1962/injectionforxcode
 
 iOSInjectionProject/
+
+# Generated native mobile-device runtime.
+# Source and exact revisions live under third_party/ and tools/mobile/.
+AirBattery/libimobiledevice/bin/
+AirBattery/libimobiledevice/lib/
+AirBattery/libimobiledevice/licenses/
+AirBattery/libimobiledevice/MANIFEST.txt
