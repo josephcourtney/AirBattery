@@ -7,6 +7,7 @@ ITERATIONS="${AIRBATTERY_HARDWARE_STRESS_ITERATIONS:-100}"
 MAX_TRANSIENT_FAILURES="${AIRBATTERY_HARDWARE_MAX_TRANSIENT_FAILURES:-5}"
 REQUESTED_UDID="${AIRBATTERY_TEST_UDID:-}"
 AIRBATTERY_DATA="$HOME/Library/Containers/com.josephcourtney.AirBattery.widget/Data/Documents/data.json"
+AIRBATTERY_SNAPSHOT_STATUS="not requested"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -137,6 +138,21 @@ find_iphone() {
   return 1
 }
 
+refresh_airbattery_snapshot() {
+  if /usr/bin/pgrep -x AirBattery >/dev/null 2>&1; then
+    if /usr/bin/open -g 'airbattery://writedata' >/dev/null 2>&1; then
+      /bin/sleep 1
+      AIRBATTERY_SNAPSHOT_STATUS="refreshed from running AirBattery"
+    else
+      AIRBATTERY_SNAPSHOT_STATUS="running AirBattery did not accept snapshot request"
+    fi
+  elif [[ -f "$AIRBATTERY_DATA" ]]; then
+    AIRBATTERY_SNAPSHOT_STATUS="AirBattery not running; using existing snapshot"
+  else
+    AIRBATTERY_SNAPSHOT_STATUS="AirBattery not running; no snapshot available"
+  fi
+}
+
 print_id_list() {
   local label="$1"
   local ids="$2"
@@ -180,7 +196,7 @@ print_airbattery_visibility() {
   local rows="$1"
   local name type model id mobile_id ble_id source
 
-  printf '%s\n' 'AirBattery persisted iPhone rows:'
+  printf 'AirBattery iPhone snapshot (%s):\n' "$AIRBATTERY_SNAPSHOT_STATUS"
   if [[ -z "$rows" ]]; then
     if [[ -f "$AIRBATTERY_DATA" ]]; then
       printf '%s\n' '  (none)'
@@ -218,6 +234,7 @@ printf '%s\n' 'PASS airbattery-mobile rejects missing arguments with status 2'
 printf '%s\n' '--- Device visibility ---'
 network_ids="$("$BIN/idevice_id" -n 2>/dev/null || true)"
 usb_ids="$("$BIN/idevice_id" -l 2>/dev/null || true)"
+refresh_airbattery_snapshot
 airbattery_iphones="$(airbattery_iphone_rows)"
 
 print_id_list 'libimobiledevice network (-n):' "$network_ids"
