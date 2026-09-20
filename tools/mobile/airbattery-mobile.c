@@ -13,12 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include <libimobiledevice/companion_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
 #include <plist/plist.h>
 
 #define TOOL_LABEL "airbattery-mobile"
+#define COMPANION_RETRY_ATTEMPTS 3
+#define COMPANION_RETRY_DELAY_US 100000
 
 static void json_string(const char *value)
 {
@@ -75,20 +78,96 @@ static companion_proxy_error_t start_companion(idevice_t device, companion_proxy
     return companion_proxy_client_start_service(device, client, TOOL_LABEL);
 }
 
+static int companion_error_is_retryable(companion_proxy_error_t error)
+{
+    switch (error) {
+    case COMPANION_PROXY_E_MUX_ERROR:
+    case COMPANION_PROXY_E_NOT_ENOUGH_DATA:
+    case COMPANION_PROXY_E_TIMEOUT:
+    case COMPANION_PROXY_E_OP_IN_PROGRESS:
+    case COMPANION_PROXY_E_TIMEOUT_REPLY:
+    case COMPANION_PROXY_E_UNKNOWN_ERROR:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static void companion_retry_delay(int attempt)
+{
+    usleep((useconds_t)(COMPANION_RETRY_DELAY_US * (attempt + 1)));
+}
+
+static companion_proxy_error_t get_device_registry(
+    idevice_t device,
+    plist_t *registry
+) {
+    companion_proxy_error_t error = COMPANION_PROXY_E_UNKNOWN_ERROR;
+
+    for (int attempt = 0; attempt < COMPANION_RETRY_ATTEMPTS; attempt++) {
+        companion_proxy_client_t client = NULL;
+        *registry = NULL;
+
+        error = start_companion(device, &client);
+        if (error == COMPANION_PROXY_E_SUCCESS) {
+            error = companion_proxy_get_device_registry(client, registry);
+            companion_proxy_client_free(client);
+        }
+
+        if (error == COMPANION_PROXY_E_SUCCESS ||
+            error == COMPANION_PROXY_E_NO_DEVICES ||
+            !companion_error_is_retryable(error) ||
+            attempt + 1 == COMPANION_RETRY_ATTEMPTS) {
+            return error;
+        }
+
+        if (*registry) {
+            plist_free(*registry);
+            *registry = NULL;
+        }
+        companion_retry_delay(attempt);
+    }
+
+    return error;
+}
+
 static companion_proxy_error_t registry_value(
     idevice_t device,
     const char *watch_udid,
     const char *key,
     plist_t *value
 ) {
-    companion_proxy_client_t client = NULL;
-    companion_proxy_error_t error = start_companion(device, &client);
-    if (error != COMPANION_PROXY_E_SUCCESS) {
-        return error;
+    companion_proxy_error_t error = COMPANION_PROXY_E_UNKNOWN_ERROR;
+
+    for (int attempt = 0; attempt < COMPANION_RETRY_ATTEMPTS; attempt++) {
+        companion_proxy_client_t client = NULL;
+        *value = NULL;
+
+        error = start_companion(device, &client);
+        if (error == COMPANION_PROXY_E_SUCCESS) {
+            error = companion_proxy_get_value_from_registry(
+                client,
+                watch_udid,
+                key,
+                value
+            );
+            companion_proxy_client_free(client);
+        }
+
+        if (error == COMPANION_PROXY_E_SUCCESS ||
+            error == COMPANION_PROXY_E_UNSUPPORTED_KEY ||
+            !companion_error_is_retryable(error) ||
+            attempt + 1 == COMPANION_RETRY_ATTEMPTS) {
+            return error;
+        }
+
+        if (*value) {
+            plist_free(*value);
+            *value = NULL;
+        }
+        companion_retry_delay(attempt);
     }
 
-    error = companion_proxy_get_value_from_registry(client, watch_udid, key, value);
-    companion_proxy_client_free(client);
     return error;
 }
 
@@ -176,17 +255,8 @@ static int companion_battery(const char *parent_udid)
         return 3;
     }
 
-    companion_proxy_client_t client = NULL;
-    companion_proxy_error_t error = start_companion(device, &client);
-    if (error != COMPANION_PROXY_E_SUCCESS) {
-        fprintf(stderr, "airbattery-mobile: companion proxy start failed: %d\n", error);
-        idevice_free(device);
-        return 4;
-    }
-
     plist_t registry = NULL;
-    error = companion_proxy_get_device_registry(client, &registry);
-    companion_proxy_client_free(client);
+    companion_proxy_error_t error = get_device_registry(device, &registry);
 
     if (error == COMPANION_PROXY_E_NO_DEVICES) {
         printf("{\"parent\":");
