@@ -55,6 +55,24 @@ final class DeviceIdentifierSetTests: XCTestCase {
         XCTAssertEqual(identifiers.canonicalID, "ble-uuid")
     }
 
+    func testNewBLEIdentifierReplacesOldBLEIdentifierWithoutChangingCanonicalMobileID() {
+        var identifiers = DeviceIdentifierSet(
+            canonicalID: "mobile-udid",
+            mobileDeviceID: "mobile-udid",
+            bleDeviceID: "old-ble-uuid"
+        )
+
+        identifiers.merge(
+            canonicalID: "new-ble-uuid",
+            mobileDeviceID: nil,
+            bleDeviceID: "new-ble-uuid"
+        )
+
+        XCTAssertEqual(identifiers.canonicalID, "mobile-udid")
+        XCTAssertEqual(identifiers.mobileDeviceID, "mobile-udid")
+        XCTAssertEqual(identifiers.bleDeviceID, "new-ble-uuid")
+    }
+
     func testLookupMatchesCanonicalAndSourceSpecificIDs() {
         let identifiers = DeviceIdentifierSet(
             canonicalID: "mobile-udid",
