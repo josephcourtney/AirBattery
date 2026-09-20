@@ -83,35 +83,6 @@ struct GeneralView: View {
                             DispatchQueue.main.async { launchAtLogin.toggle() }
                         }
                     }
-                Divider().opacity(0.5)
-                SPicker("Show AirBattery", selection: $showOn) {
-                    Text("Dock").tag("dock")
-                    Text("Menu Bar").tag("sbar")
-                    Text("Both").tag("both")
-                    Text("None").tag("none")
-                }.onChange(of: showOn) { newValue in
-                    switch newValue {
-                    case "sbar":
-                        statusBarItem.isVisible = true
-                        for i in pinnedItems { i.isVisible = true }
-                        NSApp.setActivationPolicy(.accessory)
-                    case "both":
-                        statusBarItem.isVisible = true
-                        for i in pinnedItems { i.isVisible = true }
-                        NSApp.setActivationPolicy(.regular)
-                    case "dock":
-                        statusBarItem.isVisible = false
-                        for i in pinnedItems { i.isVisible = false }
-                        NSApp.setActivationPolicy(.regular)
-                    default:
-                        statusBarItem.isVisible = false
-                        for i in pinnedItems { i.isVisible = false }
-                        NSApp.setActivationPolicy(.accessory)
-                    }
-                    if newValue == "dock" || newValue == "both" {
-                        _ = createAlert(title: "AirBattery Tips".local, message: "Displaying AirBattery on the Dock will consume more power, it is better to use Menu Bar mode or Widgets.".local, button1: "OK").runModal()
-                    }
-                }
             }
             SGroupBox {
                 SButton("Command Line Tool", buttonTitle: cltInstalled ? "Uninstall" : "Install",
@@ -157,8 +128,7 @@ struct DiscoveryView: View {
     @AppStorage("readIDevice") private var readIDevice = true
     @AppStorage("readBTHID") private var readBTHID = true
     @AppStorage("updateInterval") private var updateInterval = 1
-    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
-    @AppStorage("twsMerge") private var twsMerge = 5
+    @AppStorage("disappearTime") private var disappearTime = 20
 
     private var discoveryMode: BLEDiscoveryMode {
         BLEDiscoveryMode(rawValue: bleDiscoveryMode) ?? .review
@@ -240,7 +210,7 @@ struct DiscoveryView: View {
                     .frame(height: 18)
                 }
 
-                SGroupBox(label: "Refresh & Grouping") {
+                SGroupBox(label: "Refresh & Retention") {
                     VStack(spacing: 2) {
                         SSteper("Refresh interval (min)", value: $updateInterval, min: 1, max: 99)
                         if updateDelay != updateInterval {
@@ -254,23 +224,19 @@ struct DiscoveryView: View {
                     }
                     Divider().opacity(0.5)
                     SPicker(
-                        "Earbud merging",
-                        selection: $twsMergeEnabled,
-                        tips: "When off, left and right battery levels are always shown separately. When enabled, they are merged only when both charging states match and their battery levels are within the configured threshold."
+                        "Keep offline devices",
+                        selection: $disappearTime,
+                        tips: "How long a device remains available after AirBattery stops receiving fresh battery information."
                     ) {
-                        Text("Off").tag(false)
-                        Text("Within threshold").tag(true)
+                        Text("Never").tag(Int(UInt32.max))
+                        Text("20 minutes").tag(20)
+                        Text("40 minutes").tag(40)
+                        Text("60 minutes").tag(60)
                     }
-                    if twsMergeEnabled {
-                        Divider().opacity(0.5)
-                        SSteper(
-                            "Merge threshold (%)",
-                            value: $twsMerge,
-                            min: 0,
-                            max: 99,
-                            tips: "Merge left and right earbud levels when their difference is at most this percentage."
-                        )
-                    }
+                }
+
+                SGroupBox(label: "Filtering") {
+                    NameRulesEditor()
                 }
             }
         }
@@ -401,9 +367,6 @@ struct DevicesView: View {
                     }
                 }
 
-                SGroupBox(label: "Advanced") {
-                    NameRulesEditor()
-                }
             }
         }
         .onReceive(dockTimer) { _ in
@@ -1153,6 +1116,7 @@ struct NearcastView: View {
 }
 
 struct DisplayView: View {
+    @AppStorage("showOn") var showOn = "sbar"
     @AppStorage("appearance") var appearance = "auto"
     @AppStorage("showThisMac") var showThisMac = "icon"
     @AppStorage("carouselMode") var carouselMode = true
@@ -1161,11 +1125,53 @@ struct DisplayView: View {
     @AppStorage("intBattOnStatusBar") var intBattOnStatusBar = true
     @AppStorage("batteryPercent") var batteryPercent = "outside"
     @AppStorage("hideLevel") var hideLevel = 90
-    @AppStorage("disappearTime") var disappearTime = 20
+    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
+    @AppStorage("twsMerge") private var twsMerge = 5
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
     
     var body: some View {
         SForm {
+            SGroupBox(label: "Surfaces") {
+                SPicker(
+                    "Show AirBattery",
+                    selection: $showOn,
+                    tips: "Choose where AirBattery itself is presented. Widgets are configured separately."
+                ) {
+                    Text("Menu Bar").tag("sbar")
+                    Text("Dock").tag("dock")
+                    Text("Both").tag("both")
+                    Text("None").tag("none")
+                }
+                .onChange(of: showOn) { newValue in
+                    switch newValue {
+                    case "sbar":
+                        statusBarItem.isVisible = true
+                        for item in pinnedItems { item.isVisible = true }
+                        NSApp.setActivationPolicy(.accessory)
+                    case "both":
+                        statusBarItem.isVisible = true
+                        for item in pinnedItems { item.isVisible = true }
+                        NSApp.setActivationPolicy(.regular)
+                    case "dock":
+                        statusBarItem.isVisible = false
+                        for item in pinnedItems { item.isVisible = false }
+                        NSApp.setActivationPolicy(.regular)
+                    default:
+                        statusBarItem.isVisible = false
+                        for item in pinnedItems { item.isVisible = false }
+                        NSApp.setActivationPolicy(.accessory)
+                    }
+
+                    if newValue == "dock" || newValue == "both" {
+                        _ = createAlert(
+                            title: "AirBattery Tips".local,
+                            message: "Displaying AirBattery on the Dock will consume more power, it is better to use Menu Bar mode or Widgets.".local,
+                            button1: "OK"
+                        ).runModal()
+                    }
+                }
+            }
+
             SGroupBox(label: "Menu Bar") {
                 SToggle("Dynamic Battery Icon", isOn: $intBattOnStatusBar)
                 Divider().opacity(0.5)
@@ -1182,13 +1188,7 @@ struct DisplayView: View {
                     Text("Inside").tag("inside")
                     Text("Outside").tag("outside")
                 }.disabled(!intBattOnStatusBar)
-                Divider().opacity(0.5)
-                SPicker("Remove Offline Device", selection: $disappearTime) {
-                    Text("Never").tag(UInt32.max)
-                    Text("after 20min").tag(20)
-                    Text("after 40min").tag(40)
-                    Text("after 60min").tag(60)
-                }
+
                 Divider().opacity(0.5)
                 SPicker("Hide percentage when above", selection: $hideLevel) {
                     Text("Never").tag(100)
@@ -1200,6 +1200,27 @@ struct DisplayView: View {
                     }
                 }.disabled(!intBattOnStatusBar || (batteryPercent == "hide"))
             }
+            SGroupBox(label: "Device Rows") {
+                SPicker(
+                    "Earbud merging",
+                    selection: $twsMergeEnabled,
+                    tips: "When off, left and right battery levels are always shown separately. When enabled, they are merged only when both charging states match and their battery levels are within the configured threshold."
+                ) {
+                    Text("Off").tag(false)
+                    Text("Within threshold").tag(true)
+                }
+                if twsMergeEnabled {
+                    Divider().opacity(0.5)
+                    SSteper(
+                        "Merge threshold (%)",
+                        value: $twsMerge,
+                        min: 0,
+                        max: 99,
+                        tips: "Merge left and right earbud levels when their difference is at most this percentage."
+                    )
+                }
+            }
+
             SGroupBox(label: "Dock") {
                     SPicker("Appearance", selection: $appearance) {
                         Text("Automatic").tag("auto")
