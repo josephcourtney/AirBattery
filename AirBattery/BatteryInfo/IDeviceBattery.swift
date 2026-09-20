@@ -172,6 +172,18 @@ class IDeviceBattery: ObservableObject {
         return true
     }
 
+    private struct CompanionBatteryResponse: Decodable {
+        struct Watch: Decodable {
+            let id: String
+            let name: String
+            let productType: String
+            let batteryLevel: Int
+            let isCharging: Bool
+        }
+
+        let watches: [Watch]
+    }
+
     private func updateWatchBattery(
         parentID: String,
         parentName: String,
@@ -183,8 +195,8 @@ class IDeviceBattery: ObservableObject {
         }
 
         let result = processWithStatus(
-            path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/comptest",
-            arguments: [parentID],
+            path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/airbattery-mobile",
+            arguments: ["companion-battery", parentID],
             timeout: 10
         )
 
@@ -196,54 +208,32 @@ class IDeviceBattery: ObservableObject {
             companionProbeLock.unlock()
             print(
                 "⚠️ Disabling Apple Watch companion probing for this launch: " +
-                "comptest terminated by signal \(result.terminationStatus)"
+                "airbattery-mobile terminated by signal \(result.terminationStatus)"
             )
             return
         }
 
-        guard result.terminationStatus == 0, !result.output.isEmpty else {
-            return
-        }
-
-        let watchInfo = result.output.components(separatedBy: .newlines)
-        guard let watchID = watchInfo
-                .first(where: { $0.contains("Checking watch") })?
-                .components(separatedBy: " ")
-                .last,
-              let watchName = watchInfo
-                .first(where: { $0.contains("DeviceName") })?
-                .components(separatedBy: ": ")
-                .last,
-              let watchModel = watchInfo
-                .first(where: { $0.contains("ProductType") })?
-                .components(separatedBy: ": ")
-                .last,
-              let watchLevel = watchInfo
-                .first(where: { $0.contains("BatteryCurrentCapacity") })?
-                .components(separatedBy: ": ")
-                .last,
-              let watchCharging = watchInfo
-                .first(where: { $0.contains("BatteryIsCharging") })?
-                .components(separatedBy: ": ")
-                .last,
-              let level = Int(watchLevel),
-              let charging = Bool(watchCharging)
+        guard result.terminationStatus == 0,
+              let data = result.output.data(using: .utf8),
+              let response = try? JSONDecoder().decode(CompanionBatteryResponse.self, from: data)
         else {
             return
         }
 
-        AirBatteryModel.updateDevice(
-            Device(
-                deviceID: watchID,
-                deviceType: "Watch",
-                deviceName: watchName,
-                deviceModel: watchModel,
-                batteryLevel: level,
-                isCharging: charging ? 1 : 0,
-                parentName: parentName,
-                lastUpdate: lastUpdate
+        for watch in response.watches where (0...100).contains(watch.batteryLevel) {
+            AirBatteryModel.updateDevice(
+                Device(
+                    deviceID: watch.id,
+                    deviceType: "Watch",
+                    deviceName: watch.name,
+                    deviceModel: watch.productType,
+                    batteryLevel: watch.batteryLevel,
+                    isCharging: watch.isCharging ? 1 : 0,
+                    parentName: parentName,
+                    lastUpdate: lastUpdate
+                )
             )
-        )
+        }
     }
 
     func writeBatteryInfo(_ id: String, _ connectType: String) {
