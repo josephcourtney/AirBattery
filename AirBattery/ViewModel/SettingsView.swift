@@ -54,7 +54,14 @@ struct SettingsView: View {
             .listStyle(.sidebar)
             .padding(.top, 9)
         }
-        .frame(minWidth: 720, idealWidth: 900, minHeight: 520, idealHeight: 700)
+        .frame(
+            minWidth: 720,
+            idealWidth: 900,
+            maxWidth: .infinity,
+            minHeight: 520,
+            idealHeight: 700,
+            maxHeight: .infinity
+        )
         .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("AirBattery Settings")
     }
