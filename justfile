@@ -75,6 +75,16 @@ vendor-mobile-status:
           printf '%-38s %-16s %s\n' "$path" 'not initialized' "$expected"; \
         fi; \
       done; \
+      printf '%s\n' '--- Component cache ---'; \
+      stamp_dir=".build/vendor/mobile/stamps"; \
+      if [[ -d "$stamp_dir" ]] && compgen -G "$stamp_dir/*" >/dev/null; then \
+        for stamp in "$stamp_dir"/*; do \
+          [[ -f "$stamp" ]] || continue; \
+          printf '%-38s %s\n' "$(basename "$stamp")" "$(cat "$stamp")"; \
+        done; \
+      else \
+        printf '%s\n' 'empty'; \
+      fi; \
       printf '%s\n' '--- Generated runtime ---'; \
       stage="AirBattery/libimobiledevice"; \
       if [[ -f "$stage/MANIFEST.txt" ]]; then \
