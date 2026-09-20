@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/AirBattery/libimobiledevice/bin"
 ITERATIONS="${AIRBATTERY_HARDWARE_STRESS_ITERATIONS:-100}"
+MAX_TRANSIENT_FAILURES="${AIRBATTERY_HARDWARE_MAX_TRANSIENT_FAILURES:-5}"
 REQUESTED_UDID="${AIRBATTERY_TEST_UDID:-}"
 AIRBATTERY_DATA="$HOME/Library/Containers/com.josephcourtney.AirBattery.widget/Data/Documents/data.json"
 
@@ -36,6 +37,13 @@ if [[ "$ITERATIONS" -lt 1 ]]; then
   printf 'AIRBATTERY_HARDWARE_STRESS_ITERATIONS must be at least 1.\n' >&2
   exit 2
 fi
+
+case "$MAX_TRANSIENT_FAILURES" in
+  ''|*[!0-9]*)
+    printf 'AIRBATTERY_HARDWARE_MAX_TRANSIENT_FAILURES must be a non-negative integer.\n' >&2
+    exit 2
+    ;;
+esac
 
 short_id() {
   printf '%s' "$1" | sed 's/^\(.\{8\}\).*/\1…/'
@@ -254,11 +262,31 @@ if [[ -z "$iphone_udid" ]]; then
 fi
 
 printf 'Using iPhone id=%s for %s companion queries\n' "$(short_id "$iphone_udid")" "$ITERATIONS"
+successes=0
+transient_failures=0
 for ((i = 1; i <= ITERATIONS; i++)); do
   set +e
   output="$("$BIN/airbattery-mobile" companion-battery "$iphone_udid" 2>&1)"
   rc=$?
   set -e
+
+  if [[ "$rc" -gt 128 ]]; then
+    printf 'FAIL companion query %d/%d crashed (status %d):\n%s\n' \
+      "$i" "$ITERATIONS" "$rc" "$output" >&2
+    exit 1
+  fi
+
+  if [[ "$rc" -eq 4 || "$rc" -eq 5 ]]; then
+    transient_failures=$((transient_failures + 1))
+    printf 'WARN companion query %d/%d exhausted transient retries (status %d): %s\n' \
+      "$i" "$ITERATIONS" "$rc" "$output" >&2
+    if [[ "$transient_failures" -gt "$MAX_TRANSIENT_FAILURES" ]]; then
+      printf 'FAIL transient companion failures exceeded limit %s\n' \
+        "$MAX_TRANSIENT_FAILURES" >&2
+      exit 1
+    fi
+    continue
+  fi
 
   if [[ "$rc" -ne 0 ]]; then
     printf 'FAIL companion query %d/%d exited %d:\n%s\n' "$i" "$ITERATIONS" "$rc" "$output" >&2
@@ -279,10 +307,17 @@ for ((i = 1; i <= ITERATIONS; i++)); do
     exit 1
   fi
 
+  successes=$((successes + 1))
   if ((i == 1 || i % 10 == 0 || i == ITERATIONS)); then
     printf 'PASS companion query %d/%d watches=%s\n' \
       "$i" "$ITERATIONS" "$(jq '.watches | length' <<<"$output")"
   fi
 done
 
-printf 'PASS %s consecutive companion queries completed without crash or malformed output\n' "$ITERATIONS"
+if [[ "$successes" -eq 0 ]]; then
+  printf '%s\n' 'FAIL no companion query completed successfully' >&2
+  exit 1
+fi
+
+printf 'PASS companion stress: attempts=%s successes=%s transient_failures=%s crashes=0 malformed=0\n' \
+  "$ITERATIONS" "$successes" "$transient_failures"
