@@ -61,6 +61,24 @@ vendor-init:
 vendor-mobile: vendor-init
     bash scripts/build-mobile-stack.sh
 
+# Inspect the generated mobile runtime, linkage, architecture, and signatures.
+vendor-mobile-diagnose: vendor-mobile
+    @stage="AirBattery/libimobiledevice"; \
+      printf '%s\n' '--- Manifest ---'; \
+      cat "$stage/MANIFEST.txt"; \
+      printf '%s\n' '--- Runtime files ---'; \
+      find "$stage/bin" "$stage/lib" -maxdepth 1 -type f -print | sort; \
+      printf '%s\n' '--- Mach-O linkage ---'; \
+      for file in "$stage"/bin/* "$stage"/lib/*; do \
+        [[ -f "$file" && ! -L "$file" ]] || continue; \
+        if /usr/bin/file "$file" | /usr/bin/grep -q 'Mach-O'; then \
+          printf '\n[%s]\n' "$file"; \
+          /usr/bin/file "$file"; \
+          /usr/bin/otool -L "$file"; \
+          /usr/bin/codesign --verify --verbose=1 "$file"; \
+        fi; \
+      done
+
 # Remove generated native mobile-device build products while keeping source submodules.
 vendor-mobile-clean:
     rm -rf ".build/vendor/mobile"
