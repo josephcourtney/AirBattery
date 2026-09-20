@@ -82,8 +82,12 @@ brew install autoconf automake libtool pkg-config
 4. builds the AirBattery-owned helpers;
 5. rewrites Mach-O install names so the runtime is relocatable inside the app
    bundle;
-6. copies license notices and a generated manifest; and
-7. stages the result under `AirBattery/libimobiledevice/`.
+6. verifies that no staged Mach-O still refers to the temporary build prefix
+   and smoke-tests the helper through dyld;
+7. ad-hoc signs each generated Mach-O object so Xcode can package and verify
+   the native runtime before the later development-signing pass;
+8. copies license notices and a generated manifest; and
+9. stages the result under `AirBattery/libimobiledevice/`.
 
 The script fingerprints its source inputs, helper sources, architecture, and
 compiler. Re-running it is effectively a no-op while those inputs are
@@ -108,8 +112,15 @@ AirBattery/libimobiledevice/
 These paths are ignored by Git. Xcode's existing folder resource copies them
 into the application bundle.
 
-Development signing explicitly signs the generated Mach-O files in
-`Contents/Resources/libimobiledevice` before signing the outer app.
+The staged runtime is ad-hoc signed first. Development signing later re-signs
+the generated Mach-O files in `Contents/Resources/libimobiledevice` with the
+selected Apple Development identity before signing the outer app.
+
+For linkage and signature diagnostics:
+
+```bash
+just vendor-mobile-diagnose
+```
 
 ## Updating a dependency
 
