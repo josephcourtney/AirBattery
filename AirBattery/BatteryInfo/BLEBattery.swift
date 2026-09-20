@@ -723,13 +723,23 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 bleDevicesLevel[deviceName] = data[0]
                 finishGenericProbe(peripheral)
                 if var device = AirBatteryModel.getByName(deviceName) {
-                    device.deviceID = peripheral.identifier.uuidString
+                    device.bleDeviceID = peripheral.identifier.uuidString
                     device.batteryLevel = level
                     device.lastUpdate = now
+                    device.batterySource = .ble
                     if charging != -1 { device.isCharging = charging }
                     AirBatteryModel.updateDevice(device)
                 } else {
-                    let device = Device(deviceID: peripheral.identifier.uuidString, deviceType: getType(deviceName), deviceName: deviceName, batteryLevel: level, isCharging: charging, lastUpdate: now)
+                    let device = Device(
+                        deviceID: peripheral.identifier.uuidString,
+                        deviceType: getType(deviceName),
+                        deviceName: deviceName,
+                        batteryLevel: level,
+                        isCharging: charging,
+                        lastUpdate: now,
+                        bleDeviceID: peripheral.identifier.uuidString,
+                        batterySource: .ble
+                    )
                     AirBatteryModel.updateDevice(device)
                 }
             } else {
