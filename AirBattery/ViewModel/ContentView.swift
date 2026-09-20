@@ -1255,10 +1255,11 @@ func openAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(nil)
 }
 
-@MainActor
 func openSettingPanel() {
     dockWindow.orderOut(nil)
-    SettingsWindowController.shared.present()
+    Task { @MainActor in
+        SettingsWindowController.shared.present()
+    }
 }
 
 func findNSSplitVIew(view: NSView?) -> NSSplitView? {
