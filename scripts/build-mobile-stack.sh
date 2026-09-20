@@ -26,7 +26,7 @@ require_command() {
   }
 }
 
-for command in git make perl pkg-config autoconf automake autoreconf xcrun otool install_name_tool; do
+for command in git make perl pkg-config autoconf automake autoreconf xcrun otool install_name_tool shasum; do
   require_command "$command"
 done
 
@@ -106,6 +106,9 @@ materialize() {
   rm -rf "$dst"
   mkdir -p "$dst"
   git -C "$ROOT/$path" archive --format=tar HEAD | tar -xf - -C "$dst"
+  # Upstream git-version-gen scripts need either a .git directory or a
+  # tarball version marker. The build copy intentionally has no .git metadata.
+  git -C "$ROOT/$path" describe --tags --always > "$dst/.tarball-version"
   printf '%s\n' "$dst"
 }
 
