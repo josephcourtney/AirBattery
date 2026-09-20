@@ -2,6 +2,72 @@ import Dispatch
 import Foundation
 import XCTest
 
+final class DeviceIdentifierSetTests: XCTestCase {
+    func testMobileIDBecomesCanonicalWhenLearnedAfterBLE() {
+        var identifiers = DeviceIdentifierSet(
+            canonicalID: "ble-uuid",
+            mobileDeviceID: nil,
+            bleDeviceID: "ble-uuid"
+        )
+
+        identifiers.merge(
+            canonicalID: "mobile-udid",
+            mobileDeviceID: "mobile-udid",
+            bleDeviceID: nil
+        )
+
+        XCTAssertEqual(identifiers.canonicalID, "mobile-udid")
+        XCTAssertEqual(identifiers.mobileDeviceID, "mobile-udid")
+        XCTAssertEqual(identifiers.bleDeviceID, "ble-uuid")
+    }
+
+    func testLaterBLEObservationCannotReplaceKnownMobileID() {
+        var identifiers = DeviceIdentifierSet(
+            canonicalID: "mobile-udid",
+            mobileDeviceID: "mobile-udid",
+            bleDeviceID: nil
+        )
+
+        identifiers.merge(
+            canonicalID: "new-ble-uuid",
+            mobileDeviceID: nil,
+            bleDeviceID: "new-ble-uuid"
+        )
+
+        XCTAssertEqual(identifiers.canonicalID, "mobile-udid")
+        XCTAssertEqual(identifiers.mobileDeviceID, "mobile-udid")
+        XCTAssertEqual(identifiers.bleDeviceID, "new-ble-uuid")
+    }
+
+    func testBLEIDIsCanonicalUntilMobileIDIsKnown() {
+        var identifiers = DeviceIdentifierSet(
+            canonicalID: "legacy-id",
+            mobileDeviceID: nil,
+            bleDeviceID: nil
+        )
+
+        identifiers.merge(
+            canonicalID: "ble-uuid",
+            mobileDeviceID: nil,
+            bleDeviceID: "ble-uuid"
+        )
+
+        XCTAssertEqual(identifiers.canonicalID, "ble-uuid")
+    }
+
+    func testLookupMatchesCanonicalAndSourceSpecificIDs() {
+        let identifiers = DeviceIdentifierSet(
+            canonicalID: "mobile-udid",
+            mobileDeviceID: "mobile-udid",
+            bleDeviceID: "ble-uuid"
+        )
+
+        XCTAssertTrue(identifiers.matches("mobile-udid"))
+        XCTAssertTrue(identifiers.matches("ble-uuid"))
+        XCTAssertFalse(identifiers.matches("unrelated"))
+    }
+}
+
 final class IDeviceInfoParserTests: XCTestCase {
     func testParsesDeviceMetadata() {
         let output = """
