@@ -288,35 +288,61 @@ struct DiscoveryView: View {
     }
 }
 
+private enum DeviceInventorySource: String, Hashable {
+    case builtIn = "Built-in"
+    case network = "Network"
+    case usb = "USB"
+    case bluetooth = "Bluetooth"
+    case nearcast = "Nearcast"
+
+    var sortOrder: Int {
+        switch self {
+        case .builtIn: return 0
+        case .network: return 1
+        case .usb: return 2
+        case .bluetooth: return 3
+        case .nearcast: return 4
+        }
+    }
+}
+
+private struct KnownDeviceSnapshot: Identifiable {
+    let id: String
+    var name: String
+    var devices: [Device] = []
+    var sources: Set<DeviceInventorySource> = []
+    var ble: BLELogicalDeviceSnapshot?
+    var iDeviceCandidates: [IDeviceDiscoveryCandidate] = []
+    var isBuiltIn = false
+}
+
 struct DevicesView: View {
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
+    @ObservedObject private var iDeviceBattery = IDeviceBattery.shared
     @State private var expandedKnown: Set<String> = []
     @State private var expandedNearby: Set<String> = []
     @State private var showOtherNearby = false
+    @State private var refreshDate = Date()
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
 
     var body: some View {
-        ScrollView {
+        let known = knownDevices
+        let nearbyApple = nearbyIDeviceCandidates(known: known)
+        let nearbyBLE = nearbyBLECandidates(known: known)
+        let suggestedIDs = Set(policyStore.suggestedCandidates.map(\.identifier))
+        let suggestedBLE = nearbyBLE.filter { suggestedIDs.contains($0.identifier) }
+        let otherBLE = nearbyBLE.filter { !suggestedIDs.contains($0.identifier) }
+
+        return ScrollView {
             SForm(noSpacer: true) {
                 SGroupBox(label: "Known Devices") {
-                    if policyStore.knownLogicalDevices.isEmpty {
-                        emptyRow("No device-specific connection rules.")
+                    if known.isEmpty {
+                        emptyRow("No known devices.")
                     } else {
-                        ForEach(policyStore.knownLogicalDevices) { device in
+                        ForEach(known) { device in
                             knownDeviceRow(device)
-                            if device.id != policyStore.knownLogicalDevices.last?.id {
-                                Divider().opacity(0.5)
-                            }
-                        }
-                    }
-                }
-
-                if !policyStore.suggestedCandidates.isEmpty {
-                    SGroupBox(label: "Suggested") {
-                        ForEach(policyStore.suggestedCandidates) { candidate in
-                            nearbyDeviceRow(candidate, suggested: true)
-                            if candidate.id != policyStore.suggestedCandidates.last?.id {
+                            if device.id != known.last?.id {
                                 Divider().opacity(0.5)
                             }
                         }
@@ -324,27 +350,52 @@ struct DevicesView: View {
                 }
 
                 SGroupBox(label: "Nearby Devices") {
-                    DisclosureGroup(isExpanded: $showOtherNearby) {
-                        if policyStore.otherNearbyCandidates.isEmpty {
-                            emptyRow("No other nearby BLE devices.")
-                        } else {
-                            ForEach(policyStore.otherNearbyCandidates.prefix(30)) { candidate in
-                                nearbyDeviceRow(candidate, suggested: false)
-                                if candidate.id != policyStore.otherNearbyCandidates.prefix(30).last?.id {
-                                    Divider().opacity(0.5)
-                                }
+                    HStack {
+                        Text("Currently observable devices that do not yet have a known device record.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if !nearbyApple.isEmpty || !nearbyBLE.isEmpty {
+                            Button("Clear") {
+                                iDeviceBattery.clearDiscoveryCandidates()
+                                policyStore.clearNearby()
                             }
+                            .buttonStyle(.borderless)
                         }
-                    } label: {
-                        HStack {
-                            Text("Other nearby devices")
-                            Text("\(policyStore.otherNearbyCandidates.count)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            if !policyStore.nearbyCandidates.isEmpty {
-                                Button("Clear") { policyStore.clearNearby() }
-                                    .buttonStyle(.borderless)
+                    }
+
+                    if nearbyApple.isEmpty && nearbyBLE.isEmpty {
+                        Divider().opacity(0.5)
+                        emptyRow("No unknown nearby devices.")
+                    } else {
+                        ForEach(nearbyApple) { candidate in
+                            Divider().opacity(0.5)
+                            nearbyIDeviceRow(candidate)
+                        }
+
+                        ForEach(suggestedBLE) { candidate in
+                            Divider().opacity(0.5)
+                            nearbyBLEDeviceRow(candidate, suggested: true)
+                        }
+
+                        if !otherBLE.isEmpty {
+                            Divider().opacity(0.5)
+                            DisclosureGroup(isExpanded: $showOtherNearby) {
+                                ForEach(otherBLE.prefix(30)) { candidate in
+                                    nearbyBLEDeviceRow(candidate, suggested: false)
+                                    if candidate.id != otherBLE.prefix(30).last?.id {
+                                        Divider().opacity(0.5)
+                                    }
+                                }
+                                .padding(.top, 5)
+                            } label: {
+                                HStack {
+                                    Text("Other nearby Bluetooth devices")
+                                    Text("\(otherBLE.count)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                }
                             }
                         }
                     }
@@ -355,10 +406,152 @@ struct DevicesView: View {
                 }
             }
         }
+        .onReceive(dockTimer) { _ in
+            refreshDate = Date()
+        }
+    }
+
+    private var knownDevices: [KnownDeviceSnapshot] {
+        _ = refreshDate
+        var inventory: [String: KnownDeviceSnapshot] = [:]
+
+        func merge(
+            name: String,
+            device: Device? = nil,
+            source: DeviceInventorySource? = nil,
+            keyOverride: String? = nil,
+            builtIn: Bool = false
+        ) {
+            let key = keyOverride ?? inventoryKey(name)
+            var snapshot = inventory[key] ?? KnownDeviceSnapshot(id: key, name: name)
+            if let device = device,
+               !snapshot.devices.contains(where: {
+                   $0.deviceID == device.deviceID &&
+                   $0.deviceType == device.deviceType &&
+                   $0.deviceName == device.deviceName
+               }) {
+                snapshot.devices.append(device)
+            }
+            if let source = source {
+                snapshot.sources.insert(source)
+            }
+            snapshot.isBuiltIn = snapshot.isBuiltIn || builtIn
+            inventory[key] = snapshot
+        }
+
+        let internalStatus = InternalBattery.status
+        if internalStatus.hasBattery {
+            let mac = ib2ab(internalStatus)
+            merge(
+                name: mac.deviceName,
+                device: mac,
+                source: .builtIn,
+                keyOverride: "builtin:" + inventoryKey(mac.deviceName),
+                builtIn: true
+            )
+        }
+
+        for device in AirBatteryModel.Devices {
+            let logicalName = AirBatteryModel.airPodsBaseName(for: device) ?? device.deviceName
+            merge(name: logicalName, device: device)
+        }
+
+        for logical in policyStore.knownLogicalDevices {
+            let key = inventoryKey(logical.name)
+            var snapshot = inventory[key] ?? KnownDeviceSnapshot(id: key, name: logical.name)
+            snapshot.sources.insert(.bluetooth)
+            snapshot.ble = logical
+            inventory[key] = snapshot
+        }
+
+        for url in getFiles(withExtension: "json", in: ncFolder) {
+            for device in AirBatteryModel.ncGetAll(url: url) {
+                let logicalName = AirBatteryModel.airPodsBaseName(for: device) ?? device.deviceName
+                merge(name: logicalName, device: device, source: .nearcast)
+            }
+        }
+
+        for key in Array(inventory.keys) {
+            guard var snapshot = inventory[key] else { continue }
+
+            let idCandidates = iDeviceBattery.discoveryCandidates.filter { candidate in
+                snapshot.devices.contains(where: { $0.deviceID == candidate.identifier }) ||
+                candidate.name.map { inventoryKey($0) == inventoryKey(snapshot.name) } == true ||
+                snapshot.devices.contains(where: {
+                    !$0.parentName.isEmpty &&
+                    candidate.name.map { inventoryKey($0) == inventoryKey($0.parentName) } == true
+                })
+            }
+            snapshot.iDeviceCandidates = idCandidates
+            for candidate in idCandidates {
+                if candidate.sources.contains(.network) { snapshot.sources.insert(.network) }
+                if candidate.sources.contains(.usb) { snapshot.sources.insert(.usb) }
+            }
+
+            let bleIdentities = policyStore.candidates.filter {
+                inventoryKey($0.name) == inventoryKey(snapshot.name)
+            }
+            if !bleIdentities.isEmpty {
+                snapshot.sources.insert(.bluetooth)
+                if snapshot.ble == nil {
+                    let exactRules = policyStore.rules.filter {
+                        inventoryKey($0.name) == inventoryKey(snapshot.name)
+                    }
+                    snapshot.ble = BLELogicalDeviceSnapshot(
+                        key: inventoryKey(snapshot.name),
+                        name: snapshot.name,
+                        policy: policyStore.logicalPolicy(name: snapshot.name),
+                        identities: bleIdentities,
+                        exactRules: exactRules
+                    )
+                }
+            }
+
+            if snapshot.sources.isEmpty {
+                if snapshot.devices.contains(where: { isAppleMobileDevice($0) }) {
+                    snapshot.sources.insert(.network)
+                } else if !snapshot.devices.isEmpty {
+                    snapshot.sources.insert(.bluetooth)
+                }
+            }
+
+            inventory[key] = snapshot
+        }
+
+        return inventory.values.sorted {
+            if $0.isBuiltIn != $1.isBuiltIn { return $0.isBuiltIn }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private func nearbyIDeviceCandidates(
+        known: [KnownDeviceSnapshot]
+    ) -> [IDeviceDiscoveryCandidate] {
+        let knownIDs = Set(known.flatMap(\.devices).map(\.deviceID))
+        let knownNames = Set(known.map { inventoryKey($0.name) })
+        return iDeviceBattery.discoveryCandidates
+            .filter {
+                !knownIDs.contains($0.identifier) &&
+                !($0.name.map { knownNames.contains(inventoryKey($0)) } ?? false)
+            }
+            .sorted {
+                ($0.name ?? $0.identifier).localizedCaseInsensitiveCompare(
+                    $1.name ?? $1.identifier
+                ) == .orderedAscending
+            }
+    }
+
+    private func nearbyBLECandidates(
+        known: [KnownDeviceSnapshot]
+    ) -> [BLEDiscoveryCandidate] {
+        let knownNames = Set(known.map { inventoryKey($0.name) })
+        return policyStore.nearbyCandidates.filter {
+            !knownNames.contains(inventoryKey($0.name))
+        }
     }
 
     @ViewBuilder
-    private func knownDeviceRow(_ device: BLELogicalDeviceSnapshot) -> some View {
+    private func knownDeviceRow(_ device: KnownDeviceSnapshot) -> some View {
         DisclosureGroup(
             isExpanded: Binding(
                 get: { expandedKnown.contains(device.id) },
@@ -369,7 +562,7 @@ struct DevicesView: View {
             )
         ) {
             VStack(alignment: .leading, spacing: 9) {
-                if let group = AirBatteryModel.airPodsGroup(observedAs: device.name) {
+                if let group = airPodsGroup(device) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Battery components")
                             .font(.caption)
@@ -377,53 +570,132 @@ struct DevicesView: View {
                             .foregroundColor(.secondary)
                         airPodsComponentRows(group)
                     }
-                    if !device.identities.isEmpty {
+                } else if let representative = representativeDevice(device) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        if representative.hasBattery {
+                            detailRow(
+                                "Battery",
+                                "\(representative.batteryLevel)%" +
+                                (representative.isCharging != 0 ? " · charging" : "")
+                            )
+                        }
+                        detailRow("Type", representative.deviceType)
+                        if let model = representative.deviceModel, !model.isEmpty {
+                            detailRow("Model", model)
+                        }
+                        detailRow("Identifier", representative.deviceID)
+                        detailRow("Last update", relativeAge(representative.lastUpdate))
+                        if !representative.parentName.isEmpty {
+                            detailRow("Parent", representative.parentName)
+                        }
+                    }
+                } else {
+                    Text("Known from a saved Bluetooth policy; no retained battery record.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                if !device.iDeviceCandidates.isEmpty {
+                    Divider().opacity(0.5)
+                    Text("Apple device discovery")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    ForEach(device.iDeviceCandidates) { candidate in
+                        iDeviceDetails(candidate)
+                    }
+                }
+
+                if let ble = device.ble {
+                    if !ble.identities.isEmpty {
                         Divider().opacity(0.5)
                         Text("Bluetooth identities")
                             .font(.caption)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
+                        ForEach(ble.identities) { candidate in
+                            identityDetail(candidate, logicalPolicy: ble.policy)
+                        }
+                    } else if device.sources.contains(.bluetooth) {
+                        Divider().opacity(0.5)
+                        Text("Bluetooth device not observed during this launch.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                }
 
-                if device.identities.isEmpty {
-                    Text("Not observed during this launch.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(device.identities) { candidate in
-                        identityDetail(candidate, logicalPolicy: device.policy)
+                    if !ble.exactRules.isEmpty {
+                        Text("Identity-specific overrides take precedence over the device rule.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                }
-                if !device.exactRules.isEmpty {
-                    Text("Identity-specific overrides take precedence over the device rule.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
             }
             .padding(.top, 6)
         } label: {
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(device.name)
-                    Text(logicalDeviceSummary(device))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(device.name)
+                        ForEach(sortedSources(device.sources), id: \.self) { source in
+                            sourceBadge(source.rawValue)
+                        }
+                    }
+                    Text(knownDeviceSummary(device))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                logicalPolicyMenu(device)
+                if let ble = device.ble {
+                    logicalPolicyMenu(name: device.name, currentPolicy: ble.policy)
+                }
             }
         }
     }
 
     @ViewBuilder
-    private func nearbyDeviceRow(_ candidate: BLEDiscoveryCandidate, suggested: Bool) -> some View {
+    private func nearbyIDeviceRow(_ candidate: IDeviceDiscoveryCandidate) -> some View {
+        let rowID = "idevice:" + candidate.identifier
         DisclosureGroup(
             isExpanded: Binding(
-                get: { expandedNearby.contains(candidate.id) },
+                get: { expandedNearby.contains(rowID) },
                 set: { expanded in
-                    if expanded { expandedNearby.insert(candidate.id) }
-                    else { expandedNearby.remove(candidate.id) }
+                    if expanded { expandedNearby.insert(rowID) }
+                    else { expandedNearby.remove(rowID) }
+                }
+            )
+        ) {
+            iDeviceDetails(candidate)
+                .padding(.top, 5)
+        } label: {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(candidate.name ?? "Apple device")
+                        ForEach(sortedIDeviceSources(candidate.sources), id: \.self) { source in
+                            sourceBadge(source.rawValue)
+                        }
+                    }
+                    Text(iDevicePrimarySummary(candidate))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nearbyBLEDeviceRow(
+        _ candidate: BLEDiscoveryCandidate,
+        suggested: Bool
+    ) -> some View {
+        let rowID = "ble:" + candidate.identifier
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { expandedNearby.contains(rowID) },
+                set: { expanded in
+                    if expanded { expandedNearby.insert(rowID) }
+                    else { expandedNearby.remove(rowID) }
                 }
             )
         ) {
@@ -431,8 +703,14 @@ struct DevicesView: View {
                 .padding(.top, 5)
         } label: {
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(candidate.name)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(candidate.name)
+                        sourceBadge("Bluetooth")
+                        if suggested {
+                            sourceBadge("Suggested")
+                        }
+                    }
                     Text(candidatePrimarySummary(candidate))
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -444,19 +722,32 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    private func logicalPolicyMenu(_ device: BLELogicalDeviceSnapshot) -> some View {
+    private func sourceBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+    }
+
+    @ViewBuilder
+    private func logicalPolicyMenu(
+        name: String,
+        currentPolicy: BLEDevicePolicy?
+    ) -> some View {
         Menu {
             ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
                 Button(policy.title) {
-                    policyStore.setLogicalPolicy(name: device.name, policy: policy)
+                    policyStore.setLogicalPolicy(name: name, policy: policy)
                 }
             }
             Divider()
             Button("Use discovery default") {
-                policyStore.clearLogicalPolicy(name: device.name)
+                policyStore.clearLogicalPolicy(name: name)
             }
         } label: {
-            Text(device.policy?.title ?? "Per identity")
+            Text(currentPolicy?.title ?? "Per identity")
                 .frame(minWidth: 82, alignment: .trailing)
         }
         .menuStyle(.borderlessButton)
@@ -484,7 +775,10 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    private func identityDetail(_ candidate: BLEDiscoveryCandidate, logicalPolicy: BLEDevicePolicy?) -> some View {
+    private func identityDetail(
+        _ candidate: BLEDiscoveryCandidate,
+        logicalPolicy: BLEDevicePolicy?
+    ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(shortIdentifier(candidate.identifier))
@@ -525,7 +819,11 @@ struct DevicesView: View {
     @ViewBuilder
     private func candidateDetails(_ candidate: BLEDiscoveryCandidate) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            detailRow("Signal", "\(signalLabel(candidate.displayRSSI)) · \(candidate.displayRSSI) dBm (raw \(candidate.rssi) dBm)")
+            detailRow(
+                "Signal",
+                "\(signalLabel(candidate.displayRSSI)) · \(candidate.displayRSSI) dBm " +
+                "(raw \(candidate.rssi) dBm)"
+            )
             detailRow("Seen", "\(candidate.seenCount) times")
             detailRow("Identifier", candidate.identifier)
             if candidate.matchesPairedName {
@@ -541,6 +839,30 @@ struct DevicesView: View {
             if let result = candidate.lastProbeResult {
                 detailRow("Last query", result)
             }
+        }
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+
+    @ViewBuilder
+    private func iDeviceDetails(_ candidate: IDeviceDiscoveryCandidate) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            detailRow(
+                "Connection",
+                sortedIDeviceSources(candidate.sources).map(\.rawValue).joined(separator: " + ")
+            )
+            if let type = candidate.deviceType, !type.isEmpty {
+                detailRow("Type", type)
+            }
+            if let model = candidate.model, !model.isEmpty {
+                detailRow("Model", model)
+            }
+            detailRow("Identifier", candidate.identifier)
+            detailRow("Last seen", relativeAge(candidate.lastSeen.timeIntervalSince1970))
+            detailRow(
+                "Battery query",
+                candidate.batteryReadable ? "Battery data read successfully" : "No battery record yet"
+            )
         }
         .font(.caption)
         .foregroundColor(.secondary)
@@ -566,30 +888,43 @@ struct DevicesView: View {
         }
     }
 
-    private func logicalDeviceSummary(_ device: BLELogicalDeviceSnapshot) -> String {
-        var parts: [String] = []
-        let batteryDevices = AirBatteryModel.batteryDevices(observedAs: device.name)
-
-        if let group = AirBatteryModel.airPodsGroup(observedAs: device.name) {
-            parts.append(airPodsBatterySummary(group))
-        } else if let newest = batteryDevices.max(by: { $0.lastUpdate < $1.lastUpdate }) {
-            parts.append("Battery reading \(relativeAge(newest.lastUpdate))")
-        } else if device.identities.contains(where: \.hasPassiveBatteryData) {
-            parts.append("Battery advertisement seen; no retained reading")
-        } else {
-            parts.append("No battery reading")
+    private func knownDeviceSummary(_ device: KnownDeviceSnapshot) -> String {
+        if let group = airPodsGroup(device) {
+            return airPodsBatterySummary(group)
         }
-
-        if !device.identities.isEmpty {
-            let strongest = device.identities.map(\.displayRSSI).max() ?? -100
-            parts.append("\(signalLabel(strongest)) (\(strongest) dBm)")
-            if device.identities.count > 1 {
-                parts.append("\(device.identities.count) identities")
+        if let newest = representativeDevice(device) {
+            if newest.hasBattery {
+                return "Battery \(newest.batteryLevel)% · \(relativeAge(newest.lastUpdate))"
             }
-        } else {
-            parts.append("not observed this launch")
+            return "Known device · \(relativeAge(newest.lastUpdate))"
         }
+        return "Known device · no retained battery reading"
+    }
+
+    private func iDevicePrimarySummary(_ candidate: IDeviceDiscoveryCandidate) -> String {
+        var parts: [String] = []
+        if let type = candidate.deviceType, !type.isEmpty {
+            parts.append(type)
+        }
+        if let model = candidate.model, !model.isEmpty {
+            parts.append(model)
+        }
+        parts.append(candidate.batteryReadable ? "battery readable" : "no battery record yet")
+        parts.append(relativeAge(candidate.lastSeen.timeIntervalSince1970))
         return parts.joined(separator: " · ")
+    }
+
+    private func representativeDevice(_ device: KnownDeviceSnapshot) -> Device? {
+        device.devices.max(by: { $0.lastUpdate < $1.lastUpdate })
+    }
+
+    private func airPodsGroup(_ device: KnownDeviceSnapshot) -> AirPodsBatteryGroup? {
+        guard let representative = device.devices.first(where: {
+            AirBatteryModel.airPodsBaseName(for: $0) != nil
+        }) else {
+            return nil
+        }
+        return AirBatteryModel.airPodsGroup(for: representative, in: device.devices)
     }
 
     private func airPodsBatterySummary(_ group: AirPodsBatteryGroup) -> String {
@@ -614,7 +949,7 @@ struct DevicesView: View {
             }
         }
 
-        return parts.isEmpty ? "No battery reading" : parts.joined(separator: " · ")
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -680,6 +1015,27 @@ struct DevicesView: View {
         }
         parts.append("\(signalLabel(candidate.displayRSSI)) (\(candidate.displayRSSI) dBm)")
         return parts.joined(separator: " · ")
+    }
+
+    private func sortedSources(
+        _ sources: Set<DeviceInventorySource>
+    ) -> [DeviceInventorySource] {
+        sources.sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private func sortedIDeviceSources(
+        _ sources: Set<IDeviceConnectionSource>
+    ) -> [IDeviceConnectionSource] {
+        sources.sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private func isAppleMobileDevice(_ device: Device) -> Bool {
+        ["iPhone", "iPad", "iPod", "Watch", "ApplePencil", "Pencil"]
+            .contains(device.deviceType)
+    }
+
+    private func inventoryKey(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func relativeAge(_ timestamp: Double) -> String {
