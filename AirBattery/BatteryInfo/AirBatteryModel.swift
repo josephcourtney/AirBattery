@@ -33,6 +33,9 @@ struct Device: Hashable, Codable {
     var parentName: String = ""
     var lastUpdate: Double
     var realUpdate: Double = 0.0
+    var mobileDeviceID: String?
+    var bleDeviceID: String?
+    var batterySource: DeviceObservationSource?
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(hasBattery)
@@ -50,6 +53,33 @@ struct Device: Hashable, Codable {
         hasher.combine(lastUpdate)
         hasher.combine(realUpdate)
         hasher.combine(parentName)
+        hasher.combine(mobileDeviceID)
+        hasher.combine(bleDeviceID)
+        hasher.combine(batterySource)
+    }
+
+    mutating func mergeIdentifiers(from incoming: Device) {
+        var identifiers = DeviceIdentifierSet(
+            canonicalID: deviceID,
+            mobileDeviceID: mobileDeviceID,
+            bleDeviceID: bleDeviceID
+        )
+        identifiers.merge(
+            canonicalID: incoming.deviceID,
+            mobileDeviceID: incoming.mobileDeviceID,
+            bleDeviceID: incoming.bleDeviceID
+        )
+        deviceID = identifiers.canonicalID
+        mobileDeviceID = identifiers.mobileDeviceID
+        bleDeviceID = identifiers.bleDeviceID
+    }
+
+    func matchesIdentifier(_ identifier: String) -> Bool {
+        DeviceIdentifierSet(
+            canonicalID: deviceID,
+            mobileDeviceID: mobileDeviceID,
+            bleDeviceID: bleDeviceID
+        ).matches(identifier)
     }
 }
 
@@ -218,7 +248,9 @@ class AirBatteryModel {
         lock = true
         //self.Devices.removeAll(where: {blockedItems.contains($0.deviceName)})
         if let index = self.Devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
-            self.Devices[index] = device
+            var merged = device
+            merged.mergeIdentifiers(from: self.Devices[index])
+            self.Devices[index] = merged
         } else {
             self.Devices.append(device)
         }
@@ -276,7 +308,9 @@ class AirBatteryModel {
     }
     
     static func getByID(_ id: String) -> Device? {
-        for d in getAll(noFilter: true) { if d.deviceID == id { return d } }
+        for d in getAll(noFilter: true) {
+            if d.matchesIdentifier(id) { return d }
+        }
         return nil
     }
     
