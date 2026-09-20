@@ -50,6 +50,23 @@ brew install lihaoyun6/tap/airbattery
 **5. Why does AirBattery need Bluetooth permission?**
 > AirBattery needs Bluetooth to capture packets from peripheral devices in order to parse their battery information.  
 
+## Testing
+
+Local verification is split into deterministic unit tests, native-runtime
+checks, and opt-in real-device integration tests:
+
+```bash
+just test
+just test-runtime
+just test-hardware
+just check
+```
+
+`just test` is hostless and does not launch AirBattery or contact hardware.
+`just test-hardware` exercises real USB/network iDevice battery reads and
+stress-tests the Apple Watch companion helper. See [TESTING.md](./TESTING.md)
+for coverage and configuration.
+
 ## Donate
 <img src="./img/donate.png" width="350"/>
 
