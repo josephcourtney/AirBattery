@@ -67,6 +67,20 @@ The default companion stress count is 100. Override it with:
 AIRBATTERY_HARDWARE_STRESS_ITERATIONS=500 just test-hardware
 ```
 
+The companion helper retries transient companion-proxy transport/protocol
+failures up to three times with short backoff. The stress test treats an
+exhausted helper status 4/5 as a transient protocol failure rather than a crash,
+continues the burst, and reports the count at the end. It still fails
+immediately on a child-process crash, malformed JSON from a successful helper
+run, disappearance of the selected parent device, or too many exhausted
+transient failures. The default transient-failure budget is 5 per stress run:
+
+```bash
+AIRBATTERY_HARDWARE_MAX_TRANSIENT_FAILURES=0 just test-hardware
+```
+
+sets strict zero-tolerance if desired.
+
 Select a specific iPhone with:
 
 ```bash
