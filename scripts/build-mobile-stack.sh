@@ -220,7 +220,7 @@ legacy_build_matches_all_sources() {
 LEGACY_BOOTSTRAP=0
 if [[ -z "${AIRBATTERY_VENDOR_ARCH+x}" ]] &&
    [[ -z "${AIRBATTERY_VENDOR_MACOS_MIN+x}" ]] &&
-   [[ -z "$(find "$STAMP_ROOT" -type f -maxdepth 1 -print -quit 2>/dev/null)" ]] &&
+   [[ -z "$(ls -A "$STAMP_ROOT" 2>/dev/null)" ]] &&
    legacy_build_matches_all_sources; then
   LEGACY_BOOTSTRAP=1
 fi
