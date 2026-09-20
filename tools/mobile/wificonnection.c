@@ -25,6 +25,10 @@
 
 #define TOOL_NAME "wificonnection"
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "AirBattery"
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
