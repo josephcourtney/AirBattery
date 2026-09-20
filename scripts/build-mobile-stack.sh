@@ -39,7 +39,7 @@ if [[ -n "$BREW" ]]; then
   eval "$("$BREW" shellenv)"
 fi
 
-for command in git make perl pkg-config autoconf automake autoreconf xcrun otool install_name_tool shasum; do
+for command in git make perl pkg-config autoconf automake autoreconf xcrun otool install_name_tool shasum codesign; do
   require_command "$command"
 done
 
@@ -279,6 +279,14 @@ if [[ "$helper_status" -ne 2 ]]; then
   printf 'Staged airbattery-mobile failed its loader smoke test (status %s).\n' "$helper_status" >&2
   exit 4
 fi
+
+printf '%s\n' '==> Ad-hoc signing staged native code'
+for file in "$STAGE"/lib/* "$STAGE"/bin/*; do
+  [[ -f "$file" && ! -L "$file" ]] || continue
+  if /usr/bin/file "$file" | grep -q 'Mach-O'; then
+    codesign --force --sign - --timestamp=none "$file"
+  fi
+done
 
 printf '%s\n' '==> Copying source-license notices'
 for spec in   "libimobiledevice:third_party/libimobiledevice"   "libplist:third_party/libplist"   "libimobiledevice-glue:third_party/libimobiledevice-glue"   "libusbmuxd:third_party/libusbmuxd"   "libtatsu:third_party/libtatsu"   "openssl:third_party/openssl"; do
