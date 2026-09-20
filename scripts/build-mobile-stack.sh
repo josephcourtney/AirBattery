@@ -172,7 +172,10 @@ printf '%s\n' '==> Building libtatsu'
 tatsu_src="$(materialize libtatsu third_party/libtatsu)"
 # macOS supplies libcurl as a system library. Supplying the pkg-config override
 # keeps curl out of AirBattery's redistributed native dependency set.
-libcurl_CFLAGS="" libcurl_LIBS="-lcurl"   build_autotools libtatsu "$tatsu_src"
+export libcurl_CFLAGS=""
+export libcurl_LIBS="-lcurl"
+build_autotools libtatsu "$tatsu_src"
+unset libcurl_CFLAGS libcurl_LIBS
 
 printf '%s\n' '==> Building libimobiledevice'
 limd_src="$(materialize libimobiledevice third_party/libimobiledevice)"
