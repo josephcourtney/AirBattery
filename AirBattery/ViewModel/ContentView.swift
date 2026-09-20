@@ -1255,6 +1255,7 @@ func openAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(nil)
 }
 
+@MainActor
 func openSettingPanel() {
     dockWindow.orderOut(nil)
     SettingsWindowController.shared.present()
