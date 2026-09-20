@@ -33,6 +33,13 @@ class IDeviceBattery: ObservableObject {
     @AppStorage("updateInterval") var updateInterval = 1
     @Published private(set) var discoveryCandidates: [IDeviceDiscoveryCandidate] = []
 
+    private let scanLock = NSLock()
+    private var scanInFlight = false
+    private let companionProbeLock = NSLock()
+    private var companionProbeDisabledForLaunch = false
+    private var lastCompanionProbe: [String: TimeInterval] = [:]
+    private let companionProbeInterval: TimeInterval = 5 * 60
+
     private func recordObservation(
         identifier: String,
         source: IDeviceConnectionSource,
@@ -83,7 +90,21 @@ class IDeviceBattery: ObservableObject {
     }
     
     @objc func scanDevices() {
+        scanLock.lock()
+        guard !scanInFlight else {
+            scanLock.unlock()
+            return
+        }
+        scanInFlight = true
+        scanLock.unlock()
+
         Thread.detachNewThread {
+            defer {
+                self.scanLock.lock()
+                self.scanInFlight = false
+                self.scanLock.unlock()
+            }
+
             if !self.readIDevice { return }
             self.getIDeviceBattery()
         }
@@ -130,6 +151,101 @@ class IDeviceBattery: ObservableObject {
         }
     }
     
+    private func shouldProbeCompanion(parentID: String, deviceType: String) -> Bool {
+        guard deviceType.caseInsensitiveCompare("iPhone") == .orderedSame else {
+            return false
+        }
+
+        let now = Date().timeIntervalSince1970
+        companionProbeLock.lock()
+        defer { companionProbeLock.unlock() }
+
+        guard !companionProbeDisabledForLaunch else { return false }
+        if let lastProbe = lastCompanionProbe[parentID],
+           now - lastProbe < companionProbeInterval {
+            return false
+        }
+
+        // Reserve the slot before launching the helper so overlapping refreshes
+        // cannot start duplicate companion-proxy probes.
+        lastCompanionProbe[parentID] = now
+        return true
+    }
+
+    private func updateWatchBattery(
+        parentID: String,
+        parentName: String,
+        deviceType: String,
+        lastUpdate: TimeInterval
+    ) {
+        guard shouldProbeCompanion(parentID: parentID, deviceType: deviceType) else {
+            return
+        }
+
+        let result = processWithStatus(
+            path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/comptest",
+            arguments: [parentID],
+            timeout: 10
+        )
+
+        guard let result else { return }
+
+        if result.terminationReason == .uncaughtSignal {
+            companionProbeLock.lock()
+            companionProbeDisabledForLaunch = true
+            companionProbeLock.unlock()
+            print(
+                "⚠️ Disabling Apple Watch companion probing for this launch: " +
+                "comptest terminated by signal \(result.terminationStatus)"
+            )
+            return
+        }
+
+        guard result.terminationStatus == 0, !result.output.isEmpty else {
+            return
+        }
+
+        let watchInfo = result.output.components(separatedBy: .newlines)
+        guard let watchID = watchInfo
+                .first(where: { $0.contains("Checking watch") })?
+                .components(separatedBy: " ")
+                .last,
+              let watchName = watchInfo
+                .first(where: { $0.contains("DeviceName") })?
+                .components(separatedBy: ": ")
+                .last,
+              let watchModel = watchInfo
+                .first(where: { $0.contains("ProductType") })?
+                .components(separatedBy: ": ")
+                .last,
+              let watchLevel = watchInfo
+                .first(where: { $0.contains("BatteryCurrentCapacity") })?
+                .components(separatedBy: ": ")
+                .last,
+              let watchCharging = watchInfo
+                .first(where: { $0.contains("BatteryIsCharging") })?
+                .components(separatedBy: ": ")
+                .last,
+              let level = Int(watchLevel),
+              let charging = Bool(watchCharging)
+        else {
+            return
+        }
+
+        AirBatteryModel.updateDevice(
+            Device(
+                deviceID: watchID,
+                deviceType: "Watch",
+                deviceName: watchName,
+                deviceModel: watchModel,
+                batteryLevel: level,
+                isCharging: charging ? 1 : 0,
+                parentName: parentName,
+                lastUpdate: lastUpdate
+            )
+        )
+    }
+
     func writeBatteryInfo(_ id: String, _ connectType: String) {
         //print("ℹ️ Getting Battery Info for \(id)")
         let source: IDeviceConnectionSource = connectType == "-n" ? .network : .usb
@@ -164,16 +280,12 @@ class IDeviceBattery: ObservableObject {
                             model: model,
                             batteryReadable: true
                         )
-                        if let watchInfo = process(path: "\(Bundle.main.resourcePath!)/libimobiledevice/bin/comptest", arguments: [id]) {
-                            let w = watchInfo.components(separatedBy: .newlines)
-                            if let watchID = w.filter({ $0.contains("Checking watch") }).first?.components(separatedBy: " ").last,
-                               let watchName = w.filter({ $0.contains("DeviceName") }).first?.components(separatedBy: ": ").last,
-                               let watchModel = w.filter({ $0.contains("ProductType") }).first?.components(separatedBy: ": ").last,
-                               let watchLevel = w.filter({ $0.contains("BatteryCurrentCapacity") }).first?.components(separatedBy: ": ").last,
-                               let watchCharging = w.filter({ $0.contains("BatteryIsCharging") }).first?.components(separatedBy: ": ").last {
-                                AirBatteryModel.updateDevice(Device(deviceID: watchID, deviceType: "Watch", deviceName: watchName, deviceModel: watchModel, batteryLevel: Int(watchLevel)!, isCharging: Bool(watchCharging)! ? 1 : 0, parentName: deviceName, lastUpdate: lastUpdate))
-                            }
-                        }
+                        updateWatchBattery(
+                            parentID: id,
+                            parentName: deviceName,
+                            deviceType: type,
+                            lastUpdate: lastUpdate
+                        )
                     }
                 }
             }
