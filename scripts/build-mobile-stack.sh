@@ -95,7 +95,9 @@ fingerprint="$(
     done
   } | shasum -a 256 | awk '{print $1}'
 )"
-stamp="$BUILD_ROOT/stamp-$ARCH"
+# The staged runtime is a single-architecture directory. Use one stamp so
+# switching architectures always invalidates and rebuilds that shared stage.
+stamp="$BUILD_ROOT/stamp"
 if [[ -f "$stamp" ]] &&
    [[ "$(cat "$stamp")" == "$fingerprint" ]] &&
    [[ -d "$STAGE/lib" ]] &&
