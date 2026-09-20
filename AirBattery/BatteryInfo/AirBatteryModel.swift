@@ -58,16 +58,16 @@ struct Device: Hashable, Codable {
         hasher.combine(batterySource)
     }
 
-    mutating func mergeIdentifiers(from incoming: Device) {
+    mutating func mergeIdentifiers(fromExisting existing: Device) {
         var identifiers = DeviceIdentifierSet(
+            canonicalID: existing.deviceID,
+            mobileDeviceID: existing.mobileDeviceID,
+            bleDeviceID: existing.bleDeviceID
+        )
+        identifiers.merge(
             canonicalID: deviceID,
             mobileDeviceID: mobileDeviceID,
             bleDeviceID: bleDeviceID
-        )
-        identifiers.merge(
-            canonicalID: incoming.deviceID,
-            mobileDeviceID: incoming.mobileDeviceID,
-            bleDeviceID: incoming.bleDeviceID
         )
         deviceID = identifiers.canonicalID
         mobileDeviceID = identifiers.mobileDeviceID
@@ -249,7 +249,7 @@ class AirBatteryModel {
         //self.Devices.removeAll(where: {blockedItems.contains($0.deviceName)})
         if let index = self.Devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
             var merged = device
-            merged.mergeIdentifiers(from: self.Devices[index])
+            merged.mergeIdentifiers(fromExisting: self.Devices[index])
             self.Devices[index] = merged
         } else {
             self.Devices.append(device)
