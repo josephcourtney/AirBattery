@@ -419,22 +419,23 @@ struct popover: View {
         charging: Int,
         help: String
     ) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 3) {
+            Text("\(level)%")
+                .font(.system(size: 11))
+                .foregroundColor(level <= 10 ? .darkMyRed : .primary)
             Image(getDeviceIcon(iconDevice))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .foregroundColor(.secondary)
-                .frame(width: 13, height: 13)
+                .foregroundColor(.blackWhite)
+                .frame(width: 12, height: 12)
                 .help(help)
-            Text("\(level)%")
-                .foregroundColor(level <= 10 ? .darkMyRed : .primary)
             if charging != 0 {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 7, weight: .bold))
                     .foregroundColor(.secondary)
             }
         }
-        .font(.system(size: 10, weight: .medium))
+        .frame(height: 24)
         .fixedSize()
         .help(help)
     }
@@ -459,7 +460,7 @@ struct popover: View {
     @ViewBuilder
     private func airPodsMenuRow(_ group: AirPodsBatteryGroup, index: Int) -> some View {
         let newestUpdate = group.components.map(\.lastUpdate).max() ?? 0
-        HStack(spacing: 8) {
+        HStack {
             if let caseDevice = group.caseDevice {
                 Image(getDeviceIcon(caseDevice))
                     .resizable()
@@ -468,14 +469,19 @@ struct popover: View {
                     .frame(width: 22, height: 22)
             }
 
-            Text("\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")\(group.name)")
-                .font(.system(size: 12))
-                .foregroundColor(.blackWhite)
-                .lineLimit(1)
+            HStack(spacing: 1) {
+                Text("\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")\(group.name)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.blackWhite)
+                    .frame(height: 24, alignment: .center)
+                    .lineLimit(1)
+                Spacer().frame(width: 0.5)
+            }
+            .padding(.horizontal, 7)
 
-            Spacer(minLength: 4)
+            Spacer()
 
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 if let caseDevice = group.caseDevice {
                     airPodsLevel(
                         iconDevice: caseDevice,
