@@ -64,7 +64,7 @@ struct AirBatteryApp: App {
                         })
                 )
         }
-        .resizableSettingsWindowIfAvailable()
+
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
@@ -72,16 +72,6 @@ struct AirBatteryApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
-        }
-    }
-}
-
-private extension Scene {
-    func resizableSettingsWindowIfAvailable() -> some Scene {
-        if #available(macOS 13.0, *) {
-            return windowResizability(.contentMinSize)
-        } else {
-            return self
         }
     }
 }
