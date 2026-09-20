@@ -218,7 +218,7 @@ read -r -a wifi_flags <<<"$(PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --libs
 
 "$CC" "${common_flags[@]}"   "$ROOT/tools/mobile/airbattery-mobile.c"   -L"$PREFIX/lib" "${limd_flags[@]}"   -o "$PREFIX/bin/airbattery-mobile"
 
-"$CC" "${common_flags[@]}"   -DPACKAGE_VERSION='\"AirBattery\"'   "$ROOT/tools/mobile/wificonnection.c"   -L"$PREFIX/lib" "${wifi_flags[@]}"   -o "$PREFIX/bin/wificonnection"
+"$CC" "${common_flags[@]}"   "$ROOT/tools/mobile/wificonnection.c"   -L"$PREFIX/lib" "${wifi_flags[@]}"   -o "$PREFIX/bin/wificonnection"
 
 printf '%s\n' '==> Staging runtime tools'
 for tool in idevice_id ideviceinfo idevicesyslog airbattery-mobile wificonnection; do
