@@ -184,6 +184,7 @@ build_autotools libimobiledevice "$limd_src" --without-cython --with-openssl
 printf '%s\n' '==> Building AirBattery-owned mobile helpers'
 common_flags=(
   -arch "$ARCH"
+  -isysroot "$SDKROOT"
   "-mmacosx-version-min=$MACOS_MIN"
   -O2
   -I"$PREFIX/include"
@@ -244,6 +245,27 @@ for file in "$STAGE"/bin/*; do
   [[ -f "$file" ]] || continue
   relocate_macho "$file" executable
 done
+
+printf '%s\n' '==> Verifying staged Mach-O linkage'
+for file in "$STAGE"/bin/* "$STAGE"/lib/*; do
+  [[ -f "$file" && ! -L "$file" ]] || continue
+  if otool -L "$file" | grep -F "$PREFIX/" >/dev/null; then
+    printf 'Non-relocatable vendor linkage remains in %s:\n' "$file" >&2
+    otool -L "$file" >&2
+    exit 4
+  fi
+done
+
+# A no-argument invocation exits with usage status 2. Reaching main proves that
+# dyld can resolve the staged helper and its private dylibs.
+set +e
+"$STAGE/bin/airbattery-mobile" >/dev/null 2>&1
+helper_status=$?
+set -e
+if [[ "$helper_status" -ne 2 ]]; then
+  printf 'Staged airbattery-mobile failed its loader smoke test (status %s).\n' "$helper_status" >&2
+  exit 4
+fi
 
 printf '%s\n' '==> Copying source-license notices'
 for spec in   "libimobiledevice:third_party/libimobiledevice"   "libplist:third_party/libplist"   "libimobiledevice-glue:third_party/libimobiledevice-glue"   "libusbmuxd:third_party/libusbmuxd"   "libtatsu:third_party/libtatsu"   "openssl:third_party/openssl"; do
