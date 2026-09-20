@@ -116,10 +116,26 @@ The staged runtime is ad-hoc signed first. Development signing later re-signs
 the generated Mach-O files in `Contents/Resources/libimobiledevice` with the
 selected Apple Development identity before signing the outer app.
 
-For linkage and signature diagnostics:
+For read-only source/runtime status, without cloning or building:
+
+```bash
+just vendor-mobile-status
+```
+
+For linkage and signature diagnostics of an **already-built** runtime:
 
 ```bash
 just vendor-mobile-diagnose
+```
+
+`vendor-mobile-diagnose` is observational. If the runtime has not been built,
+it exits with an instruction to run `just vendor-mobile`; it never initializes
+submodules or starts a build.
+
+To explicitly build/update the runtime and then diagnose it in one command:
+
+```bash
+just vendor-mobile-diagnose-build
 ```
 
 ## Updating a dependency
