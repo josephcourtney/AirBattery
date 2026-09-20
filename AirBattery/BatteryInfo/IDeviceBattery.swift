@@ -69,6 +69,12 @@ class IDeviceBattery: ObservableObject {
         }
     }
     
+    func clearDiscoveryCandidates() {
+        DispatchQueue.main.async {
+            self.discoveryCandidates.removeAll()
+        }
+    }
+
     func startScan() {
         //let interval = TimeInterval(5.0)
         //scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
