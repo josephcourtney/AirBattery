@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <libimobiledevice/companion_proxy.h>
 #include <libimobiledevice/libimobiledevice.h>
