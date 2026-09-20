@@ -55,10 +55,10 @@ brew install lihaoyun6/tap/airbattery
 
 ## 致谢
 [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) @libimobiledevice  
-> AirBattery 使用基于`73b6fd1`版本编译的 libimobiledevice 可执行文件及运行库. 如有疑虑可自行编译替换  
+> AirBattery 现在从固定版本的上游源码子模块构建移动设备运行时，不再把第三方预编译二进制文件提交到仓库。Apple Watch companion helper 由 AirBattery 自己维护源码，并保持 libimobiledevice 与 Swift 主进程隔离。具体版本与构建方式见 [VENDORING.md](./VENDORING.md)。  
 
-[comptest](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) @nikias  
-> AirBattery 使用基于此源代码编译的 comptest 可执行文件. 如有疑虑可自行编译替换  
+[Nikias Bassen 的 companion-proxy 示例](https://gist.github.com/nikias/ebc6e975dc908f3741af0f789c5b1088) @nikias  
+> 历史版本的 `comptest` 基于此示例。预编译的 `comptest` 已移除；当前实现位于 `tools/mobile/airbattery-mobile.c`。  
 
 [MultipeerKit](https://github.com/insidegui/MultipeerKit) @insidegui  
 > AirBattery 使用 MultipeerKit 框架来进行局域网内的对称多端通信   
