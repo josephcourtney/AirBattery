@@ -198,6 +198,33 @@ source_description() {
   git -C "$ROOT/$1" describe --tags --always
 }
 
+legacy_build_matches_all_sources() {
+  local spec name path marker expected
+  for spec in \
+    "openssl:third_party/openssl" \
+    "libplist:third_party/libplist" \
+    "libimobiledevice-glue:third_party/libimobiledevice-glue" \
+    "libusbmuxd:third_party/libusbmuxd" \
+    "libtatsu:third_party/libtatsu" \
+    "libimobiledevice:third_party/libimobiledevice"; do
+    name="${spec%%:*}"
+    path="${spec#*:}"
+    marker="$WORK_ROOT/src/$name/.tarball-version"
+    [[ -f "$marker" ]] || return 1
+    expected="$(source_description "$path")"
+    [[ "$(cat "$marker")" == "$expected" ]] || return 1
+  done
+  return 0
+}
+
+LEGACY_BOOTSTRAP=0
+if [[ -z "${AIRBATTERY_VENDOR_ARCH+x}" ]] &&
+   [[ -z "${AIRBATTERY_VENDOR_MACOS_MIN+x}" ]] &&
+   [[ -z "$(find "$STAMP_ROOT" -type f -maxdepth 1 -print -quit 2>/dev/null)" ]] &&
+   legacy_build_matches_all_sources; then
+  LEGACY_BOOTSTRAP=1
+fi
+
 # Migrate successful outputs produced by the previous all-or-nothing builder.
 # This is intentionally conservative: it only applies to the default target,
 # verifies the exact materialized source revision, checks all expected outputs,
@@ -211,8 +238,7 @@ maybe_bootstrap_component() {
   local marker expected_desc artifact archs
 
   [[ ! -f "$(stamp_path "$name")" ]] || return 0
-  [[ -z "${AIRBATTERY_VENDOR_ARCH+x}" ]] || return 0
-  [[ -z "${AIRBATTERY_VENDOR_MACOS_MIN+x}" ]] || return 0
+  [[ "$LEGACY_BOOTSTRAP" -eq 1 ]] || return 0
 
   marker="$WORK_ROOT/src/$name/.tarball-version"
   [[ -f "$marker" ]] || return 0
