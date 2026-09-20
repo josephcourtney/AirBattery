@@ -207,7 +207,9 @@ class IDeviceBattery: ObservableObject {
                         deviceModel: metadata.productType,
                         batteryLevel: battery.level,
                         isCharging: battery.isCharging ? 1 : 0,
-                        lastUpdate: lastUpdate
+                        lastUpdate: lastUpdate,
+                        mobileDeviceID: id,
+                        batterySource: .libimobiledevice
                     )
                 )
                 recordObservation(
