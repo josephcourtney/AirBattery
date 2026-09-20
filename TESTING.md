@@ -51,12 +51,14 @@ just test-hardware
 
 This is intentionally opt-in. It:
 
-1. enumerates iOS/iPadOS devices visible over the network and USB;
-2. verifies that `ideviceinfo` can read metadata and battery state for every
-   enumerated device;
-3. selects a visible iPhone, if one is available;
-4. repeatedly runs the AirBattery companion helper against that iPhone; and
-5. validates every helper result as JSON, including Watch battery ranges and
+1. reports libimobiledevice visibility separately for network and USB;
+2. reports any iPhone rows in AirBattery's persisted device list, while noting
+   that the current `Device` model does not persist discovery provenance;
+3. verifies that `ideviceinfo` can read metadata and battery state for every
+   libimobiledevice-enumerated device;
+4. selects an iPhone visible to libimobiledevice, if one is available;
+5. repeatedly runs the AirBattery companion helper against that iPhone; and
+6. validates every helper result as JSON, including Watch battery ranges and
    field types.
 
 The default companion stress count is 100. Override it with:
@@ -71,9 +73,18 @@ Select a specific iPhone with:
 AIRBATTERY_TEST_UDID=<udid> just test-hardware
 ```
 
-If only an iPad is visible, iPad metadata/battery checks still run and the
-companion stress test is skipped. AirBattery itself intentionally probes the
-companion service only for devices whose `DeviceClass` is `iPhone`.
+If only an iPad is visible to libimobiledevice, iPad metadata/battery checks
+still run and the companion stress test is skipped. AirBattery itself
+intentionally probes the companion service only for devices whose
+`DeviceClass` is `iPhone`.
+
+An iPhone can still appear in AirBattery while being absent from both
+`idevice_id -n` and `idevice_id -l`. That can happen when the row comes from
+BLE discovery or retained recent state. The hardware test displays this
+distinction explicitly. Because AirBattery does not currently persist the
+discovery source on each `Device`, the script does not claim a persisted row is
+definitely BLE-derived; it only reports that libimobiledevice cannot currently
+use it for companion-proxy testing.
 
 The script runs under Bash and uses `rc` for child exit statuses; it does not
 use zsh's read-only `status` parameter.
