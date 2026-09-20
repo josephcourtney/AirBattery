@@ -62,6 +62,11 @@
 		18EF7E632C141CB70065A9E1 /* BatteryWidget3.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18EF7E622C1414A50065A9E1 /* BatteryWidget3.swift */; };
 		18F615F32B763DD800873AA4 /* BLEBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F615F22B763DD800873AA4 /* BLEBattery.swift */; };
 		18F615F92B76439300873AA4 /* AirBatteryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F615F82B76439300873AA4 /* AirBatteryModel.swift */; };
+		18F0B0022F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
+		18F0B0042F6F000100AB0001 /* CoreLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0032F6F000100AB0001 /* CoreLogicTests.swift */; };
+		18F0B0052F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
+		18F0B00F2F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
+		18F0B0102F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -171,6 +176,9 @@
 		18EF7E622C1414A50065A9E1 /* BatteryWidget3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryWidget3.swift; sourceTree = "<group>"; };
 		18F615F22B763DD800873AA4 /* BLEBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEBattery.swift; sourceTree = "<group>"; };
 		18F615F82B76439300873AA4 /* AirBatteryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirBatteryModel.swift; sourceTree = "<group>"; };
+		18F0B0012F6F000100AB0001 /* CoreLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogic.swift; sourceTree = "<group>"; };
+		18F0B0032F6F000100AB0001 /* CoreLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogicTests.swift; sourceTree = "<group>"; };
+		18F0B0062F6F000100AB0001 /* AirBatteryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AirBatteryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -211,6 +219,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		18F0B0092F6F000100AB0001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -240,6 +255,7 @@
 				189BD5EB2BDE69660056D06C /* InfoPlist.strings */,
 				180A51B72B84DC3700CF2D15 /* libimobiledevice */,
 				1841D44D2AA6071C0022A1BE /* AirBattery */,
+				18F0B0072F6F000100AB0001 /* AirBatteryTests */,
 				18892A8C2B81F8320017377E /* widget */,
 				18283DA22B854776009B1B13 /* AirBatteryHelper */,
 				184ADED22DDB2B37004791F0 /* abt */,
@@ -255,6 +271,7 @@
 				18892A862B81F8320017377E /* AirBatteryWidgetExtension.appex */,
 				18283DA12B854776009B1B13 /* AirBatteryHelper.app */,
 				184ADED12DDB2B37004791F0 /* abt */,
+				18F0B0062F6F000100AB0001 /* AirBatteryTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -290,6 +307,7 @@
 				184ADEF42DDB6C9F004791F0 /* AppleScript.swift */,
 				184ADEF52DDB6C9F004791F0 /* BTTool.swift */,
 				184ADEF62DDB6C9F004791F0 /* CommandLineTool.swift */,
+				18F0B0012F6F000100AB0001 /* CoreLogic.swift */,
 				184ADEF72DDB6C9F004791F0 /* GroupForm.swift */,
 				184ADEF82DDB6C9F004791F0 /* InfoButton.swift */,
 				184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */,
@@ -348,6 +366,14 @@
 				1841D4802AAA28880022A1BE /* SettingsView.swift */,
 			);
 			path = ViewModel;
+			sourceTree = "<group>";
+		};
+		18F0B0072F6F000100AB0001 /* AirBatteryTests */ = {
+			isa = PBXGroup;
+			children = (
+				18F0B0032F6F000100AB0001 /* CoreLogicTests.swift */,
+			);
+			path = AirBatteryTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -436,6 +462,23 @@
 			productReference = 18892A862B81F8320017377E /* AirBatteryWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		18F0B00B2F6F000100AB0001 /* AirBatteryTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 18F0B00E2F6F000100AB0001 /* Build configuration list for PBXNativeTarget "AirBatteryTests" */;
+			buildPhases = (
+				18F0B0082F6F000100AB0001 /* Sources */,
+				18F0B0092F6F000100AB0001 /* Frameworks */,
+				18F0B00A2F6F000100AB0001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AirBatteryTests;
+			productName = AirBatteryTests;
+			productReference = 18F0B0062F6F000100AB0001 /* AirBatteryTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -453,6 +496,9 @@
 						CreatedOnToolsVersion = 14.3.1;
 					};
 					184ADED02DDB2B37004791F0 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					18F0B00B2F6F000100AB0001 = {
 						CreatedOnToolsVersion = 16.2;
 					};
 					18892A852B81F8320017377E = {
@@ -484,6 +530,7 @@
 				18892A852B81F8320017377E /* AirBatteryWidgetExtension */,
 				18283DA02B854776009B1B13 /* AirBatteryHelper */,
 				184ADED02DDB2B37004791F0 /* abt */,
+				18F0B00B2F6F000100AB0001 /* AirBatteryTests */,
 			);
 		};
 /* End PBXProject section */
@@ -519,6 +566,13 @@
 			files = (
 				18B8E5C62B8329C500A20D03 /* Assets.xcassets in Resources */,
 				18B8E5C72B83C32100A20D03 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		18F0B00A2F6F000100AB0001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -564,6 +618,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				18F0B0022F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */,
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
 				18F615F32B763DD800873AA4 /* BLEBattery.swift in Sources */,
@@ -593,6 +648,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				184ADEE52DDB49C2004791F0 /* AirBatteryModel.swift in Sources */,
+				18F0B0102F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				184ADF0D2DDB6C9F004791F0 /* Supports.swift in Sources */,
 				184ADEE62DDB49C7004791F0 /* InternalBattery.swift in Sources */,
 			);
@@ -603,6 +659,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				18892AA22B82F0880017377E /* AirBatteryModel.swift in Sources */,
+				18F0B00F2F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */,
 				184ADF112DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
 				18EF7E632C141CB70065A9E1 /* BatteryWidget3.swift in Sources */,
@@ -611,6 +668,15 @@
 				18892A902B81F8320017377E /* BatteryWidget.swift in Sources */,
 				180B1C0E2C1204E400DDB570 /* AppIntent.swift in Sources */,
 				18B8E5C92B83C9AD00A20D03 /* BatteryWidget2.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		18F0B0082F6F000100AB0001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				18F0B0052F6F000100AB0001 /* CoreLogic.swift in Sources */,
+				18F0B0042F6F000100AB0001 /* CoreLogicTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1011,6 +1077,35 @@
 			};
 			name = Release;
 		};
+		18F0B00C2F6F000100AB0001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.josephcourtney.AirBatteryTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		18F0B00D2F6F000100AB0001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.josephcourtney.AirBatteryTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1055,6 +1150,15 @@
 			buildConfigurations = (
 				18892A9B2B81F8330017377E /* Debug */,
 				18892A9C2B81F8330017377E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		18F0B00E2F6F000100AB0001 /* Build configuration list for PBXNativeTarget "AirBatteryTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				18F0B00C2F6F000100AB0001 /* Debug */,
+				18F0B00D2F6F000100AB0001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
