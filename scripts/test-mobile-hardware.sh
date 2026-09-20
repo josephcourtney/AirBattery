@@ -13,7 +13,7 @@ require_command() {
   }
 }
 
-for command in jq awk sed; do
+for command in jq awk sed tr; do
   require_command "$command"
 done
 
@@ -49,16 +49,18 @@ query_device() {
   local udid="$1"
   local transport="$2"
   local info battery name class level charging
-  local args=()
 
   if [[ "$transport" == "network" ]]; then
-    args=(-n)
+    info="$("$BIN/ideviceinfo" -n -u "$udid")" || {
+      printf 'FAIL %s (%s): ideviceinfo failed\n' "$(short_id "$udid")" "$transport" >&2
+      return 1
+    }
+  else
+    info="$("$BIN/ideviceinfo" -u "$udid")" || {
+      printf 'FAIL %s (%s): ideviceinfo failed\n' "$(short_id "$udid")" "$transport" >&2
+      return 1
+    }
   fi
-
-  info="$("$BIN/ideviceinfo" "${args[@]}" -u "$udid")" || {
-    printf 'FAIL %s (%s): ideviceinfo failed\n' "$(short_id "$udid")" "$transport" >&2
-    return 1
-  }
   name="$(printf '%s\n' "$info" | info_value DeviceName)"
   class="$(printf '%s\n' "$info" | info_value DeviceClass)"
   if [[ -z "$name" || -z "$class" ]]; then
@@ -66,10 +68,17 @@ query_device() {
     return 1
   fi
 
-  battery="$("$BIN/ideviceinfo" "${args[@]}" -u "$udid" -q com.apple.mobile.battery)" || {
-    printf 'FAIL %s %s (%s): battery query failed\n' "$class" "$name" "$transport" >&2
-    return 1
-  }
+  if [[ "$transport" == "network" ]]; then
+    battery="$("$BIN/ideviceinfo" -n -u "$udid" -q com.apple.mobile.battery)" || {
+      printf 'FAIL %s %s (%s): battery query failed\n' "$class" "$name" "$transport" >&2
+      return 1
+    }
+  else
+    battery="$("$BIN/ideviceinfo" -u "$udid" -q com.apple.mobile.battery)" || {
+      printf 'FAIL %s %s (%s): battery query failed\n' "$class" "$name" "$transport" >&2
+      return 1
+    }
+  fi
   level="$(printf '%s\n' "$battery" | info_value BatteryCurrentCapacity)"
   charging="$(printf '%s\n' "$battery" | info_value BatteryIsCharging)"
   case "$level" in
@@ -97,15 +106,15 @@ query_device() {
 find_iphone() {
   local transport="$1"
   local ids="$2"
-  local udid info class args=()
-
-  if [[ "$transport" == "network" ]]; then
-    args=(-n)
-  fi
+  local udid info class
 
   while IFS= read -r udid; do
     [[ -n "$udid" ]] || continue
-    info="$("$BIN/ideviceinfo" "${args[@]}" -u "$udid" 2>/dev/null || true)"
+    if [[ "$transport" == "network" ]]; then
+      info="$("$BIN/ideviceinfo" -n -u "$udid" 2>/dev/null || true)"
+    else
+      info="$("$BIN/ideviceinfo" -u "$udid" 2>/dev/null || true)"
+    fi
     class="$(printf '%s\n' "$info" | info_value DeviceClass)"
     if [[ "$class" == "iPhone" ]]; then
       printf '%s' "$udid"
