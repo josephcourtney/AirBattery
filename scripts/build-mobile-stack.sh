@@ -67,9 +67,9 @@ SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 export CC
 export SDKROOT
 export MACOSX_DEPLOYMENT_TARGET="$MACOS_MIN"
-export CFLAGS="-arch $ARCH -mmacosx-version-min=$MACOS_MIN -O2"
-export CPPFLAGS="-I$PREFIX/include"
-export LDFLAGS="-arch $ARCH -mmacosx-version-min=$MACOS_MIN -L$PREFIX/lib"
+export CFLAGS="-arch $ARCH -isysroot $SDKROOT -mmacosx-version-min=$MACOS_MIN -O2"
+export CPPFLAGS="-I$PREFIX/include -isysroot $SDKROOT"
+export LDFLAGS="-arch $ARCH -isysroot $SDKROOT -mmacosx-version-min=$MACOS_MIN -L$PREFIX/lib"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig"
 export PATH="$PREFIX/bin:$PATH"
 
@@ -218,6 +218,9 @@ relocate_macho() {
 
   if [[ "$kind" == "dylib" ]]; then
     install_name_tool -id "@rpath/$(basename "$file")" "$file" 2>/dev/null || true
+    install_name_tool -add_rpath "@loader_path" "$file" 2>/dev/null || true
+  else
+    install_name_tool -add_rpath "@executable_path/../lib" "$file" 2>/dev/null || true
   fi
 
   while IFS= read -r dep; do
