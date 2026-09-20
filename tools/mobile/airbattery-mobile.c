@@ -61,8 +61,11 @@ static void json_string(const char *value)
 
 static idevice_error_t open_parent(const char *udid, idevice_t *device)
 {
-    enum idevice_options options =
-        IDEVICE_LOOKUP_USBMUX | IDEVICE_LOOKUP_NETWORK | IDEVICE_LOOKUP_PREFER_NETWORK;
+    enum idevice_options options = (enum idevice_options)(
+        IDEVICE_LOOKUP_USBMUX |
+        IDEVICE_LOOKUP_NETWORK |
+        IDEVICE_LOOKUP_PREFER_NETWORK
+    );
     return idevice_new_with_options(device, udid, options);
 }
 
