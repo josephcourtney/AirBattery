@@ -98,13 +98,22 @@ fingerprint="$(
 stamp="$BUILD_ROOT/stamp-$ARCH"
 if [[ -f "$stamp" ]] &&
    [[ "$(cat "$stamp")" == "$fingerprint" ]] &&
+   [[ -d "$STAGE/lib" ]] &&
+   [[ -f "$STAGE/MANIFEST.txt" ]] &&
    [[ -x "$STAGE/bin/airbattery-mobile" ]] &&
    [[ -x "$STAGE/bin/idevice_id" ]] &&
    [[ -x "$STAGE/bin/ideviceinfo" ]] &&
    [[ -x "$STAGE/bin/idevicesyslog" ]] &&
    [[ -x "$STAGE/bin/wificonnection" ]]; then
-  printf 'Mobile vendor stack is current (%s).\n' "$ARCH"
-  exit 0
+  set +e
+  "$STAGE/bin/airbattery-mobile" >/dev/null 2>&1
+  cached_helper_status=$?
+  set -e
+  if [[ "$cached_helper_status" -eq 2 ]]; then
+    printf 'Mobile vendor stack is current (%s).\n' "$ARCH"
+    exit 0
+  fi
+  printf '%s\n' 'Cached mobile vendor stack failed its loader check; rebuilding.'
 fi
 
 rm -rf "$WORK_ROOT" "$PREFIX"
