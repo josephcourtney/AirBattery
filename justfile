@@ -356,11 +356,39 @@ uninstall-local:
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       rm -rf "$install_dir/AirBattery.app"
 
+# Run deterministic hostless XCTest coverage. This does not launch AirBattery
+# and does not require Bluetooth or mobile hardware.
+test:
+    @mkdir -p "{{derived_data}}"
+    xcodebuild \
+        -project "{{project}}" \
+        -scheme AirBatteryTests \
+        -configuration Debug \
+        -destination 'platform=macOS' \
+        -derivedDataPath "{{derived_data}}" \
+        CODE_SIGNING_ALLOWED=NO \
+        test
+
+# Verify the staged native runtime without requiring a connected mobile device.
+test-runtime: vendor-mobile
+    @bin="AirBattery/libimobiledevice/bin/airbattery-mobile"; \
+      set +e; "$bin" >/dev/null 2>&1; rc=$?; set -e; \
+      [[ "$rc" -eq 2 ]] || { echo "airbattery-mobile usage smoke test failed: expected 2, got $rc" >&2; exit 1; }
+    just vendor-mobile-diagnose
+
+# Exercise real USB/network iDevice battery reads and repeatedly stress the
+# companion-proxy helper. Set AIRBATTERY_HARDWARE_STRESS_ITERATIONS to change
+# the default 100 companion queries, or AIRBATTERY_TEST_UDID to select an iPhone.
+test-hardware: vendor-mobile
+    bash scripts/test-mobile-hardware.sh
+
 # Run the normal local verification path.
 check:
     just doctor
     just resolve
+    just test
     just build
+    just test-runtime
 
 # Run the same unsigned build commands used by GitHub Actions.
 ci: vendor-mobile
