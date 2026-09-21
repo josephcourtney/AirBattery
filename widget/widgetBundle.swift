@@ -6,6 +6,7 @@
 //
 
 import WidgetKit
+import SwiftUI
 
 @main
 struct widgetBundle: WidgetBundle {
