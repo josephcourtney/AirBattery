@@ -76,7 +76,7 @@ final class DeviceInventoryModel: ObservableObject {
             )
         }
 
-        for device in AirBatteryModel.Devices {
+        for device in AirBatteryModel.deviceSnapshot() {
             let logicalName =
                 AirBatteryModel.airPodsBaseName(for: device) ??
                 device.deviceName
