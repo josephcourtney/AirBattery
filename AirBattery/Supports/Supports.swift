@@ -168,7 +168,7 @@ enum AppPreferences {
         set { ud.set(newValue, forKey: "pinnedList") }
     }
 
-    static var blockedNames: [String] {
+    static var hiddenDeviceNames: [String] {
         get { ud.stringArray(forKey: "blackList") ?? [] }
         set { ud.set(newValue, forKey: "blackList") }
     }
