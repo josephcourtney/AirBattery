@@ -475,10 +475,7 @@ struct popover: View {
 
     private func hideAirPodsGroup(_ group: AirPodsBatteryGroup) {
         var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
-        var devices = group.components
-        if let legacy = group.legacyMergedEarbuds {
-            devices.append(legacy)
-        }
+        let devices = group.components
         for device in devices where !blackList.contains(device.deviceName) {
             blackList.append(device.deviceName)
         }
@@ -549,10 +546,16 @@ struct popover: View {
 
     @ViewBuilder
     private func airPodsMenuRow(_ group: AirPodsBatteryGroup, index: Int) -> some View {
-        let newestUpdate = group.components.map(\.lastUpdate).max() ?? 0
+        let newestUpdate = group.components.map(\.lastUpdate).max() ??
+            group.legacyMergedEarbuds?.lastUpdate ??
+            0
         HStack(spacing: 8) {
-            if let caseDevice = group.caseDevice {
-                Image(getDeviceIcon(caseDevice))
+            if let iconDevice =
+                group.caseDevice ??
+                group.leftEarbud ??
+                group.rightEarbud ??
+                group.legacyMergedEarbuds {
+                Image(getDeviceIcon(iconDevice))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .foregroundColor(.blackWhite)
