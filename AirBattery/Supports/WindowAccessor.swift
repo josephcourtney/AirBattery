@@ -22,6 +22,9 @@ final class SettingsWindowController: NSWindowController {
         )
 
         window.title = "AirBattery Settings"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.styleMask.insert(.fullSizeContentView)
         window.contentViewController = hostingController
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
@@ -46,7 +49,9 @@ final class SettingsWindowController: NSWindowController {
 
         // Reassert these constraints when reopening in case SwiftUI/AppKit
         // changed them while the content hierarchy was being constructed.
-        window.styleMask.insert(.resizable)
+        window.styleMask.insert([.resizable, .fullSizeContentView])
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
