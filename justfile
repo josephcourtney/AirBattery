@@ -310,7 +310,7 @@ install-fingerprint configuration="Debug":
           AirBattery AirBatteryHelper widget abt tools/mobile \
           AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- worktree build-input diff ---'; \
-        git diff --no-ext-diff --binary -- \
+        git diff --no-ext-diff --no-textconv --binary -- \
           AirBattery AirBatteryHelper widget abt tools/mobile \
           AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- untracked build inputs ---'; \
@@ -376,7 +376,7 @@ install-state-write configuration="Debug":
       cdhash="$(/usr/bin/codesign -dvvv "$app" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -n 1)"; \
       [[ -n "$cdhash" ]] || { echo "Unable to determine installed app CDHash." >&2; exit 1; }; \
       mkdir -p "$state_dir"; \
-      tmp="$state.tmp.$"; \
+      tmp="$state.tmp.${BASHPID}.${RANDOM}"; \
       trap 'rm -f "$tmp"' EXIT; \
       printf '%s\n' \
         'schema=2' \
