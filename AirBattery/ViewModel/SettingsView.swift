@@ -1911,13 +1911,6 @@ private struct DisplaySurfacePreview: View {
                     }
                 }
 
-                Text(
-                    "Legacy Battery List and Battery Rings kinds remain " +
-                    "registered so existing placed widgets continue to work."
-                )
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
