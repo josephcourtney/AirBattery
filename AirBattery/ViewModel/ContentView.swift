@@ -59,141 +59,45 @@ struct MultiBatteryView: View {
     @AppStorage("nearCast") var nearCast = false
     @AppStorage("nearcastGroupID") var nearcastGroupID = ""
     @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
-    
+    @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
+    @AppStorage("twsMerge") private var twsMerge = 5
+
     @StateObject private var appearanceMonitor = AppearanceMonitor()
 
     @State private var rollCount = 1
     @State private var darkMode = getDarkMode()
     @State private var lastTime = Double(Date().timeIntervalSince1970)
-    @State private var batteryList = AirBatteryModel.getAll()
-    @State private var lineWidth = 6.0
-    
+    @State private var presentationList: [LogicalDevicePresentation] = []
+
     var body: some View {
         ZStack {
-            Group{
+            Group {
                 Image(darkMode ? "background_dark" : "background")
-                RoundedRectangle(cornerRadius: 23.5, style: RoundedCornerStyle.continuous)
+                RoundedRectangle(cornerRadius: 23.5, style: .continuous)
                     .strokeBorder(darkMode ? .white : .black, lineWidth: 2)
                     .frame(width: 104, height: 104)
-                    .opacity(darkMode ? 0.25 : 0.0)
-                RoundedRectangle(cornerRadius: 23.5, style: RoundedCornerStyle.continuous)
+                    .opacity(darkMode ? 0.25 : 0)
+                RoundedRectangle(cornerRadius: 23.5, style: .continuous)
                     .strokeBorder(.black, lineWidth: 1)
                     .frame(width: 104, height: 104)
                     .opacity(darkMode ? 0.55 : 0.2)
             }
-            if batteryList.count < 4 {
-                Circle()
-                    .trim(from: 0.0, to: 0.75)
-                    .stroke(style: StrokeStyle(lineWidth: lineWidth*1.2, lineCap: .round, lineJoin: .round))
-                    .foregroundColor(darkMode ? .white : .black)
-                    .opacity(darkMode ? 0.2 : 0.13)
-                    .rotationEffect(Angle(degrees: 135))
-                    .offset(x:-24, y: -24)
-                    .frame(width: 38, height: 38, alignment: .center)
-            } else {
-                VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        ForEach(batteryList[0..<2], id: \.self) { item in
-                            ZStack {
-                                Group {
-                                    Group {
-                                        Circle()
-                                            .trim(from: 0.0, to: 0.75)
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth*1.2, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(darkMode ? .white : .black)
-                                            .opacity(darkMode ? 0.2 : 0.13)
-                                        Circle()
-                                            .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.75, 0.75))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.75, 0.75))-0.0005)))
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                            .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
-                                            .clipShape(
-                                                Circle()
-                                                    .trim(from: 0.0, to: 0.75)
-                                                    .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            )
-                                            .opacity(item.batteryLevel == 100 ? 0 : 1)
-                                        Circle()
-                                            .trim(from: 0.0, to: Double(item.batteryLevel)/100.0*0.75)
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                    }.rotationEffect(Angle(degrees: 135))
-                                    
-                                    if item.deviceType.contains("mac") && showThisMac == "percent"{
-                                        Text(String(item.batteryLevel))
-                                            .colorScheme(darkMode ? .dark : .light)
-                                            .foregroundColor(item.isCharging != 0 ? Color("dark_"+getPowerColor(item)) : .blackWhite)
-                                            .font(.custom("Helvetica-Bold", size: item.batteryLevel>99 ? 32 : 42))
-                                            .frame(width: 100, alignment: .center)
-                                            .scaleEffect(0.5)
-                                            .offset(x:-0.2, y:1.5)
-                                        
-                                    } else {
-                                        Image(getDeviceIcon(item))
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .colorScheme(darkMode ? .dark : .light)
-                                            .foregroundColor(item.isCharging != 0 ? Color("dark_"+getPowerColor(item)) : .blackWhite)
-                                            .offset(y:-1)
-                                            .frame(width: 44, height: 43, alignment: .center)
-                                            .scaleEffect(0.5)
-                                    }
-                                }.frame(width: 38, height: 38, alignment: .center)
-                                Text(item.hasBattery ? "\(item.batteryLevel)" : "")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundColor(darkMode ? .white : .black)
-                                    .scaleEffect(0.5)
-                                    .offset(y: 17)
-                            }
-                        }
-                    }
-                    HStack(spacing: 10) {
-                        ForEach(batteryList[2..<4], id: \.self) { item in
-                            ZStack {
-                                Group {
-                                    Group {
-                                        Circle()
-                                            .trim(from: 0.0, to: 0.75)
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth*1.2, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(darkMode ? .white : .black)
-                                            .opacity(darkMode ? 0.2 : 0.13)
-                                        Circle()
-                                            .trim(from: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.75, 0.75))-0.001)), to: CGFloat(abs((min(Double(item.batteryLevel)/100.0*0.75, 0.75))-0.0005)))
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                            .shadow(color: .black, radius: lineWidth*0.76, x: 0, y: 0)
-                                            .clipShape(
-                                                Circle()
-                                                    .trim(from: 0.0, to: 0.75)
-                                                    .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            )
-                                            .opacity(item.batteryLevel == 100 ? 0 : 1)
-                                        Circle()
-                                            .trim(from: 0.0, to: Double(item.batteryLevel)/100.0*0.75)
-                                            .stroke(style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-                                            .foregroundColor(Color(getPowerColor(item)))
-                                    }.rotationEffect(Angle(degrees: 135))
-                                    Image(getDeviceIcon(item))
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .colorScheme(darkMode ? .dark : .light)
-                                        .foregroundColor(item.isCharging != 0 ? Color("dark_"+getPowerColor(item)) : .blackWhite)
-                                        .offset(y:-1)
-                                        .frame(width: 44, height: 43, alignment: .center)
-                                        .scaleEffect(0.5)
-                                }.frame(width: 38, height: 38, alignment: .center)
-                                Text(item.hasBattery ? "\(item.batteryLevel)" : "")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundColor(darkMode ? .white : .black)
-                                    .scaleEffect(0.5)
-                                    .offset(y: 17)
-                            }
-                        }
-                    }
+
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    dockCell(at: 0)
+                    dockCell(at: 1)
+                }
+                HStack(spacing: 8) {
+                    dockCell(at: 2)
+                    dockCell(at: 3)
                 }
             }
         }
         .frame(width: 128, height: 128, alignment: .center)
+        .onAppear {
+            refreshDockPresentations(now: Date().timeIntervalSince1970)
+        }
         .onChange(of: appearanceMonitor.isDarkMode) { newValue in
             darkMode = newValue
             NSApp.dockTile.display()
@@ -202,13 +106,21 @@ struct MultiBatteryView: View {
             darkMode = getDarkMode()
             NSApp.dockTile.display()
         }
-        .onReceive(alertTimer) {_ in batteryAlert() }
-        .onReceive(widgetViewTimer) {_ in
+        .onChange(of: twsMergeEnabled) { _ in
+            refreshDockPresentations(now: Date().timeIntervalSince1970)
+        }
+        .onChange(of: twsMerge) { _ in
+            refreshDockPresentations(now: Date().timeIntervalSince1970)
+        }
+        .onReceive(alertTimer) { _ in batteryAlert() }
+        .onReceive(widgetViewTimer) { _ in
             if widgetInterval != -1 { WidgetCenter.shared.reloadAllTimelines() }
         }
-        .onReceive(dockTimer) {_ in IDeviceBattery.shared.scanDevices() }
-        .onReceive(widgetDataTimer) {_ in
-            SPBluetoothDataModel.shared.refeshData (completion: { result in
+        .onReceive(dockTimer) { _ in
+            IDeviceBattery.shared.scanDevices()
+        }
+        .onReceive(widgetDataTimer) { _ in
+            SPBluetoothDataModel.shared.refeshData(completion: { _ in
                 DispatchQueue.global(qos: .background).async {
                     MagicBattery.shared.scanDevices()
                     AirBatteryModel.writeData()
@@ -217,57 +129,218 @@ struct MultiBatteryView: View {
                 AirBatteryModel.writeData()
             })
         }
-        .onReceive(nearCastTimer) {_ in
-            if nearCast && isNearcastCredentialValid(
+        .onReceive(nearCastTimer) { _ in
+            sendNearcastSnapshotIfNeeded()
+        }
+        .onReceive(dockTimer) { time in
+            guard showOn == "both" || showOn == "dock" else { return }
+            refreshDockPresentations(now: time.timeIntervalSince1970)
+            NSApp.dockTile.display()
+        }
+    }
+
+    @ViewBuilder
+    private func dockCell(at index: Int) -> some View {
+        if presentationList.indices.contains(index) {
+            DockLogicalDeviceCell(
+                presentation: presentationList[index],
+                darkMode: darkMode,
+                showMacAsPercent: showThisMac == "percent"
+            )
+        } else {
+            Color.clear
+                .frame(width: 42, height: 42)
+        }
+    }
+
+    private func refreshDockPresentations(now: Double) {
+        var devices = AirBatteryModel.getAll()
+        for url in getFiles(withExtension: "json", in: ncFolder) {
+            devices += AirBatteryModel.ncGetAll(url: url)
+        }
+
+        let internalStatus = InternalBattery.status
+        if internalStatus.hasBattery && showThisMac != "hidden" {
+            devices.insert(ib2ab(internalStatus), at: 0)
+        }
+
+        let logical = AirBatteryModel.logicalPresentations(
+            from: devices,
+            mergeEarbuds: twsMergeEnabled,
+            mergeThreshold: twsMerge
+        )
+
+        if !carouselMode {
+            rollCount = 1
+        }
+
+        var page = logicalPage(logical, page: rollCount)
+        if page.isEmpty && !logical.isEmpty {
+            rollCount = 1
+            page = logicalPage(logical, page: rollCount)
+        }
+        presentationList = page
+
+        if now - lastTime >= 20 && logical.count > 4 && carouselMode {
+            lastTime = now
+            rollCount += 1
+        }
+    }
+
+    private func logicalPage(
+        _ devices: [LogicalDevicePresentation],
+        page: Int
+    ) -> [LogicalDevicePresentation] {
+        let start = max(0, (page - 1) * 4)
+        guard start < devices.count else { return [] }
+        return Array(devices[start..<min(start + 4, devices.count)])
+    }
+
+    private func sendNearcastSnapshotIfNeeded() {
+        guard nearCast,
+              isNearcastCredentialValid(
                 groupID: nearcastGroupID,
                 sharingKey: nearcastSharingKey
-            ) {
-                var allDevices = AirBatteryModel.getAll()
-                allDevices.insert(ib2ab(InternalBattery.status), at: 0)
-                do {
-                    let jsonData = try JSONEncoder().encode(allDevices)
-                    guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-                    guard let data = encryptNearcastString(
-                        jsonString,
-                        groupID: nearcastGroupID,
-                        sharingKey: nearcastSharingKey
-                    ) else { return }
-                    let message = NCMessage(
-                        id: nearcastGroupID,
-                        sender: systemUUID ?? deviceName,
-                        command: "",
-                        content: data
+              )
+        else {
+            return
+        }
+
+        var allDevices = AirBatteryModel.getAll()
+        allDevices.insert(ib2ab(InternalBattery.status), at: 0)
+        do {
+            let jsonData = try JSONEncoder().encode(allDevices)
+            guard let jsonString = String(data: jsonData, encoding: .utf8),
+                  let data = encryptNearcastString(
+                    jsonString,
+                    groupID: nearcastGroupID,
+                    sharingKey: nearcastSharingKey
+                  )
+            else {
+                return
+            }
+
+            netcastService.sendMessage(
+                NCMessage(
+                    id: nearcastGroupID,
+                    sender: systemUUID ?? deviceName,
+                    command: "",
+                    content: data
+                )
+            )
+        } catch {
+            print("Write JSON error：\(error)")
+        }
+    }
+}
+
+private struct DockLogicalDeviceCell: View {
+    let presentation: LogicalDevicePresentation
+    let darkMode: Bool
+    let showMacAsPercent: Bool
+
+    var body: some View {
+        Group {
+            if presentation.components.count > 1 {
+                VStack(spacing: 2) {
+                    Image(getDeviceIcon(presentation.representative))
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundColor(.blackWhite)
+                        .frame(width: 13, height: 13)
+
+                    HStack(spacing: 1) {
+                        ForEach(presentation.components.prefix(3)) { component in
+                            DockComponentGauge(
+                                device: component.device,
+                                darkMode: darkMode,
+                                diameter: presentation.components.count >= 3 ? 12 : 16,
+                                showPercentInsteadOfIcon: false
+                            )
+                        }
+                    }
+                }
+                .frame(width: 42, height: 42)
+            } else if let component = presentation.components.first {
+                DockComponentGauge(
+                    device: component.device,
+                    darkMode: darkMode,
+                    diameter: 38,
+                    showPercentInsteadOfIcon:
+                        component.device.deviceID == "@MacInternalBattery" &&
+                        showMacAsPercent
+                )
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        let values = presentation.components.map {
+            "\($0.label) \($0.level) percent" +
+            ($0.charging != 0 ? ", charging" : "")
+        }
+        .joined(separator: ", ")
+        return "\(presentation.compactName), \(values)"
+    }
+}
+
+private struct DockComponentGauge: View {
+    let device: Device
+    let darkMode: Bool
+    let diameter: CGFloat
+    let showPercentInsteadOfIcon: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .trim(from: 0, to: 0.75)
+                .stroke(
+                    darkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.13),
+                    style: StrokeStyle(
+                        lineWidth: max(2, diameter * 0.15),
+                        lineCap: .round
                     )
-                    netcastService.sendMessage(message)
-                } catch {
-                    print("Write JSON error：\(error)")
-                }
+                )
+                .rotationEffect(.degrees(135))
+
+            Circle()
+                .trim(from: 0, to: Double(device.batteryLevel) / 100 * 0.75)
+                .stroke(
+                    Color(getPowerColor(device)),
+                    style: StrokeStyle(
+                        lineWidth: max(2, diameter * 0.13),
+                        lineCap: .round
+                    )
+                )
+                .rotationEffect(.degrees(135))
+
+            if showPercentInsteadOfIcon {
+                Text("\(device.batteryLevel)")
+                    .font(.system(size: max(5, diameter * 0.28), weight: .bold))
+                    .foregroundColor(darkMode ? .white : .black)
+            } else {
+                Image(getDeviceIcon(device))
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundColor(
+                        device.isCharging != 0
+                            ? Color("dark_" + getPowerColor(device))
+                            : .blackWhite
+                    )
+                    .frame(width: diameter * 0.46, height: diameter * 0.46)
+            }
+
+            if diameter >= 24 {
+                Text(device.hasBattery ? "\(device.batteryLevel)" : "")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(darkMode ? .white : .black)
+                    .offset(y: diameter * 0.47)
+                    .scaleEffect(0.7)
             }
         }
-        .onReceive(dockTimer) { t in
-            if showOn == "both" || showOn == "dock" {
-                var list = AirBatteryModel.getAll()
-                let ncFiles = getFiles(withExtension: "json", in: ncFolder)
-                for ncFile in ncFiles { list += AirBatteryModel.ncGetAll(url: ncFile) }
-                let ibStatus = InternalBattery.status
-                let now = Double(t.timeIntervalSince1970)
-                
-                if !carouselMode { rollCount = 1 }
-                if ibStatus.hasBattery && showThisMac != "hidden" { list.insert(ib2ab(ibStatus), at: 0) }
-                
-                batteryList = sliceList(data: list, length: 4, count: rollCount)
-                if batteryList == []{
-                    rollCount = 1
-                    batteryList = sliceList(data: list, length: 4, count: rollCount)
-                }
-                
-                if now - lastTime >= 20 && list.count > 4 && carouselMode {
-                    lastTime = now
-                    rollCount = rollCount + 1
-                }
-                NSApp.dockTile.display()
-            }
-        }
+        .frame(width: diameter, height: diameter)
     }
 }
 
