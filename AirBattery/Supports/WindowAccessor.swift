@@ -93,7 +93,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
                 UserDefaults.standard.string(forKey: "showOn") ?? "sbar",
             settingsVisible: true
         )
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
 
