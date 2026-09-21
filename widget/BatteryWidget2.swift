@@ -10,81 +10,56 @@ import SwiftUI
 
 struct LargeWidgetView2: View {
     var entry: ViewSizeTimelineProvider.Entry
-    let lineWidth = 6.0
-    
+
+    private var presentations: [LogicalDevicePresentation] {
+        Array(widgetLogicalPresentations(entry.data).prefix(11))
+    }
+
     var body: some View {
-        if !entry.mainApp{
+        if !entry.mainApp {
             Text("AirBattery is not running\nLaunch the app to make the widget work")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
-        } else {
-            if entry.data.count == 0 {
-                VStack(alignment:.leading) {
-                    ForEach(0..<11) { index in
-                        VStack{
-                            HStack() {
-                                Image("blank")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .center)
-                                Text("                       ")
-                                    .font(.system(size: 11))
-                                    .frame(height: 20, alignment: .center)
-                                    .padding(.horizontal, 7)
-                                Spacer()
-                                Text("     ")
-                                    .font(.system(size: 11))
-                                Image("blank")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .center)
-                            }
-                            if index != 10 { Divider().padding(.top, -2) }
+        } else if presentations.isEmpty {
+            VStack(alignment: .leading) {
+                ForEach(0..<11) { index in
+                    VStack {
+                        HStack {
+                            Image("blank")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                            Text("                       ")
+                                .font(.system(size: 11))
+                                .frame(height: 20)
+                                .padding(.horizontal, 7)
+                            Spacer()
+                        }
+                        if index != 10 {
+                            Divider().padding(.top, -2)
                         }
                     }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 15)
-            } else {
-                VStack(alignment:.leading) {
-                    ForEach(entry.data.indices, id: \.self) { index in
-                        let item = entry.data[index]
-                        VStack{
-                            HStack() {
-                                Image(getDeviceIcon(item))
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .center)
-                                Text("\(((Date().timeIntervalSince1970 - item.lastUpdate) / 60) > 10 ? "⚠︎ " : "")\(item.deviceName)")
-                                    .font(.system(size: 11))
-                                    .frame(height: 20, alignment: .center)
-                                    .padding(.horizontal, 7)
-                                Spacer()
-                                if item.batteryLevel <= 10 {
-                                    Text("\(item.batteryLevel)%") .font(.system(size: 11))
-                                        .foregroundColor(.darkMyRed)
-                                } else {
-                                    Text("\(item.batteryLevel)%") .font(.system(size: 11))
-                                }
-                                
-                                /*Image(getBatteryIcon(item))
-                                 .resizable()
-                                 .aspectRatio(contentMode: .fit)
-                                 .frame(width: 20, height: 20, alignment: .center)
-                                 */
-                                BatteryView(item: item)
-                                    .scaleEffect(0.76)
-                            }
-                            if index != 10 { Divider().padding(.top, -2) }
-                        }
-                    }
-                    Spacer()
-                }
-                .offset(y:4)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 18)
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 15)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(presentations.enumerated()), id: \.element.id) { index, presentation in
+                    WidgetLogicalDeviceRow(
+                        presentation: presentation,
+                        rowHeight: 20
+                    )
+                    if index != presentations.count - 1 {
+                        Divider().padding(.top, -2)
+                    }
+                }
+                Spacer()
+            }
+            .offset(y: 4)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 18)
         }
     }
 }
