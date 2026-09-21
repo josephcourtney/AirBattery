@@ -12,20 +12,6 @@ let fd = FileManager.default
 let ud = UserDefaults.standard
 let ncFolder = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("NearcastData")
 
-func widgetLogicalPresentations(_ devices: [Device]) -> [LogicalDevicePresentation] {
-    AirBatteryModel.logicalPresentations(
-        from: devices.filter { $0.hasBattery },
-        mergeEarbuds: false,
-        mergeThreshold: 0
-    )
-}
-
-private func widgetPresentationOrder(_ devices: [Device]) -> [Device] {
-    widgetLogicalPresentations(devices)
-        .flatMap(\.components)
-        .map(\.device)
-}
-
 @available(macOS 14, *)
 struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -42,7 +28,7 @@ struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
             let ncData = AirBatteryModel.ncGetAll(url: ncFile, fromWidget: true)
             data += ncData
         }
-        data = widgetPresentationOrder(data)
+        data = AirBatteryModel.widgetPresentationOrder(from: data)
         if context.family == .systemSmall || context.family == .systemMedium {
             while data.count < 8 { data.append(Device(hasBattery: false, deviceID: "", deviceType: "blank", deviceName: "", batteryLevel: 0, isCharging: 0, lastUpdate: 0.0)) }
         } else if context.family ==  .systemLarge {
@@ -62,7 +48,7 @@ struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
             data += ncData
         }
         let entry: SimpleEntry
-        data = widgetPresentationOrder(data)
+        data = AirBatteryModel.widgetPresentationOrder(from: data)
         if context.family == .systemSmall || context.family == .systemMedium {
             while data.count < 8 { data.append(Device(hasBattery: false, deviceID: "", deviceType: "blank", deviceName: "", batteryLevel: 0, isCharging: 0, lastUpdate: 0.0)) }
         } else if context.family ==  .systemLarge {
@@ -90,7 +76,7 @@ struct ViewSizeTimelineProvider: TimelineProvider {
             data += ncData
         }
         let entry: SimpleEntry
-        data = widgetPresentationOrder(data)
+        data = AirBatteryModel.widgetPresentationOrder(from: data)
         if context.family == .systemSmall || context.family == .systemMedium {
             while data.count < 8 { data.append(Device(hasBattery: false, deviceID: "", deviceType: "blank", deviceName: "", batteryLevel: 0, isCharging: 0, lastUpdate: 0.0)) }
         } else if context.family ==  .systemLarge {
@@ -111,7 +97,7 @@ struct ViewSizeTimelineProvider: TimelineProvider {
             data += ncData
         }
         let entry: SimpleEntry
-        data = widgetPresentationOrder(data)
+        data = AirBatteryModel.widgetPresentationOrder(from: data)
         if context.family == .systemSmall || context.family == .systemMedium {
             while data.count < 8 { data.append(Device(hasBattery: false, deviceID: "", deviceType: "blank", deviceName: "", batteryLevel: 0, isCharging: 0, lastUpdate: 0.0)) }
         } else if context.family ==  .systemLarge {
@@ -158,7 +144,7 @@ struct LargeWidgetView : View {
     var entry: ViewSizeTimelineProvider.Entry
 
     private var presentations: [LogicalDevicePresentation] {
-        Array(widgetLogicalPresentations(entry.data).prefix(8))
+        Array(AirBatteryModel.widgetLogicalPresentations(from: entry.data).prefix(8))
     }
 
     var body: some View {
