@@ -72,6 +72,8 @@
 		18F0B0472F80000100AB0001 /* NearcastSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0462F80000100AB0001 /* NearcastSettingsView.swift */; };
 		18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0482F80000100AB0001 /* DisplaySettingsView.swift */; };
 		18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */; };
+		18F0B04D2F80000100AB0001 /* PopoverSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04C2F80000100AB0001 /* PopoverSupport.swift */; };
+		18F0B04F2F80000100AB0001 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04E2F80000100AB0001 /* PopoverView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -177,6 +179,8 @@
 		18F0B0462F80000100AB0001 /* NearcastSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearcastSettingsView.swift; sourceTree = "<group>"; };
 		18F0B0482F80000100AB0001 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaySettingsView.swift; sourceTree = "<group>"; };
 		18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
+		18F0B04C2F80000100AB0001 /* PopoverSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverSupport.swift; sourceTree = "<group>"; };
+		18F0B04E2F80000100AB0001 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -331,6 +335,8 @@
 			isa = PBXGroup;
 			children = (
 				1841D4502AA6071C0022A1BE /* ContentView.swift */,
+				18F0B04C2F80000100AB0001 /* PopoverSupport.swift */,
+				18F0B04E2F80000100AB0001 /* PopoverView.swift */,
 				18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */,
 				18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */,
 				18347DCD2B88417500A78DF6 /* BatteryView.swift */,
@@ -571,6 +577,8 @@
 				18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */,
 				18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */,
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
+				18F0B04D2F80000100AB0001 /* PopoverSupport.swift in Sources */,
+				18F0B04F2F80000100AB0001 /* PopoverView.swift in Sources */,
 				18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */,
 				18F615F32B763DD800873AA4 /* BLEBattery.swift in Sources */,
 				1895851B2B724DCD00108E5C /* IDeviceBattery.swift in Sources */,
