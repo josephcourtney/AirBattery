@@ -382,8 +382,8 @@ struct batteryWidget: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Battery List")
-        .description("Displays device batteries as a compact list")
+        .configurationDisplayName("Battery List (Legacy)")
+        .description("Legacy multi-device widget. Use Battery Overview for new widgets.")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
