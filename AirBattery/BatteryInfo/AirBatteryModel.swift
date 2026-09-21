@@ -435,6 +435,14 @@ class AirBatteryModel {
     static func groupedDisplayRowCount(_ devices: [Device]) -> Int {
         devices.filter { !isAirPodsSecondaryRow($0, in: devices) }.count
     }
+
+    static func groupedAirPodsRowCount(_ devices: [Device]) -> Int {
+        Set(
+            devices.compactMap { device in
+                airPodsBaseName(for: device).map(normalizedObservationName)
+            }
+        ).count
+    }
     
     static func updateDevice(_ device: Device) {
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
