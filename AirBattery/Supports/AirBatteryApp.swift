@@ -18,7 +18,7 @@ var updaterController: SPUStandardUpdaterController!
 var statusBarItem: NSStatusItem!
 var pinnedItems = [NSStatusItem]()
 var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
-let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
+let ncFolder = AirBatteryModel.getNearcastURL()
 let systemUUID = getMacDeviceUUID()
 var dockWindow = AutoHideWindow()
 var statusMenuIsOpen = false
