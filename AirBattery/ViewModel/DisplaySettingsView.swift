@@ -161,7 +161,7 @@ struct DisplayView: View {
     }
 
     private func applySurfaceSelection(_ newValue: String) {
-        applyAirBatterySurfaceSelection(
+        SurfaceController.shared.apply(
             newValue,
             settingsVisible: true
         )
