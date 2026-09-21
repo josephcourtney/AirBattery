@@ -789,3 +789,287 @@ struct WidgetBatteryRingsSurfaceContent: View {
         }
     }
 }
+
+
+enum WidgetRingPreviewFamily {
+    case small
+    case medium
+}
+
+struct WidgetBatteryListRingsSurfaceContent: View {
+    let devices: [Device]
+    let family: WidgetRingPreviewFamily
+
+    private var items: [Device] {
+        Array(devices.filter(\.hasBattery).prefix(family == .small ? 4 : 4))
+    }
+
+    var body: some View {
+        switch family {
+        case .small:
+            VStack(spacing: 17) {
+                ringRow(Array(items.prefix(2)), count: 2, spacing: 17)
+                ringRow(Array(items.dropFirst(2).prefix(2)), count: 2, spacing: 17)
+            }
+        case .medium:
+            ringRow(Array(items.prefix(4)), count: 4, spacing: 23)
+                .offset(y: 3)
+        }
+    }
+
+    @ViewBuilder
+    private func ringRow(
+        _ row: [Device],
+        count: Int,
+        spacing: CGFloat
+    ) -> some View {
+        HStack(spacing: spacing) {
+            ForEach(0..<count, id: \.self) { index in
+                if row.indices.contains(index) {
+                    BatteryListRingCell(
+                        item: row[index],
+                        family: family
+                    )
+                } else {
+                    BatteryListRingPlaceholder(family: family)
+                }
+            }
+        }
+    }
+}
+
+private struct BatteryListRingPlaceholder: View {
+    let family: WidgetRingPreviewFamily
+
+    var body: some View {
+        VStack(spacing: family == .medium ? 17 : 0) {
+            Circle()
+                .trim(
+                    from: 0,
+                    to: family == .small ? 0.78 : 1
+                )
+                .stroke(
+                    style: StrokeStyle(
+                        lineWidth: 6,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+                .frame(width: 58, height: 58)
+                .rotationEffect(
+                    .degrees(family == .small ? 129.6 : 270)
+                )
+                .opacity(0.15)
+
+            Text(" ")
+                .font(
+                    .system(
+                        size: family == .medium ? 17 : 10,
+                        weight: .medium
+                    )
+                )
+        }
+    }
+}
+
+private struct BatteryListRingCell: View {
+    let item: Device
+    let family: WidgetRingPreviewFamily
+
+    private let lineWidth = 6.0
+
+    var body: some View {
+        VStack(spacing: family == .medium ? 17 : 0) {
+            ZStack {
+                if family == .small {
+                    openArc
+                } else {
+                    fullRing
+                }
+
+                Image(getDeviceIcon(item))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 26, height: 26)
+
+                if item.isCharging != 0 {
+                    Image("batt_bolt_mask")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 12)
+                        .blendMode(.destinationOut)
+                        .offset(y: -29.5)
+                    Image("batt_bolt")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 10)
+                        .foregroundColor(
+                            item.batteryLevel == 100 ? .myGreen : .primary
+                        )
+                        .offset(y: -29.5)
+                }
+            }
+            .frame(width: 58, height: 58)
+            .compositingGroup()
+
+            Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
+                .font(
+                    .system(
+                        size: family == .medium ? 17 : 10,
+                        weight: family == .medium ? .regular : .medium
+                    )
+                )
+                .frame(width: 58)
+                .offset(y: family == .small ? -4 : 0)
+        }
+    }
+
+    @ViewBuilder
+    private var openArc: some View {
+        Group {
+            Circle()
+                .trim(from: 0, to: 0.78)
+                .stroke(
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+                .opacity(0.15)
+
+            Circle()
+                .trim(
+                    from: 0,
+                    to: Double(item.batteryLevel) / 100 * 0.78
+                )
+                .stroke(
+                    Color(getPowerColor(item)),
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+        }
+        .rotationEffect(.degrees(129.6))
+    }
+
+    @ViewBuilder
+    private var fullRing: some View {
+        Group {
+            Circle()
+                .stroke(lineWidth: lineWidth)
+                .opacity(0.15)
+            Circle()
+                .trim(
+                    from: 0,
+                    to: Double(item.batteryLevel) / 100
+                )
+                .stroke(
+                    Color(getPowerColor(item)),
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+        }
+        .rotationEffect(.degrees(270))
+    }
+}
+
+struct WidgetIconRingsSurfaceContent: View {
+    let devices: [Device]
+    let family: WidgetRingPreviewFamily
+
+    private var items: [Device] {
+        Array(devices.filter(\.hasBattery).prefix(family == .small ? 4 : 8))
+    }
+
+    var body: some View {
+        switch family {
+        case .small:
+            VStack(spacing: 17) {
+                iconRow(Array(items.prefix(2)), count: 2, spacing: 17)
+                iconRow(Array(items.dropFirst(2).prefix(2)), count: 2, spacing: 17)
+            }
+        case .medium:
+            VStack(spacing: 17) {
+                iconRow(Array(items.prefix(4)), count: 4, spacing: 23)
+                iconRow(Array(items.dropFirst(4).prefix(4)), count: 4, spacing: 23)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func iconRow(
+        _ row: [Device],
+        count: Int,
+        spacing: CGFloat
+    ) -> some View {
+        HStack(spacing: spacing) {
+            ForEach(0..<count, id: \.self) { index in
+                if row.indices.contains(index) {
+                    IconRingCell(item: row[index])
+                } else {
+                    Circle()
+                        .stroke(lineWidth: 6)
+                        .frame(width: 58, height: 58)
+                        .opacity(0.15)
+                }
+            }
+        }
+    }
+}
+
+private struct IconRingCell: View {
+    let item: Device
+    private let lineWidth = 6.0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(lineWidth: lineWidth)
+                .opacity(0.15)
+            Circle()
+                .trim(
+                    from: 0,
+                    to: Double(item.batteryLevel) / 100
+                )
+                .stroke(
+                    Color(getPowerColor(item)),
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+                .rotationEffect(.degrees(270))
+
+            Image(getDeviceIcon(item))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 26, height: 26)
+
+            if item.isCharging != 0 {
+                Image("batt_bolt_mask")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 12)
+                    .blendMode(.destinationOut)
+                    .offset(y: -29.5)
+                Image("batt_bolt")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 10)
+                    .foregroundColor(
+                        item.batteryLevel == 100 ? .myGreen : .primary
+                    )
+                    .offset(y: -29.5)
+            }
+        }
+        .frame(width: 58, height: 58)
+        .compositingGroup()
+    }
+}
