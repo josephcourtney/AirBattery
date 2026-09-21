@@ -156,6 +156,8 @@ battery presentation, or the native mobile stack, exercise at least:
   earbud merging, Dock visibility, and widget ordering;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
+- repeatedly switch to Nearcast and back to other Settings pages, then close and
+  reopen Settings, confirming the sidebar/detail hierarchy never becomes blank;
 - Settings and popover opening while background refreshes occur;
 - keyboard navigation and VoiceOver labels for popover/settings controls;
 - Increase Contrast and Reduce Transparency, confirming panels remain legible;
