@@ -166,8 +166,8 @@ struct LogicalDevicePresentation: Identifiable, Hashable {
 }
 
 class AirBatteryModel {
-    static var lock = false
-    static var Devices: [Device] = []
+    private static let devicesLock = NSLock()
+    private static var devices: [Device] = []
     static let machineType = ud.string(forKey: "machineType") ?? "Mac"
     static let key = "com.josephcourtney.AirBattery.widget"
     static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
@@ -463,32 +463,42 @@ class AirBatteryModel {
         ).count
     }
     
+    static func deviceSnapshot() -> [Device] {
+        devicesLock.lock()
+        defer { devicesLock.unlock() }
+        return devices
+    }
+
     static func updateDevice(_ device: Device) {
-        if lock { return }
-        lock = true
-        if let index = self.Devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
+        devicesLock.lock()
+        defer { devicesLock.unlock() }
+
+        if let index = devices.firstIndex(where: {
+            $0.deviceName == device.deviceName
+        }) {
             var merged = device
-            merged.mergeIdentifiers(fromExisting: self.Devices[index])
-            self.Devices[index] = merged
+            merged.mergeIdentifiers(fromExisting: devices[index])
+            devices[index] = merged
         } else {
-            self.Devices.append(device)
+            devices.append(device)
         }
-        lock = false
     }
-    
+
     static func hideDevice(_ name: String) {
-        for index in Devices.indices {
-            if Devices[index].deviceName == name {
-                Devices[index].isHidden = true
-            }
+        devicesLock.lock()
+        defer { devicesLock.unlock() }
+
+        for index in devices.indices where devices[index].deviceName == name {
+            devices[index].isHidden = true
         }
     }
-    
+
     static func unhideDevice(_ name: String) {
-        for index in Devices.indices {
-            if Devices[index].deviceName == name {
-                Devices[index].isHidden = false
-            }
+        devicesLock.lock()
+        defer { devicesLock.unlock() }
+
+        for index in devices.indices where devices[index].deviceName == name {
+            devices[index].isHidden = false
         }
     }
     
@@ -503,7 +513,8 @@ class AirBatteryModel {
         let disappearTime = AppPreferences.disappearTime
         let blackList = AppPreferences.hiddenDeviceNames
         let now = Double(Date().timeIntervalSince1970)
-        var list = (reverse ? Array(Devices.reversed()) : Devices).filter {
+        let snapshot = deviceSnapshot()
+        var list = (reverse ? Array(snapshot.reversed()) : snapshot).filter {
             now - $0.lastUpdate < Double(disappearTime * 60) ||
                 isRecentlyBLEObserved($0, now: now)
         }
