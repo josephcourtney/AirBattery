@@ -5,14 +5,13 @@
 //  Created by apple on 2024/6/23.
 //
 
-import SwiftUI
 import Foundation
 import IOBluetooth
 
 class BTDBattery {
     var scanTimer: Timer?
     static var allDevices = [String]()
-    @AppStorage("readBTHID") var readBTHID = true
+    var readBTHID: Bool { AppPreferences.readBTHID }
     
     func startScan() {
         let interval = TimeInterval(59 * updateInterval)
