@@ -12,14 +12,76 @@ let fd = FileManager.default
 let ud = UserDefaults.standard
 let ncFolder = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("NearcastData")
 
-private func widgetPresentationOrder(_ devices: [Device]) -> [Device] {
+func widgetLogicalPresentations(_ devices: [Device]) -> [LogicalDevicePresentation] {
     AirBatteryModel.logicalPresentations(
         from: devices.filter { $0.hasBattery },
         mergeEarbuds: false,
         mergeThreshold: 0
     )
-    .flatMap(\.components)
-    .map(\.device)
+}
+
+private func widgetPresentationOrder(_ devices: [Device]) -> [Device] {
+    widgetLogicalPresentations(devices)
+        .flatMap(\.components)
+        .map(\.device)
+}
+
+struct WidgetLogicalDeviceRow: View {
+    let presentation: LogicalDevicePresentation
+    var rowHeight: CGFloat = 31
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(getDeviceIcon(presentation.representative))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+
+            Text(
+                "\(isStale ? "⚠︎ " : "")\(presentation.displayName)"
+            )
+            .font(.system(size: 11))
+            .lineLimit(1)
+            .frame(height: rowHeight, alignment: .center)
+
+            Spacer(minLength: 6)
+
+            HStack(spacing: 7) {
+                ForEach(presentation.components.prefix(3)) { component in
+                    HStack(spacing: 2) {
+                        if presentation.components.count > 1 {
+                            Text(component.label)
+                                .foregroundColor(.secondary)
+                        }
+                        Text("\(component.level)%")
+                            .foregroundColor(component.level <= 10 ? .darkMyRed : .primary)
+                            .monospacedDigit()
+                        if component.charging != 0 {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .font(.system(size: 10))
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var isStale: Bool {
+        (Date().timeIntervalSince1970 - presentation.newestUpdate) / 60 > 10
+    }
+
+    private var accessibilitySummary: String {
+        let batteries = presentation.components.map { component in
+            "\(component.label) \(component.level) percent" +
+            (component.charging != 0 ? ", charging" : "")
+        }
+        .joined(separator: ", ")
+        return "\(presentation.displayName), \(batteries)"
+    }
 }
 
 @available(macOS 14, *)
@@ -152,84 +214,51 @@ struct batteryWidgetEntryView : View {
 
 struct LargeWidgetView : View {
     var entry: ViewSizeTimelineProvider.Entry
-    let lineWidth = 6.0
-    
+
+    private var presentations: [LogicalDevicePresentation] {
+        Array(widgetLogicalPresentations(entry.data).prefix(8))
+    }
+
     var body: some View {
-        if !entry.mainApp{
+        if !entry.mainApp {
             Text("AirBattery is not running\nLaunch the app to make the widget work")
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.gray)
-        } else {
-            if entry.data.count == 0 {
-                VStack(alignment:.leading) {
-                    ForEach(0..<8) { index in
-                        VStack{
-                            HStack() {
-                                Image("blank")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .center)
-                                Text("                       ")
-                                    .font(.system(size: 11))
-                                    .frame(height: 31, alignment: .center)
-                                    .padding(.horizontal, 7)
-                                Spacer()
-                                Text("     ")
-                                    .font(.system(size: 11))
-                                Image("blank")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .center)
-                            }
-                            if index != 7 { Divider() }
+        } else if presentations.isEmpty {
+            VStack(alignment: .leading) {
+                ForEach(0..<8) { index in
+                    VStack {
+                        HStack {
+                            Image("blank")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                            Text("                       ")
+                                .font(.system(size: 11))
+                                .frame(height: 31)
+                                .padding(.horizontal, 7)
+                            Spacer()
                         }
+                        if index != 7 { Divider() }
                     }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 15)
-            } else {
-                VStack(alignment:.leading) {
-                    ForEach(entry.data.indices, id: \.self) { index in
-                        if index < 8 {
-                            let item = entry.data[index]
-                            VStack{
-                                HStack() {
-                                    Image(getDeviceIcon(item))
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                    //.foregroundColor(.blackWhite)
-                                        .frame(width: 20, height: 20, alignment: .center)
-                                    Text("\(((Date().timeIntervalSince1970 - item.lastUpdate) / 60) > 10 ? "⚠︎ " : "")\(item.deviceName)")
-                                        .font(.system(size: 11))
-                                        .frame(height: 31, alignment: .center)
-                                        .padding(.horizontal, 7)
-                                    Spacer()
-                                    if item.batteryLevel <= 10 {
-                                        Text("\(item.batteryLevel)%") .font(.system(size: 11))
-                                            .foregroundColor(.darkMyRed)
-                                    } else {
-                                        Text("\(item.batteryLevel)%") .font(.system(size: 11))
-                                    }
-                                    
-                                    /*Image(getBatteryIcon(item))
-                                     .resizable()
-                                     .aspectRatio(contentMode: .fit)
-                                     .frame(width: 20, height: 20, alignment: .center)
-                                     */
-                                    BatteryView(item: item)
-                                        .scaleEffect(0.76)
-                                }
-                                if index != 7 { Divider() }
-                            }
-                        }
-                    }
-                    Spacer()
-                }
-                .offset(y:4)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 18)
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 15)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(presentations.enumerated()), id: \.element.id) { index, presentation in
+                    WidgetLogicalDeviceRow(presentation: presentation)
+                    if index != presentations.count - 1 {
+                        Divider()
+                    }
+                }
+                Spacer()
+            }
+            .offset(y: 4)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 18)
         }
     }
 }
