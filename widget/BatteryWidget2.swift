@@ -231,29 +231,19 @@ struct doubleRowBatteryWidgetEntryView: View {
         if item.deviceID == "@MacInternalBattery" { return "Mac" }
         switch item.deviceType {
         case "ap_case":
-            if item.deviceName.contains("(Case)") { return "Case" }
+            return "Case"
         case "ap_pod_left":
             return "L"
         case "ap_pod_right":
             return "R"
         case "ap_pod_all":
-            return "L/R"
+            return "Earbuds"
         default:
-            break
+            return DevicePresentationNaming.compactName(
+                deviceType: item.deviceType,
+                displayName: item.deviceName
+            )
         }
-
-        var name = item.deviceName
-        for separator in ["’s ", "'s "] {
-            if let range = name.range(of: separator) {
-                name = String(name[range.upperBound...])
-                break
-            }
-        }
-        if let range = name.range(of: " ("), name.hasSuffix(")") {
-            name = String(name[..<range.lowerBound])
-        }
-        if name.count <= 9 { return name }
-        return String(name.prefix(8)) + "…"
     }
 }
 
