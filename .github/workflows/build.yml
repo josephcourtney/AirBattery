@@ -12,8 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install just
-        run: brew install just
+      - name: Install build prerequisites
+        run: brew install just autoconf automake libtool pkg-config
 
       - name: Build
         run: just ci
