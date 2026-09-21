@@ -1720,8 +1720,22 @@ private struct DisplaySurfacePreview: View {
         )
     }
 
+    private var widgetStoredSampleDevices: [Device] {
+        AirBatteryModel.widgetStoredDevices(
+            from: sampleDevices.filter {
+                $0.deviceID != "@MacInternalBattery"
+            },
+            internalBattery: sampleDevices.first {
+                $0.deviceID == "@MacInternalBattery"
+            },
+            reverse: reverseWidgetOrder
+        )
+    }
+
     private var widgetPresentations: [LogicalDevicePresentation] {
-        reverseWidgetOrder ? Array(presentations.reversed()) : presentations
+        AirBatteryModel.widgetLogicalPresentations(
+            from: widgetStoredSampleDevices
+        )
     }
 
     private var dockPresentations: [LogicalDevicePresentation] {
@@ -1736,9 +1750,9 @@ private struct DisplaySurfacePreview: View {
     }
 
     private var widgetRingDevices: [Device] {
-        widgetPresentations
-            .flatMap(\.components)
-            .map(\.device)
+        AirBatteryModel.widgetPresentationOrder(
+            from: widgetStoredSampleDevices
+        )
     }
 
     private var previewColumns: [GridItem] {
