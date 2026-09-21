@@ -484,7 +484,7 @@ private struct DisplaySurfacePreview: View {
                 height: family.size.height,
                 alignment: .center
             )
-            .liquidGlassPanel(
+            .liquidGlassEffect(
                 cornerRadius: 22,
                 interactive: false,
                 tint: .primary.opacity(0.01)
