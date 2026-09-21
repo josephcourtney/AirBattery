@@ -395,6 +395,24 @@ class AirBatteryModel {
         return result
     }
 
+    static func widgetLogicalPresentations(
+        from devices: [Device]
+    ) -> [LogicalDevicePresentation] {
+        logicalPresentations(
+            from: devices.filter(\.hasBattery),
+            mergeEarbuds: false,
+            mergeThreshold: 0
+        )
+    }
+
+    static func widgetPresentationOrder(
+        from devices: [Device]
+    ) -> [Device] {
+        widgetLogicalPresentations(from: devices)
+            .flatMap(\.components)
+            .map(\.device)
+    }
+
     static func presentation(
         for device: Device,
         in devices: [Device],
