@@ -160,29 +160,31 @@ struct popover: View {
         )
     }
 
+    private func genericInfoText(for device: Device) -> String {
+        if device.deviceID == "@MacInternalBattery" {
+            let prefix = device.isCharging != 0
+                ? "Until Full:"
+                : "Until Empty:"
+            return "\(prefix) \(InternalBattery.status.timeLeft)"
+        }
+
+        let update =
+            device.realUpdate != 0
+                ? device.realUpdate
+                : device.lastUpdate
+        let minutes = Int(
+            (Date().timeIntervalSince1970 - update) / 60
+        )
+        return "\(minutes) " + "mins ago".local
+    }
+
     @ViewBuilder
     private func genericHoverControls(
         for device: Device,
         index: Int
     ) -> some View {
-        let infoText: String
-        if device.deviceID == "@MacInternalBattery" {
-            let prefix = device.isCharging != 0
-                ? "Until Full:"
-                : "Until Empty:"
-            infoText = "\(prefix) \(InternalBattery.status.timeLeft)"
-        } else {
-            let update =
-                device.realUpdate != 0
-                    ? device.realUpdate
-                    : device.lastUpdate
-            let minutes = Int(
-                (Date().timeIntervalSince1970 - update) / 60
-            )
-            infoText = "\(minutes) " + "mins ago".local
-        }
-
         DeviceRowHoverControls(
+            infoText: genericInfoText(for: device),
             infoText: infoText,
             device: device,
             alerted: alertList.contains {
@@ -648,15 +650,15 @@ struct NearcastDeviceSection: View {
 }
 
 
+@MainActor
 func openAboutPanel() {
     NSApp.activate()
     NSApp.orderFrontStandardAboutPanel(nil)
 }
 
+@MainActor
 func openSettingPanel() {
     DockPopoverController.shared.hide()
-    Task { @MainActor in
-        SettingsWindowController.shared.present()
-    }
+    SettingsWindowController.shared.present()
 }
 
