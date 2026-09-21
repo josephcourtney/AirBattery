@@ -80,6 +80,10 @@
 		18F0B0582F80000100AB0001 /* DockSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0562F80000100AB0001 /* DockSurface.swift */; };
 		18F0B05A2F80000100AB0001 /* WidgetSurfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */; };
 		18F0B05B2F80000100AB0001 /* WidgetSurfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */; };
+		18F0B05D2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
+		18F0B05E2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
+		18F0B05F2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
+		18F0B0612F80000100AB0001 /* LogReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0602F80000100AB0001 /* LogReader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -190,6 +194,8 @@
 		18F0B0532F80000100AB0001 /* PopoverSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverSurface.swift; sourceTree = "<group>"; };
 		18F0B0562F80000100AB0001 /* DockSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockSurface.swift; sourceTree = "<group>"; };
 		18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSurfaces.swift; sourceTree = "<group>"; };
+		18F0B05C2F80000100AB0001 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
+		18F0B0602F80000100AB0001 /* LogReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -300,6 +306,8 @@
 				184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */,
 				184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */,
 				184ADEFD2DDB6C9F004791F0 /* Supports.swift */,
+				18F0B05C2F80000100AB0001 /* AppPreferences.swift */,
+				18F0B0602F80000100AB0001 /* LogReader.swift */,
 				184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */,
 			);
 			path = Supports;
@@ -606,6 +614,8 @@
 				184ADF062DDB6C9F004791F0 /* Multipeer.swift in Sources */,
 				184ADF072DDB6C9F004791F0 /* Sparkle.swift in Sources */,
 				184ADF082DDB6C9F004791F0 /* Supports.swift in Sources */,
+				18F0B05D2F80000100AB0001 /* AppPreferences.swift in Sources */,
+				18F0B0612F80000100AB0001 /* LogReader.swift in Sources */,
 				184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */,
 				184ADF102DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
@@ -623,6 +633,7 @@
 				184ADEE52DDB49C2004791F0 /* AirBatteryModel.swift in Sources */,
 				18F0B0102F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				184ADF0D2DDB6C9F004791F0 /* Supports.swift in Sources */,
+				18F0B05E2F80000100AB0001 /* AppPreferences.swift in Sources */,
 				184ADEE62DDB49C7004791F0 /* InternalBattery.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -634,6 +645,7 @@
 				18892AA22B82F0880017377E /* AirBatteryModel.swift in Sources */,
 				18F0B00F2F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */,
+				18F0B05F2F80000100AB0001 /* AppPreferences.swift in Sources */,
 				184ADF112DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
 				18892AA32B82F09C0017377E /* InternalBattery.swift in Sources */,
 				18892A8E2B81F8320017377E /* widgetBundle.swift in Sources */,
