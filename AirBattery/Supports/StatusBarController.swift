@@ -76,7 +76,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         guard menu === self.menu else { return }
         isMenuOpen = true
-        dockWindow.orderOut(nil)
+        DockPopoverController.shared.hide()
     }
 
     func menuDidClose(_ menu: NSMenu) {
