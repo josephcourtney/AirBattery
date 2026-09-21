@@ -24,12 +24,10 @@ struct BatteryView: View {
 
 struct mainBatteryView: View {
     @State var item: iBattery = InternalBattery.status
-    @Environment(\.colorScheme) var colorScheme
     @AppStorage("intBattOnStatusBar") var intBattOnStatusBar = true
     @AppStorage("colorfulBattery") var colorfulBattery = false
     @AppStorage("iosBatteryStyle") var iosBatteryStyle = false
     @AppStorage("batteryPercent") var batteryPercent = "outside"
-    @AppStorage("internalLevel") var internalLevel = false
     @AppStorage("hideLevel") var hideLevel = 90
     
     @AppStorage("test_debug") var test_debug = false
@@ -38,7 +36,8 @@ struct mainBatteryView: View {
     @AppStorage("test_full") var test_full = false
     @AppStorage("test_iblevel") var test_iblevel = 100
     
-    @State var factor = 0.0
+    @ObservedObject private var monitoring = MonitoringCoordinator.shared
+
 
     private var menuBarSummary: String {
         guard item.hasBattery && intBattOnStatusBar else {
@@ -68,38 +67,36 @@ struct mainBatteryView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(menuBarSummary))
         .help(menuBarSummary)
-        .onReceive(dockTimer) { t in refeshPinnedBar() }
-        .onReceive(mainTimer) { t in
-            if item.hasBattery {
-                InternalBattery.status = getPowerState()
-                let width = statusBarItem.button?.frame.size.width
-                if intBattOnStatusBar {
-                    if test_debug {
-                        InternalBattery.status = iBattery(hasBattery: test_hasib, isCharging: !test_full, isCharged: false, acPowered: test_ac, timeLeft: "", batteryLevel: test_iblevel)
-                    } else {
-                        InternalBattery.status = getPowerState()
-                    }
-                    item = InternalBattery.status
-                    statusBarItem.button?.toolTip = menuBarSummary
-                    if batteryPercent != "outside" {
-                        if width != 42 { setStatusBar(width: 42) }
-                    } else {
-                        if item.batteryLevel > hideLevel {
-                            if width != 42 { setStatusBar(width: 42) }
-                        } else {
-                            if width != 76 { setStatusBar(width: 76) }
-                        }
-                    }
-                } else {
-                    if width != 36 { setStatusBar(width: 36) }
+        .onReceive(monitoring.$secondTick) { _ in
+            if test_debug {
+                InternalBattery.status = iBattery(
+                    hasBattery: test_hasib,
+                    isCharging: !test_full,
+                    isCharged: false,
+                    acPowered: test_ac,
+                    timeLeft: "",
+                    batteryLevel: test_iblevel
+                )
+            }
+
+            item = InternalBattery.status
+            statusBarItem.button?.toolTip = menuBarSummary
+
+            guard item.hasBattery && intBattOnStatusBar else {
+                if statusBarItem.length != 36 {
+                    setStatusBar(width: 36)
                 }
+                return
+            }
+
+            let targetWidth: Double
+            if batteryPercent != "outside" || item.batteryLevel > hideLevel {
+                targetWidth = 42
             } else {
-                if test_debug {
-                    let width = statusBarItem.button?.frame.size.width
-                    if width != 36 { setStatusBar(width: 36) }
-                    InternalBattery.status = iBattery(hasBattery: test_hasib, isCharging: !test_full, isCharged: false, acPowered: test_ac, timeLeft: "", batteryLevel: test_iblevel)
-                    item = InternalBattery.status
-                }
+                targetWidth = 76
+            }
+            if statusBarItem.length != CGFloat(targetWidth) {
+                setStatusBar(width: targetWidth)
             }
         }
     }
