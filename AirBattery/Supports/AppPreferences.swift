@@ -95,6 +95,11 @@ enum AppPreferences {
         set { ud.set(newValue, forKey: "updateInterval") }
     }
 
+    static var widgetInterval: Int {
+        get { integer("widgetInterval", default: 0) }
+        set { ud.set(newValue, forKey: "widgetInterval") }
+    }
+
     static var carouselMode: Bool {
         get { bool("carouselMode", default: true) }
         set { ud.set(newValue, forKey: "carouselMode") }
