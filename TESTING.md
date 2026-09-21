@@ -163,6 +163,9 @@ battery presentation, or the native mobile stack, exercise at least:
   352-point width; widget previews show a visible rounded host boundary, do not
   clip charging indicators or rings, and AirPods `Case/L/R` percentages never
   wrap the `%` onto a separate line;
+- popover shell parity: the Display preview includes the same toolbar region as
+  the live popover; the live toolbar shows About, Settings, and a non-focus-ring
+  Quit `×`, and quitting requires explicit confirmation;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
 - repeatedly switch to Nearcast and back to other Settings pages, then close and
