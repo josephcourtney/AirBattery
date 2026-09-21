@@ -1311,24 +1311,20 @@ private struct OverviewRingPlaceholder: View {
 
     var body: some View {
         VStack(spacing: annotationSpacing) {
-            Group {
-                if showPercentage {
-                    Circle()
-                        .trim(from: 0, to: 0.78)
-                        .rotationEffect(.degrees(129.6))
-                } else {
-                    Circle()
-                }
-            }
-            .stroke(
-                style: StrokeStyle(
-                    lineWidth: lineWidth,
-                    lineCap: .round,
-                    lineJoin: .round
+            Circle()
+                .trim(from: 0, to: showPercentage ? 0.78 : 1)
+                .stroke(
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
                 )
-            )
-            .frame(width: diameter, height: diameter)
-            .opacity(0.15)
+                .frame(width: diameter, height: diameter)
+                .rotationEffect(
+                    .degrees(showPercentage ? 129.6 : 270)
+                )
+                .opacity(0.15)
 
             if showPercentage {
                 Text(" ")
