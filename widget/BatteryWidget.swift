@@ -26,64 +26,6 @@ private func widgetPresentationOrder(_ devices: [Device]) -> [Device] {
         .map(\.device)
 }
 
-struct WidgetLogicalDeviceRow: View {
-    let presentation: LogicalDevicePresentation
-    var rowHeight: CGFloat = 31
-
-    var body: some View {
-        HStack(spacing: 7) {
-            Image(getDeviceIcon(presentation.representative))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 20, height: 20)
-
-            Text(
-                "\(isStale ? "⚠︎ " : "")\(presentation.displayName)"
-            )
-            .font(.system(size: 11))
-            .lineLimit(1)
-            .frame(height: rowHeight, alignment: .center)
-
-            Spacer(minLength: 6)
-
-            HStack(spacing: 7) {
-                ForEach(presentation.components.prefix(3)) { component in
-                    HStack(spacing: 2) {
-                        if presentation.components.count > 1 {
-                            Text(component.label)
-                                .foregroundColor(.secondary)
-                        }
-                        Text("\(component.level)%")
-                            .foregroundColor(component.level <= 10 ? .darkMyRed : .primary)
-                            .monospacedDigit()
-                        if component.charging != 0 {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 7, weight: .bold))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .font(.system(size: 10))
-                }
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilitySummary)
-    }
-
-    private var isStale: Bool {
-        (Date().timeIntervalSince1970 - presentation.newestUpdate) / 60 > 10
-    }
-
-    private var accessibilitySummary: String {
-        let batteries = presentation.components.map { component in
-            "\(component.label) \(component.level) percent" +
-            (component.charging != 0 ? ", charging" : "")
-        }
-        .joined(separator: ", ")
-        return "\(presentation.displayName), \(batteries)"
-    }
-}
-
 @available(macOS 14, *)
 struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -221,10 +163,13 @@ struct LargeWidgetView : View {
 
     var body: some View {
         if !entry.mainApp {
-            Text("AirBattery is not running\nLaunch the app to make the widget work")
-                .multilineTextAlignment(.center)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.gray)
+            Text(
+                "AirBattery is not running\n" +
+                    "Launch the app to make the widget work"
+            )
+            .multilineTextAlignment(.center)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.gray)
         } else if presentations.isEmpty {
             VStack(alignment: .leading) {
                 ForEach(0..<8) { index in
@@ -240,26 +185,19 @@ struct LargeWidgetView : View {
                                 .padding(.horizontal, 7)
                             Spacer()
                         }
-                        if index != 7 { Divider() }
+                        if index != 7 {
+                            Divider()
+                        }
                     }
                 }
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 15)
         } else {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(presentations.indices, id: \.self) { index in
-                    let presentation = presentations[index]
-                    WidgetLogicalDeviceRow(presentation: presentation)
-                    if index != presentations.count - 1 {
-                        Divider()
-                    }
-                }
-                Spacer()
-            }
-            .offset(y: 4)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 18)
+            WidgetListSurfaceContent(
+                presentations: presentations,
+                rowHeight: 31
+            )
         }
     }
 }
