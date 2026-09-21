@@ -1631,6 +1631,7 @@ struct DisplayView: View {
                         mergeThreshold: twsMerge,
                         reverseWidgetOrder: revListOnWidget,
                         showMacInDock: showThisMac != "hidden",
+                        showMacAsPercent: showThisMac == "percent",
                         menuBarShowsMac: intBattOnStatusBar,
                         colorfulBattery: colorfulBattery,
                         iosBatteryStyle: iosBatteryStyle,
@@ -1690,6 +1691,7 @@ private struct DisplaySurfacePreview: View {
     let mergeThreshold: Int
     let reverseWidgetOrder: Bool
     let showMacInDock: Bool
+    let showMacAsPercent: Bool
     let menuBarShowsMac: Bool
     let colorfulBattery: Bool
     let iosBatteryStyle: Bool
@@ -1711,12 +1713,15 @@ private struct DisplaySurfacePreview: View {
     }
 
     private var presentations: [LogicalDevicePresentation] {
-        let values = AirBatteryModel.logicalPresentations(
+        AirBatteryModel.logicalPresentations(
             from: sampleDevices,
             mergeEarbuds: mergeEarbuds,
             mergeThreshold: mergeThreshold
         )
-        return reverseWidgetOrder ? Array(values.reversed()) : values
+    }
+
+    private var widgetPresentations: [LogicalDevicePresentation] {
+        reverseWidgetOrder ? Array(presentations.reversed()) : presentations
     }
 
     private var dockPresentations: [LogicalDevicePresentation] {
@@ -1731,7 +1736,7 @@ private struct DisplaySurfacePreview: View {
     }
 
     private var widgetRingDevices: [Device] {
-        presentations
+        widgetPresentations
             .flatMap(\.components)
             .map(\.device)
     }
@@ -1798,7 +1803,7 @@ private struct DisplaySurfacePreview: View {
                     DockTileSurfaceContent(
                         presentations: dockPresentations,
                         darkMode: previewColorScheme == .dark,
-                        showMacAsPercent: showMacInDock
+                        showMacAsPercent: showMacAsPercent
                     )
                     Spacer()
                 }
@@ -1806,7 +1811,7 @@ private struct DisplaySurfacePreview: View {
 
             previewCard("Widget — Battery List") {
                 WidgetListSurfaceContent(
-                    presentations: Array(presentations.prefix(8)),
+                    presentations: Array(widgetPresentations.prefix(8)),
                     rowHeight: 31
                 )
                 .frame(minHeight: 185)
