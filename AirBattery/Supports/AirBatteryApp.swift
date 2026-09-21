@@ -57,6 +57,14 @@ struct AirBatteryApp: App {
 
 @MainActor
 func dismissMenuBarWindow() {
+    if #available(macOS 26.0, *),
+       statusBarItem != nil,
+       let session = statusBarItem.expandedInterfaceSession
+    {
+        session.cancel()
+        return
+    }
+
     menuBarWindow?.orderOut(nil)
     menuBarWindow = nil
 
@@ -426,13 +434,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     @MainActor
     @objc func togglePopover(_ sender: Any?) {
         if #available(macOS 26.0, *) {
-            // AppKit owns the expanded-interface lifecycle and knows which
-            // replicated status item on which display initiated the session.
-            if let session = statusBarItem.expandedInterfaceSession {
-                if menuBarWindow?.isVisible == true {
-                    session.cancel()
-                }
-            }
+            // AppKit owns the expanded-interface lifecycle and invokes the
+            // delegate for the specific replicated status item that was used.
             return
         }
 
@@ -559,7 +562,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
 
         menuBarWindow = panel
         panel.orderFrontRegardless()
-        installMenuBarWindowDismissalMonitors(panel)
+
+        if #unavailable(macOS 26.0) {
+            installMenuBarWindowDismissalMonitors(panel)
+        }
     }
 
     @MainActor
