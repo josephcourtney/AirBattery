@@ -886,12 +886,16 @@ struct DevicesView: View {
                         }
                     }
                 } label: {
-                    Text(
-                        "Identity override: " +
-                        (policyStore.exactPolicy(identifier: candidate.identifier)?.title ??
-                         "Uses device policy")
-                    )
-                    .font(.caption)
+                    if let override = policyStore.exactPolicy(identifier: candidate.identifier) {
+                        Text("Identity override: " + override.title)
+                            .font(.caption)
+                    } else {
+                        Text(
+                            "Uses device policy: " +
+                            (logicalPolicy?.title ?? "Discovery default")
+                        )
+                        .font(.caption)
+                    }
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
