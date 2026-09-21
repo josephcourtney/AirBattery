@@ -433,12 +433,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             allDevices.insert(ib2ab(ibStatus), at: 0)
         }
 
-        let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: {
-            NSMouseInRect(mouseLocation, $0.frame, false)
-        }) ?? NSScreen.main else {
+        let event = NSApp.currentEvent
+        let mouseLocation: NSPoint
+        let screen: NSScreen?
+
+        if let event,
+           let eventWindow = event.window,
+           let eventScreen = eventWindow.screen
+        {
+            mouseLocation = eventWindow.convertPoint(toScreen: event.locationInWindow)
+            screen = eventScreen
+        } else {
+            let globalMouseLocation = NSEvent.mouseLocation
+            mouseLocation = globalMouseLocation
+            screen = NSScreen.screens.first(where: {
+                NSMouseInRect(globalMouseLocation, $0.frame, false)
+            }) ?? NSScreen.main
+        }
+
+        guard let screen else {
             return
         }
+
+        NSLog(
+            "[AirBattery] menu bar click screen=%@ point=(%.1f, %.1f)",
+            screen.localizedName,
+            mouseLocation.x,
+            mouseLocation.y
+        )
 
         showMenuBarWindow(
             at: mouseLocation,
