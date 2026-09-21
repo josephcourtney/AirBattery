@@ -160,6 +160,11 @@ enum AppPreferences {
         set { ud.set(newValue, forKey: "blackList") }
     }
 
+    static var nameRules: [String] {
+        get { ud.stringArray(forKey: "blockedDevices") ?? [] }
+        set { ud.set(newValue, forKey: "blockedDevices") }
+    }
+
     static var neverRemind: [String] {
         get { ud.stringArray(forKey: "neverRemindMe") ?? [] }
         set { ud.set(newValue, forKey: "neverRemindMe") }
