@@ -46,7 +46,8 @@ struct LargeWidgetView2: View {
             .padding(.horizontal, 15)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(presentations.enumerated()), id: \.element.id) { index, presentation in
+                ForEach(presentations.indices, id: \.self) { index in
+                    let presentation = presentations[index]
                     WidgetLogicalDeviceRow(
                         presentation: presentation,
                         rowHeight: 20
