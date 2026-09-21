@@ -12,7 +12,7 @@ struct LargeWidgetView2: View {
     var entry: ViewSizeTimelineProvider.Entry
 
     private var presentations: [LogicalDevicePresentation] {
-        Array(widgetLogicalPresentations(entry.data).prefix(11))
+        Array(AirBatteryModel.widgetLogicalPresentations(from: entry.data).prefix(11))
     }
 
     var body: some View {
