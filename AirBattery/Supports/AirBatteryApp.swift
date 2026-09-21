@@ -117,7 +117,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 }
             }
             let localRowCount = max(AirBatteryModel.groupedDisplayRowCount(allDevices), 1)
-            let menuHeight = CGFloat((max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 44 + ncCount)
+            let airPodsRowCount = AirBatteryModel.groupedAirPodsRowCount(allDevices)
+            let menuHeight = CGFloat(
+                (max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 +
+                airPodsRowCount * 6 +
+                44 +
+                ncCount
+            )
             let mouse = NSEvent.mouseLocation
             var menuX = mouse.x
             var menuY = mouse.y
