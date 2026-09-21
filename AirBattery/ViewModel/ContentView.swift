@@ -314,6 +314,7 @@ private struct PopoverToolbarButton: View {
         .buttonStyle(.plain)
         .focusable(false)
         .help(help)
+        .accessibilityLabel(Text(help))
         .onHover { isHovered = $0 }
     }
 }
@@ -433,24 +434,27 @@ struct popover: View {
         help: String
     ) -> some View {
         HStack(spacing: 3) {
-            Text("\(level)%")
-                .font(.system(size: 11))
-                .foregroundColor(level <= 10 ? .darkMyRed : .primary)
             Image(getDeviceIcon(iconDevice))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundColor(.blackWhite)
-                .frame(width: 12, height: 12)
-                .help(help)
+                .frame(width: 11, height: 11)
+            Text("\(level)%")
+                .font(.system(size: 10.5, weight: .medium))
+                .monospacedDigit()
+                .foregroundColor(level <= 10 ? .darkMyRed : .primary)
             if charging != 0 {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 7, weight: .bold))
                     .foregroundColor(.secondary)
             }
         }
-        .frame(height: 24)
         .fixedSize()
         .help(help)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(help), \(level) percent" + (charging != 0 ? ", charging" : "")
+        )
     }
 
     private func mergedAirPodsIconDevice(
@@ -473,7 +477,7 @@ struct popover: View {
     @ViewBuilder
     private func airPodsMenuRow(_ group: AirPodsBatteryGroup, index: Int) -> some View {
         let newestUpdate = group.components.map(\.lastUpdate).max() ?? 0
-        HStack {
+        HStack(spacing: 8) {
             if let caseDevice = group.caseDevice {
                 Image(getDeviceIcon(caseDevice))
                     .resizable()
@@ -482,79 +486,78 @@ struct popover: View {
                     .frame(width: 22, height: 22)
             }
 
-            HStack(spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")\(group.name)")
                     .font(.system(size: 12))
                     .foregroundColor(.blackWhite)
-                    .frame(height: 24, alignment: .center)
                     .lineLimit(1)
-                Spacer().frame(width: 0.5)
-            }
-            .padding(.horizontal, 7)
 
-            Spacer()
+                HStack(spacing: 10) {
+                    if let caseDevice = group.caseDevice {
+                        airPodsLevel(
+                            iconDevice: caseDevice,
+                            level: caseDevice.batteryLevel,
+                            charging: caseDevice.isCharging,
+                            help: "Case"
+                        )
+                    }
 
-            HStack(spacing: 7) {
-                if let caseDevice = group.caseDevice {
-                    airPodsLevel(
-                        iconDevice: caseDevice,
-                        level: caseDevice.batteryLevel,
-                        charging: caseDevice.isCharging,
-                        help: "Case"
-                    )
-                }
-
-                if let merged = group.mergedEarbudLevel(
-                    enabled: twsMergeEnabled,
-                    threshold: twsMerge
-                ) {
-                    let charging = group.mergedEarbudCharging(
+                    if let merged = group.mergedEarbudLevel(
                         enabled: twsMergeEnabled,
                         threshold: twsMerge
-                    ) ?? 0
-                    airPodsLevel(
-                        iconDevice: mergedAirPodsIconDevice(
-                            group,
+                    ) {
+                        let charging = group.mergedEarbudCharging(
+                            enabled: twsMergeEnabled,
+                            threshold: twsMerge
+                        ) ?? 0
+                        airPodsLevel(
+                            iconDevice: mergedAirPodsIconDevice(
+                                group,
+                                level: merged,
+                                charging: charging
+                            ),
                             level: merged,
-                            charging: charging
-                        ),
-                        level: merged,
-                        charging: charging,
-                        help: "Left and right earbuds"
-                    )
-                } else {
-                    if let left = group.leftEarbud {
-                        airPodsLevel(
-                            iconDevice: left,
-                            level: left.batteryLevel,
-                            charging: left.isCharging,
-                            help: "Left earbud"
+                            charging: charging,
+                            help: "Earbuds"
                         )
-                    }
-                    if let right = group.rightEarbud {
-                        airPodsLevel(
-                            iconDevice: right,
-                            level: right.batteryLevel,
-                            charging: right.isCharging,
-                            help: "Right earbud"
-                        )
-                    }
-                    if group.leftEarbud == nil,
-                       group.rightEarbud == nil,
-                       let legacy = group.legacyMergedEarbuds {
-                        airPodsLevel(
-                            iconDevice: legacy,
-                            level: legacy.batteryLevel,
-                            charging: legacy.isCharging,
-                            help: "Left and right earbuds"
-                        )
+                    } else {
+                        if let left = group.leftEarbud {
+                            airPodsLevel(
+                                iconDevice: left,
+                                level: left.batteryLevel,
+                                charging: left.isCharging,
+                                help: "Left earbud"
+                            )
+                        }
+                        if let right = group.rightEarbud {
+                            airPodsLevel(
+                                iconDevice: right,
+                                level: right.batteryLevel,
+                                charging: right.isCharging,
+                                help: "Right earbud"
+                            )
+                        }
+                        if group.leftEarbud == nil,
+                           group.rightEarbud == nil,
+                           let legacy = group.legacyMergedEarbuds {
+                            airPodsLevel(
+                                iconDevice: legacy,
+                                level: legacy.batteryLevel,
+                                charging: legacy.isCharging,
+                                help: "Earbuds"
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(minLength: 4)
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 10)
         .background(overStack == index ? Color.blackWhite.opacity(0.15) : .clear)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
         .onHover { hovering in
             overStack2 = -1
             overStackNC = -1
@@ -616,17 +619,9 @@ struct popover: View {
                         }
                 }
                 HStack(spacing: 2) {
-                    if !fromDock {
+                    if fromDock {
                         PopoverToolbarButton(
-                            systemName: "xmark.circle.fill",
-                            help: "Quit AirBattery".local,
-                            hoverColor: .red
-                        ) {
-                            NSApp.terminate(self)
-                        }
-                    } else {
-                        PopoverToolbarButton(
-                            systemName: "minus.circle.fill",
+                            systemName: "minus.circle",
                             help: "Hide".local,
                             hoverColor: .myYellow
                         ) {
@@ -634,7 +629,7 @@ struct popover: View {
                         }
                     }
 
-                    PopoverToolbarButton(systemName: "info.circle.fill", help: "About AirBattery".local) {
+                    PopoverToolbarButton(systemName: "info.circle", help: "About AirBattery".local) {
                         dockWindow.orderOut(nil)
                         statusBarItem.menu?.cancelTracking()
                         openAboutPanel()
