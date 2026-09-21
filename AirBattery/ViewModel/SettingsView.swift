@@ -1381,259 +1381,421 @@ struct DisplayView: View {
     @AppStorage("hideLevel") var hideLevel = 90
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
+    @AppStorage("revListOnWidget") var revListOnWidget = false
+    @AppStorage("deviceOnWidget") var deviceOnWidget = ""
+    @AppStorage("widgetInterval") var widgetInterval = 0
+    @AppStorage("deviceName") var deviceName = "Mac"
+
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
-    
+    @State private var widgetDevices = [String]()
+
     var body: some View {
-        SForm {
-            SGroupBox(label: "Surfaces") {
-                SPicker(
-                    "Show AirBattery",
-                    selection: $showOn,
-                    tips: "Choose where AirBattery itself is presented. Widgets are configured separately."
-                ) {
-                    Text("Menu Bar").tag("sbar")
-                    Text("Dock").tag("dock")
-                    Text("Both").tag("both")
-                    Text("None").tag("none")
-                }
-                .onChange(of: showOn) { newValue in
-                    switch newValue {
-                    case "sbar":
-                        statusBarItem.isVisible = true
-                        for item in pinnedItems { item.isVisible = true }
-                        NSApp.setActivationPolicy(.accessory)
-                    case "both":
-                        statusBarItem.isVisible = true
-                        for item in pinnedItems { item.isVisible = true }
-                        NSApp.setActivationPolicy(.regular)
-                    case "dock":
-                        statusBarItem.isVisible = false
-                        for item in pinnedItems { item.isVisible = false }
-                        NSApp.setActivationPolicy(.regular)
-                    default:
-                        statusBarItem.isVisible = false
-                        for item in pinnedItems { item.isVisible = false }
-                        NSApp.setActivationPolicy(.accessory)
+        ScrollView {
+            SForm(noSpacer: true) {
+                SGroupBox(label: "Surfaces") {
+                    SPicker(
+                        "Show AirBattery",
+                        selection: $showOn,
+                        tips: "Choose whether AirBattery itself appears in the menu bar, Dock, both, or neither. Widgets are available independently."
+                    ) {
+                        Text("Menu Bar").tag("sbar")
+                        Text("Dock").tag("dock")
+                        Text("Both").tag("both")
+                        Text("None").tag("none")
+                    }
+                    .onChange(of: showOn) { newValue in
+                        applySurfaceSelection(newValue)
                     }
 
-                    if newValue == "dock" || newValue == "both" {
-                        _ = createAlert(
-                            title: "AirBattery Tips".local,
-                            message: "Displaying AirBattery on the Dock will consume more power, it is better to use Menu Bar mode or Widgets.".local,
-                            button1: "OK"
-                        ).runModal()
-                    }
-                }
-            }
-
-            SGroupBox(label: "Menu Bar") {
-                SToggle("Dynamic Battery Icon", isOn: $intBattOnStatusBar)
-                Divider().opacity(0.5)
-                SToggle("Colorful Battery Icon", isOn: $colorfulBattery)
-                    .disabled(!intBattOnStatusBar)
-                Divider().opacity(0.5)
-                SPicker("Battery Icon Style", selection: $iosBatteryStyle) {
-                    Text("macOS").tag(false)
-                    Text("iOS").tag(true)
-                }.disabled(!intBattOnStatusBar)
-                Divider().opacity(0.5)
-                SPicker("Show Percentage", selection: $batteryPercent) {
-                    Text("Hidden").tag("hide")
-                    Text("Inside").tag("inside")
-                    Text("Outside").tag("outside")
-                }.disabled(!intBattOnStatusBar)
-
-                Divider().opacity(0.5)
-                SPicker("Hide percentage when above", selection: $hideLevel) {
-                    Text("Never").tag(100)
-                    ForEach(levelList, id: \.self) { number in
-                        Text("\(number)%").tag(number)
-                    }
-                    if !levelList.contains(hideLevel) && hideLevel != 100 {
-                        Text("\(hideLevel)%").tag(hideLevel)
-                    }
-                }.disabled(!intBattOnStatusBar || (batteryPercent == "hide"))
-            }
-            SGroupBox(label: "Device Rows") {
-                SPicker(
-                    "Earbud merging",
-                    selection: $twsMergeEnabled,
-                    tips: "When off, left and right battery levels are always shown separately. When enabled, they are merged only when both charging states match and their battery levels are within the configured threshold."
-                ) {
-                    Text("Off").tag(false)
-                    Text("Within threshold").tag(true)
-                }
-                if twsMergeEnabled {
                     Divider().opacity(0.5)
-                    SSteper(
-                        "Merge threshold (%)",
-                        value: $twsMerge,
-                        min: 0,
-                        max: 99,
-                        tips: "Merge left and right earbud levels when their difference is at most this percentage."
-                    )
-                }
-            }
 
-            SGroupBox(label: "Dock") {
                     SPicker("Appearance", selection: $appearance) {
                         Text("Automatic").tag("auto")
                         Text("Light").tag("false")
                         Text("Dark").tag("true")
-                    }.pickerStyle(.segmented)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                SGroupBox(label: "Menu Bar") {
+                    SToggle(
+                        "Show this Mac’s battery",
+                        isOn: $intBattOnStatusBar,
+                        tips: "When enabled, the menu-bar item displays this Mac’s battery. When disabled, it uses the AirBattery status icon instead."
+                    )
                     Divider().opacity(0.5)
-                    SPicker("Built-in Battery Style", selection: $showThisMac, tips: "Show or hide this Mac's built-in battery in the Dock icon") {
+                    SToggle("Use battery colors", isOn: $colorfulBattery)
+                        .disabled(!intBattOnStatusBar)
+                    Divider().opacity(0.5)
+                    SPicker("Battery style", selection: $iosBatteryStyle) {
+                        Text("macOS").tag(false)
+                        Text("iOS").tag(true)
+                    }
+                    .disabled(!intBattOnStatusBar)
+                    Divider().opacity(0.5)
+                    SPicker("Percentage", selection: $batteryPercent) {
+                        Text("Hidden").tag("hide")
+                        Text("Inside").tag("inside")
+                        Text("Outside").tag("outside")
+                    }
+                    .disabled(!intBattOnStatusBar)
+                    Divider().opacity(0.5)
+                    SPicker("Hide percentage above", selection: $hideLevel) {
+                        Text("Never").tag(100)
+                        ForEach(levelList, id: \.self) { number in
+                            Text("\(number)%").tag(number)
+                        }
+                        if !levelList.contains(hideLevel) && hideLevel != 100 {
+                            Text("\(hideLevel)%").tag(hideLevel)
+                        }
+                    }
+                    .disabled(!intBattOnStatusBar || batteryPercent == "hide")
+
+                    Text("Yellow continues to mean Low Power Mode (or a genuinely low battery), matching macOS battery semantics.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                SGroupBox(label: "Device Rows") {
+                    SPicker(
+                        "Earbud merging",
+                        selection: $twsMergeEnabled,
+                        tips: "When off, left and right battery levels are always shown separately. When enabled, they merge only when their charging states match and their levels are within the configured threshold."
+                    ) {
+                        Text("Off").tag(false)
+                        Text("Within threshold").tag(true)
+                    }
+                    if twsMergeEnabled {
+                        Divider().opacity(0.5)
+                        SSteper(
+                            "Merge threshold (%)",
+                            value: $twsMerge,
+                            min: 0,
+                            max: 99,
+                            tips: "Merge left and right earbud levels when their difference is at most this percentage."
+                        )
+                    }
+                }
+
+                SGroupBox(label: "Dock") {
+                    SPicker(
+                        "Built-in battery",
+                        selection: $showThisMac,
+                        tips: "Choose how this Mac’s built-in battery appears in the Dock icon."
+                    ) {
                         Text("Hidden").tag("hidden")
                         Text("Device Icon").tag("icon")
                         Text("Percent").tag("percent")
                     }
                     Divider().opacity(0.5)
-                    SToggle("Carousel Mode", isOn: $carouselMode, tips: "Cycle through all found devices in the Dock icon")
-            }
-        }
-    }
-}
-
-struct WidgetView: View {
-    //@AppStorage("showMacOnWidget") var showMacOnWidget = true
-    @AppStorage("revListOnWidget") var revListOnWidget = false
-    @AppStorage("deviceOnWidget") var deviceOnWidget = ""
-    @AppStorage("widgetInterval") var widgetInterval = 0
-    @AppStorage("deviceName") var deviceName = "Mac"
-    
-    @State var ib = getMacDeviceType().lowercased().contains("book")
-    @State var devices = [String]()
-
-    var body: some View {
-        SForm {
-            SGroupBox(label: "Widget") {
-                SToggle("Reverse Device List", isOn: $revListOnWidget)
-                Divider().opacity(0.5)
-                SPicker("Refresh Interval", selection: $widgetInterval) {
-                    Text("System Default").tag(-1)
-                    Text("Same as Discovery").tag(0)
+                    SToggle(
+                        "Carousel Mode",
+                        isOn: $carouselMode,
+                        tips: "Cycle through logical devices when more devices are available than fit in the Dock tile."
+                    )
                 }
-                if #unavailable(macOS 14) {
+
+                SGroupBox(label: "Widgets") {
+                    SToggle("Reverse device list", isOn: $revListOnWidget)
                     Divider().opacity(0.5)
-                    SPicker("Single Device Widget", selection: $deviceOnWidget) {
-                        Text("Not Set").tag("")
-                        if ib { Text(deviceName).tag(deviceName) }
-                        ForEach(devices, id: \.self) { device in
-                            Text(device).tag(device)
-                        }
-                        if !devices.contains(deviceOnWidget) && deviceOnWidget != deviceName && deviceOnWidget != "" {
-                            Text(deviceOnWidget).tag(deviceOnWidget)
-                        }
-                    }.onChange(of: deviceOnWidget) { _ in _ = AirBatteryModel.singleDeviceName() }
-                }
-                Divider().opacity(0.5)
-                SButton("Reload All Widgets", buttonTitle: "Reload") {
-                    AirBatteryModel.writeData()
-                    WidgetCenter.shared.reloadAllTimelines()
-                }
-            }
-        }
-        .onAppear { devices = AirBatteryModel.getAll(noFilter: true).filter({ $0.hasBattery }).map({ $0.deviceName }) }
-        .onReceive(dockTimer) { _ in
-            if #unavailable(macOS 14) {
-                devices = AirBatteryModel.getAll(noFilter: true).filter({ $0.hasBattery }).map({ $0.deviceName })
-            }
-        }
-    }
-}
-
-struct NameRulesEditor: View {
-    @AppStorage("whitelistMode") private var whitelistMode = false
-    @State private var names: [String] = []
-    @State private var newName = ""
-    @State private var showAddSheet = false
-    @State private var expanded = false
-
-    var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            VStack(alignment: .leading, spacing: 9) {
-                Picker("Devices matching these names", selection: $whitelistMode) {
-                    Text("Ignore").tag(false)
-                    Text("Allow only these").tag(true)
-                }
-                .pickerStyle(.segmented)
-
-                Text(
-                    whitelistMode
-                        ? "Only devices with one of these names pass the broad name filter."
-                        : "Devices with one of these names are excluded from discovery and display."
-                )
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-                if names.isEmpty {
-                    Text("No name rules.")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(names, id: \.self) { name in
-                        HStack {
-                            Text(name)
-                            Spacer()
-                            Button {
-                                names.removeAll(where: { $0 == name })
-                            } label: {
-                                Image(systemName: "minus.circle")
+                    SPicker("Refresh interval", selection: $widgetInterval) {
+                        Text("System Default").tag(-1)
+                        Text("Same as Discovery").tag(0)
+                    }
+                    if #unavailable(macOS 14) {
+                        Divider().opacity(0.5)
+                        SPicker("Single-device widget", selection: $deviceOnWidget) {
+                            Text("Not Set").tag("")
+                            if getMacDeviceType().lowercased().contains("book") {
+                                Text(deviceName).tag(deviceName)
                             }
-                            .buttonStyle(.borderless)
-                            .help("Remove name rule")
+                            ForEach(widgetDevices, id: \.self) { device in
+                                Text(device).tag(device)
+                            }
+                            if !widgetDevices.contains(deviceOnWidget),
+                               deviceOnWidget != deviceName,
+                               !deviceOnWidget.isEmpty {
+                                Text(deviceOnWidget).tag(deviceOnWidget)
+                            }
                         }
+                        .onChange(of: deviceOnWidget) { _ in
+                            _ = AirBatteryModel.singleDeviceName()
+                        }
+                    }
+                    Divider().opacity(0.5)
+                    SButton("Reload all widgets", buttonTitle: "Reload") {
+                        AirBatteryModel.writeData()
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
 
-                Button {
-                    showAddSheet = true
-                } label: {
-                    Label("Add name rule", systemImage: "plus")
+                SGroupBox(label: "Preview") {
+                    DisplaySurfacePreview(
+                        mergeEarbuds: twsMergeEnabled,
+                        mergeThreshold: twsMerge,
+                        reverseWidgetOrder: revListOnWidget,
+                        showMacInDock: showThisMac != "hidden"
+                    )
                 }
-                .buttonStyle(.borderless)
-                .sheet(isPresented: $showAddSheet) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Add Name Rule")
-                            .font(.headline)
-                        TextField("Device name", text: $newName)
-                            .frame(width: 320)
-                        HStack {
-                            Spacer()
-                            Button("Cancel") {
-                                newName = ""
-                                showAddSheet = false
-                            }
-                            Button("Add") {
-                                let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !trimmed.isEmpty else { return }
-                                if !names.contains(trimmed) { names.append(trimmed) }
-                                names.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-                                newName = ""
-                                showAddSheet = false
-                            }
-                            .keyboardShortcut(.defaultAction)
-                        }
-                    }
-                    .padding()
-                }
-            }
-            .padding(.top, 7)
-        } label: {
-            HStack {
-                Text("Name rules")
-                Spacer()
-                Text("\(names.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
         .onAppear {
-            names = (ud.object(forKey: "blockedDevices") as? [String]) ?? []
-            names.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            refreshWidgetDevices()
         }
-        .onChange(of: names) { value in
-            ud.setValue(value, forKey: "blockedDevices")
+        .onReceive(dockTimer) { _ in
+            refreshWidgetDevices()
         }
+    }
+
+    private func applySurfaceSelection(_ newValue: String) {
+        switch newValue {
+        case "sbar":
+            statusBarItem.isVisible = true
+            for item in pinnedItems { item.isVisible = true }
+            NSApp.setActivationPolicy(.accessory)
+        case "both":
+            statusBarItem.isVisible = true
+            for item in pinnedItems { item.isVisible = true }
+            NSApp.setActivationPolicy(.regular)
+        case "dock":
+            statusBarItem.isVisible = false
+            for item in pinnedItems { item.isVisible = false }
+            NSApp.setActivationPolicy(.regular)
+        default:
+            statusBarItem.isVisible = false
+            for item in pinnedItems { item.isVisible = false }
+            NSApp.setActivationPolicy(.accessory)
+        }
+
+        if newValue == "dock" || newValue == "both" {
+            _ = createAlert(
+                title: "AirBattery Tips".local,
+                message: "Displaying AirBattery on the Dock will consume more power; Menu Bar mode or Widgets generally use less.".local,
+                button1: "OK"
+            ).runModal()
+        }
+    }
+
+    private func refreshWidgetDevices() {
+        widgetDevices = AirBatteryModel.getAll(noFilter: true)
+            .filter(\.hasBattery)
+            .map(\.deviceName)
+    }
+}
+
+private struct DisplaySurfacePreview: View {
+    let mergeEarbuds: Bool
+    let mergeThreshold: Int
+    let reverseWidgetOrder: Bool
+    let showMacInDock: Bool
+
+    private var presentations: [LogicalDevicePresentation] {
+        AirBatteryModel.logicalPresentations(
+            from: sampleDevices,
+            mergeEarbuds: mergeEarbuds,
+            mergeThreshold: mergeThreshold
+        )
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            previewCard("Menu") {
+                VStack(spacing: 6) {
+                    ForEach(presentations.prefix(4)) { presentation in
+                        previewDeviceRow(presentation)
+                    }
+                }
+            }
+
+            previewCard("Dock") {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(
+                        presentations.filter {
+                            showMacInDock || $0.representative.deviceID != "@MacInternalBattery"
+                        }.prefix(4)
+                    ) { presentation in
+                        VStack(spacing: 4) {
+                            Text(presentation.compactName)
+                                .font(.caption2)
+                                .lineLimit(1)
+                            if presentation.components.count > 1 {
+                                HStack(spacing: 3) {
+                                    ForEach(presentation.components.prefix(3)) { component in
+                                        compactBattery(component)
+                                    }
+                                }
+                            } else if let component = presentation.components.first {
+                                compactBattery(component)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+
+            previewCard("Widget") {
+                let rows = reverseWidgetOrder
+                    ? Array(presentations.reversed())
+                    : presentations
+                VStack(spacing: 5) {
+                    ForEach(rows.prefix(4)) { presentation in
+                        HStack(spacing: 5) {
+                            Image(getDeviceIcon(presentation.representative))
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 15, height: 15)
+                            Text(presentation.compactName)
+                                .font(.caption2)
+                                .lineLimit(1)
+                            Spacer()
+                            Text(previewBatterySummary(presentation))
+                                .font(.caption2.monospacedDigit())
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func previewCard<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+            content()
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func previewDeviceRow(_ presentation: LogicalDevicePresentation) -> some View {
+        HStack(spacing: 6) {
+            Image(getDeviceIcon(presentation.representative))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+            Text(presentation.displayName)
+                .font(.caption)
+                .lineLimit(1)
+            Spacer()
+            Text(previewBatterySummary(presentation))
+                .font(.caption.monospacedDigit())
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(presentation.displayName), \(previewBatterySummary(presentation))"
+        )
+    }
+
+    @ViewBuilder
+    private func compactBattery(_ component: BatteryComponentPresentation) -> some View {
+        VStack(spacing: 1) {
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.25), lineWidth: 3)
+                Circle()
+                    .trim(from: 0, to: Double(component.level) / 100)
+                    .stroke(
+                        Color(getPowerColor(component.device)),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                Text("\(component.level)")
+                    .font(.system(size: 7, weight: .medium, design: .rounded))
+            }
+            .frame(width: 24, height: 24)
+            Text(component.label)
+                .font(.system(size: 7))
+                .foregroundColor(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(component.label), \(component.level) percent" +
+            (component.charging != 0 ? ", charging" : "")
+        )
+    }
+
+    private func previewBatterySummary(_ presentation: LogicalDevicePresentation) -> String {
+        presentation.components.map { component in
+            let prefix = component.role == .primary ? "" : component.label + " "
+            return prefix + "\(component.level)%" + (component.charging != 0 ? "⚡︎" : "")
+        }
+        .joined(separator: " · ")
+    }
+
+    private var sampleDevices: [Device] {
+        let now = Date().timeIntervalSince1970
+        return [
+            Device(
+                deviceID: "@MacInternalBattery",
+                deviceType: "macbookpro",
+                deviceName: "LT-0801530",
+                batteryLevel: 69,
+                isCharging: 0,
+                lowPower: true,
+                lastUpdate: now
+            ),
+            Device(
+                deviceID: "preview-iphone",
+                deviceType: "iPhone",
+                deviceName: "Joseph’s iPhone",
+                deviceModel: "iPhone14,7",
+                batteryLevel: 86,
+                isCharging: 0,
+                lastUpdate: now,
+                batterySource: .ble
+            ),
+            Device(
+                deviceID: "preview-watch",
+                deviceType: "Watch",
+                deviceName: "Joseph’s Apple Watch",
+                batteryLevel: 54,
+                isCharging: 1,
+                lastUpdate: now
+            ),
+            Device(
+                deviceID: "preview-airpods-case",
+                deviceType: "ap_case",
+                deviceName: "Joseph’s AirPods (Case)",
+                batteryLevel: 100,
+                isCharging: 0,
+                lastUpdate: now
+            ),
+            Device(
+                deviceID: "preview-airpods-left",
+                deviceType: "ap_pod_left",
+                deviceName: "Joseph’s AirPods Left",
+                batteryLevel: 96,
+                isCharging: 1,
+                parentName: "Joseph’s AirPods",
+                lastUpdate: now
+            ),
+            Device(
+                deviceID: "preview-airpods-right",
+                deviceType: "ap_pod_right",
+                deviceName: "Joseph’s AirPods Right",
+                batteryLevel: 98,
+                isCharging: 1,
+                parentName: "Joseph’s AirPods",
+                lastUpdate: now
+            )
+        ]
     }
 }
 
