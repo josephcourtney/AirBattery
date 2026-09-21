@@ -284,6 +284,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         //menu.delegate = self
         //statusMenu.delegate = self
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if #available(macOS 26.0, *) {
+            statusBarItem.expandedInterfaceDelegate = self
+        }
         //statusBarItem.menu = statusMenu
         if let button = statusBarItem.button {
             button.target = self
@@ -422,6 +425,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     
     @MainActor
     @objc func togglePopover(_ sender: Any?) {
+        if #available(macOS 26.0, *) {
+            // AppKit owns the expanded-interface lifecycle and knows which
+            // replicated status item on which display initiated the session.
+            if let session = statusBarItem.expandedInterfaceSession {
+                if menuBarWindow?.isVisible == true {
+                    session.cancel()
+                }
+            }
+            return
+        }
+
+        // macOS 15 fallback: derive the clicked display from the current event.
         if menuBarWindow?.isVisible == true {
             dismissMenuBarWindow()
             return
@@ -441,7 +456,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
            let eventWindow = event.window,
            let eventScreen = eventWindow.screen
         {
-            mouseLocation = eventWindow.convertPoint(toScreen: event.locationInWindow)
+            mouseLocation =
+                eventWindow.convertPoint(toScreen: event.locationInWindow)
             screen = eventScreen
         } else {
             let globalMouseLocation = NSEvent.mouseLocation
@@ -454,13 +470,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         guard let screen else {
             return
         }
-
-        NSLog(
-            "[AirBattery] menu bar click screen=%@ point=(%.1f, %.1f)",
-            screen.localizedName,
-            mouseLocation.x,
-            mouseLocation.y
-        )
 
         showMenuBarWindow(
             at: mouseLocation,
@@ -628,6 +637,70 @@ class AutoHideWindow: NSWindow {
     override func resignKey() {
         super.resignKey()
         self.orderOut(nil)
+    }
+}
+
+@available(macOS 26.0, *)
+extension AppDelegate: NSStatusItemExpandedInterfaceDelegate {
+    @MainActor
+    func statusItem(
+        _ statusItem: NSStatusItem,
+        didBegin session: NSStatusItemExpandedInterfaceSession
+    ) {
+        var allDevices = AirBatteryModel.getAll()
+        let ibStatus = InternalBattery.status
+        if ibStatus.hasBattery {
+            allDevices.insert(ib2ab(ibStatus), at: 0)
+        }
+
+        let event = NSApp.currentEvent
+        let mouseLocation: NSPoint
+        let screen: NSScreen?
+
+        if let event,
+           let eventWindow = event.window,
+           let eventScreen = eventWindow.screen
+        {
+            mouseLocation =
+                eventWindow.convertPoint(toScreen: event.locationInWindow)
+            screen = eventScreen
+        } else if let button = statusItem.button,
+                  let buttonWindow = button.window,
+                  let buttonScreen = buttonWindow.screen
+        {
+            let buttonFrame = button.convert(button.bounds, to: nil)
+            let screenRect = buttonWindow.convertToScreen(buttonFrame)
+            mouseLocation = NSPoint(
+                x: screenRect.midX,
+                y: screenRect.minY
+            )
+            screen = buttonScreen
+        } else {
+            let globalMouseLocation = NSEvent.mouseLocation
+            mouseLocation = globalMouseLocation
+            screen = NSScreen.screens.first(where: {
+                NSMouseInRect(globalMouseLocation, $0.frame, false)
+            }) ?? NSScreen.main
+        }
+
+        guard let screen else {
+            session.cancel()
+            return
+        }
+
+        showMenuBarWindow(
+            at: mouseLocation,
+            on: screen,
+            allDevices: allDevices
+        )
+    }
+
+    @MainActor
+    func statusItemDidEndExpandedInterfaceSession(
+        _ statusItem: NSStatusItem,
+        animated: Bool
+    ) {
+        dismissMenuBarWindow()
     }
 }
 
