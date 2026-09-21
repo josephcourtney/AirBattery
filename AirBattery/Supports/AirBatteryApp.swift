@@ -105,25 +105,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
             let contentViewSwiftUI = popover(fromDock: true, allDevice: allDevices)
             let contentView = NSHostingView(rootView: contentViewSwiftUI)
-            let hiddenRow = AirBatteryModel.getBlackList().count > 0 ? 1 : 0
-            let allNearcast = getFiles(withExtension: "json", in: ncFolder)
-            var ncCount = 0
-            var ncDeviceCount = 0
-            for jsonUrl in allNearcast {
-                let count = AirBatteryModel.ncGetAll(url: jsonUrl).count
-                if count != 0 {
-                    ncCount += 7
-                    ncDeviceCount += count
-                }
-            }
-            let localRowCount = max(AirBatteryModel.groupedDisplayRowCount(allDevices), 1)
-            let airPodsRowCount = AirBatteryModel.groupedAirPodsRowCount(allDevices)
-            let menuHeight = CGFloat(
-                (max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 +
-                airPodsRowCount * 6 +
-                44 +
-                ncCount
-            )
+            contentView.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
+            contentView.layoutSubtreeIfNeeded()
+            let menuHeight = ceil(max(contentView.fittingSize.height, 1))
             let mouse = NSEvent.mouseLocation
             var menuX = mouse.x
             var menuY = mouse.y
@@ -134,7 +118,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 switch dockOrientation {
                 case "bottom":
                     // Dock 位于屏幕底部
-                    //menuX = menuX + 186 > visibleFrame.maxX ? visibleFrame.maxX - 362 : menuX - 176
                     if menuX + 186 > visibleFrame.maxX {
                         menuX = visibleFrame.maxX - 362
                     } else if menuX - 166 < visibleFrame.minX {
@@ -166,10 +149,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             dockWindow.contentView?.wantsLayer = true
             dockWindow.contentView?.layer?.cornerRadius = 7
             dockWindow.contentView?.layer?.masksToBounds = true
-            if #available(macOS 26.0, *) {
-                dockWindow.backgroundColor = .clear
-                dockWindow.isOpaque = false
-            }
             dockWindow.makeKeyAndOrderFront(nil)
         }
         return true
@@ -413,12 +392,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         let contentView = NSHostingView(
             rootView: popover(fromDock: false, allDevice: allDevices)
         )
-        contentView.frame = NSRect(
-            origin: .zero,
-            size: NSSize(
-                width: 352,
-                height: statusMenuContentHeight(for: allDevices)
-            )
+        contentView.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
+        contentView.layoutSubtreeIfNeeded()
+        contentView.frame.size.height = ceil(
+            max(contentView.fittingSize.height, 1)
         )
 
         let menuItem = NSMenuItem()
@@ -426,41 +403,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
 
         statusMenu.removeAllItems()
         statusMenu.addItem(menuItem)
-    }
-
-    private func statusMenuContentHeight(
-        for allDevices: [Device]
-    ) -> CGFloat {
-        let hiddenRow =
-            AirBatteryModel.getBlackList().isEmpty ? 0 : 1
-        let nearcastFiles = getFiles(
-            withExtension: "json",
-            in: ncFolder
-        )
-
-        var nearcastSectionHeight = 0
-        var nearcastDeviceCount = 0
-        for file in nearcastFiles {
-            let count = AirBatteryModel.ncGetAll(url: file).count
-            if count > 0 {
-                nearcastSectionHeight += 7
-                nearcastDeviceCount += count
-            }
-        }
-
-        let localRowCount = max(
-            AirBatteryModel.groupedDisplayRowCount(allDevices),
-            1
-        )
-        let airPodsRowCount =
-            AirBatteryModel.groupedAirPodsRowCount(allDevices)
-
-        return CGFloat(
-            (max(localRowCount + nearcastDeviceCount, 1) + hiddenRow) * 33 +
-                airPodsRowCount * 6 +
-                44 +
-                nearcastSectionHeight
-        )
     }
 
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
