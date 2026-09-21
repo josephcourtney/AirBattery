@@ -561,16 +561,18 @@ struct WidgetLogicalDeviceRow: View {
             )
             .font(.system(size: 11))
             .lineLimit(1)
+            .truncationMode(.tail)
             .frame(height: rowHeight, alignment: .center)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
-            HStack(spacing: 7) {
+            HStack(spacing: 6) {
                 ForEach(presentation.components.prefix(3)) { component in
                     HStack(spacing: 2) {
                         if presentation.components.count > 1 {
-                            Text(component.label)
+                            Text(widgetComponentLabel(component.role))
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
                         Text("\(component.level)%")
                             .foregroundColor(
@@ -579,6 +581,8 @@ struct WidgetLogicalDeviceRow: View {
                                     : .primary
                             )
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                         if component.charging != 0 {
                             Image(systemName: "bolt.fill")
                                 .font(.system(size: 7, weight: .bold))
@@ -586,8 +590,10 @@ struct WidgetLogicalDeviceRow: View {
                         }
                     }
                     .font(.system(size: 10))
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
+            .layoutPriority(1)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
@@ -595,6 +601,23 @@ struct WidgetLogicalDeviceRow: View {
 
     private var isStale: Bool {
         (Date().timeIntervalSince1970 - presentation.newestUpdate) / 60 > 10
+    }
+
+    private func widgetComponentLabel(
+        _ role: BatteryComponentRole
+    ) -> String {
+        switch role {
+        case .caseBattery:
+            return "Case"
+        case .leftEarbud:
+            return "L"
+        case .rightEarbud:
+            return "R"
+        case .earbuds:
+            return "Earbuds"
+        case .primary:
+            return "Battery"
+        }
     }
 
     private var accessibilitySummary: String {
