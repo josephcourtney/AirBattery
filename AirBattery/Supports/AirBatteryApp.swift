@@ -14,22 +14,22 @@ import Sparkle
 
 let fd = FileManager.default
 let ud = UserDefaults.standard
-var updaterController: SPUStandardUpdaterController!
-var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
+let updaterController = SPUStandardUpdaterController(
+    startingUpdater: true,
+    updaterDelegate: nil,
+    userDriverDelegate: nil
+)
+let netcastService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = AirBatteryModel.getNearcastURL()
 let systemUUID = getMacDeviceUUID()
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
-var keepAliveActivity: NSObjectProtocol? = nil
 
 @main
 struct AirBatteryApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
-        // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
-        // This is where you can also pass an updater delegate if you need one
-        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         registerNotificationCategory()
     }
     
@@ -49,6 +49,7 @@ struct AirBatteryApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    private var keepAliveActivity: NSObjectProtocol?
     var showOn: String {
         get { AppPreferences.showOn }
         set { AppPreferences.showOn = newValue }
