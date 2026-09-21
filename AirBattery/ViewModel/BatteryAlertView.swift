@@ -176,7 +176,7 @@ private final class BatteryAlertWindow: NSWindow {
 }
 
 final class AlertWindowController {
-    var window: BatteryAlertWindow?
+    private var window: BatteryAlertWindow?
 
     func showAlert(with alert: btAlert, iconName: String, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
         // 创建 AlertInputView，传入可选的 btAlert 对象
