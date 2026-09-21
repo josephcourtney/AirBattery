@@ -24,7 +24,12 @@ struct SettingsView: View {
                 )
         } detail: {
             detailView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .id(selectedItem)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: .topLeading
+                )
                 .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationSplitViewStyle(.balanced)
@@ -1266,7 +1271,8 @@ struct NearcastView: View {
     @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
 
     var body: some View {
-        SForm {
+        ScrollView {
+            SForm(noSpacer: true) {
             SGroupBox(label: "Nearcast") {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Share AirBattery device information with other Macs on your local network.")
@@ -1382,7 +1388,10 @@ struct NearcastView: View {
                 }
             }
         }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
+
 
     private var credentialsValid: Bool {
         isNearcastCredentialValid(
@@ -1597,20 +1606,21 @@ struct DisplayView: View {
         case "sbar":
             statusBarItem.isVisible = true
             for item in pinnedItems { item.isVisible = true }
-            NSApp.setActivationPolicy(.accessory)
         case "both":
             statusBarItem.isVisible = true
             for item in pinnedItems { item.isVisible = true }
-            NSApp.setActivationPolicy(.regular)
         case "dock":
             statusBarItem.isVisible = false
             for item in pinnedItems { item.isVisible = false }
-            NSApp.setActivationPolicy(.regular)
         default:
             statusBarItem.isVisible = false
             for item in pinnedItems { item.isVisible = false }
-            NSApp.setActivationPolicy(.accessory)
         }
+
+        syncAirBatteryActivationPolicy(
+            surfaceSelection: newValue,
+            settingsVisible: true
+        )
 
         if newValue == "dock" || newValue == "both" {
             _ = createAlert(
