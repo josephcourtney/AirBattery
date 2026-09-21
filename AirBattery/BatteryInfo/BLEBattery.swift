@@ -81,7 +81,7 @@
 //  21~22: 未知
 //  23~24: 未知
 //  =================================================
-import SwiftUI
+import Combine
 import Foundation
 import CoreBluetooth
 
@@ -431,12 +431,11 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
 }
 
 class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
-    @AppStorage("ideviceOverBLE") var ideviceOverBLE = false
-    //@AppStorage("cStatusOfBLE") var cStatusOfBLE = false
-    @AppStorage("readBTDevice") var readBTDevice = true
-    @AppStorage("readBLEDevice") var readBLEDevice = false
-    @AppStorage("bleDiscoveryMode") var bleDiscoveryMode = BLEDiscoveryMode.review.rawValue
-    @AppStorage("updateInterval") var updateInterval = 1
+    var ideviceOverBLE: Bool { AppPreferences.ideviceOverBLE }
+    var readBTDevice: Bool { AppPreferences.readBTDevice }
+    var readBLEDevice: Bool { AppPreferences.readBLEDevice }
+    var bleDiscoveryMode: String { AppPreferences.bleDiscoveryMode }
+    var updateInterval: Int { AppPreferences.updateInterval }
     
     var centralManager: CBCentralManager!
     var peripherals: [CBPeripheral?] = []
