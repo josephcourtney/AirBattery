@@ -21,7 +21,7 @@ class listAll: NSScriptCommand {
 
 class reloadAll: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        Thread.detachNewThread {
+        DispatchQueue.global(qos: .utility).async {
             print("Reloading all widgets...")
             AirBatteryModel.writeData()
             WidgetCenter.shared.reloadAllTimelines()
@@ -31,7 +31,9 @@ class reloadAll: NSScriptCommand {
 
 class getUsage: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        let device = self.evaluatedArguments!["name"] as! String
+        guard let device = evaluatedArguments?["name"] as? String else {
+            return -1
+        }
         var allDevices = AirBatteryModel.getAll(noFilter: true)
         let ibStatus = InternalBattery.status
         if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
@@ -44,7 +46,9 @@ class getUsage: NSScriptCommand {
 
 class getStatus: NSScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        let device = self.evaluatedArguments!["name"] as! String
+        guard let device = evaluatedArguments?["name"] as? String else {
+            return -1
+        }
         var allDevices = AirBatteryModel.getAll(noFilter: true)
         let ibStatus = InternalBattery.status
         if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
