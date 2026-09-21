@@ -1196,89 +1196,176 @@ struct DevicesView: View {
 
 struct NearcastView: View {
     @AppStorage("nearCast") var nearCast = false
-    @AppStorage("ncGroupID") var ncGroupID = ""
-    @State var debug: Bool = false
-    
+    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
+    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
+
     var body: some View {
         SForm {
             SGroupBox(label: "Nearcast") {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Share AirBattery device information with other Macs on your local network.")
+                        .font(.footnote)
+                    Text("Only Macs using the same Group ID and Sharing Key can read the shared battery information.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider().opacity(0.5)
+
                 SToggle("Enable Nearcast", isOn: $nearCast)
-                    .onChange(of: nearCast) { newValue in
-                        if newValue {
-                            if ncGroupID != "" && isGroudIDValid(id: ncGroupID) {
-                                netcastService.resume()
-                            } else {
-                                DispatchQueue.main.async { nearCast = false; ncGroupID = "" }
+                    .onChange(of: nearCast) { enabled in
+                        if enabled {
+                            guard isNearcastCredentialValid(
+                                groupID: nearcastGroupID,
+                                sharingKey: nearcastSharingKey
+                            ) else {
+                                DispatchQueue.main.async { nearCast = false }
                                 _ = createAlert(
-                                    title: "Invalid group ID".local,
-                                    message: "Please create or enter a valid Group ID before use!",
+                                    title: "Nearcast setup incomplete".local,
+                                    message: "Generate or enter a valid Group ID and Sharing Key before enabling Nearcast.",
                                     button1: "OK".local
                                 ).runModal()
+                                return
                             }
+                            netcastService.resume()
                         } else {
                             netcastService.stop()
                         }
                     }
+
                 Divider().opacity(0.5)
-                HStack(spacing: 4) {
-                    SField("Group ID", text: $ncGroupID).disabled(nearCast)
-                    Button(action: {
-                        ncGroupID = "nc-" + randomString(length: 20)
-                    }, label: {
-                        if ncGroupID != "" {
-                            Image(systemName: "arrow.clockwise.circle")
-                                .font(.system(size: 15, weight: .light))
-                        } else {
-                            Image(systemName: "plus.circle")
-                                .font(.system(size: 15, weight: .light))
-                        }
-                    })
-                    .buttonStyle(.plain)
+
+                credentialRow(
+                    label: "Group ID",
+                    value: $nearcastGroupID,
+                    secure: false,
+                    copyLabel: "Copy Group ID"
+                )
+
+                Divider().opacity(0.5)
+
+                credentialRow(
+                    label: "Sharing Key",
+                    value: $nearcastSharingKey,
+                    secure: true,
+                    copyLabel: "Copy Sharing Key"
+                )
+
+                Divider().opacity(0.5)
+
+                HStack(spacing: 8) {
+                    Button("Generate New") {
+                        let credentials = generateNearcastCredentials()
+                        nearcastGroupID = credentials.groupID
+                        nearcastSharingKey = credentials.sharingKey
+                        ud.set("", forKey: "ncGroupID")
+                    }
                     .disabled(nearCast)
-                    Button(action: {
-                        if ncGroupID != "" && isGroudIDValid(id: ncGroupID) {
-                            copyToClipboard(ncGroupID)
-                            _ = createAlert(title: "Group ID Copied".local,
-                                            message: String(format: "Group ID has been copied to the clipboard.".local, ncGroupID),
-                                            button1: "OK".local).runModal()
-                        } else {
-                            DispatchQueue.main.async { ncGroupID = "" }
+                    .help("Generate a new Nearcast group and a new private sharing key.")
+
+                    Button("Copy Setup") {
+                        guard let code = nearcastSetupCode(
+                            groupID: nearcastGroupID,
+                            sharingKey: nearcastSharingKey
+                        ) else {
+                            showInvalidCredentials()
+                            return
+                        }
+                        copyToClipboard(code)
+                    }
+                    .disabled(!credentialsValid)
+                    .help("Copy the Group ID and Sharing Key together as a setup code.")
+
+                    Button("Paste Setup") {
+                        guard let text = pasteFromClipboard(),
+                              let credentials = parseNearcastSetupCode(text)
+                        else {
                             _ = createAlert(
-                                title: "Invalid group ID".local,
-                                message: "Please create or enter a valid Group ID before use!",
+                                title: "Invalid Nearcast setup".local,
+                                message: "The clipboard does not contain a valid AirBattery Nearcast setup code.",
                                 button1: "OK".local
                             ).runModal()
+                            return
                         }
-                    }, label: {
-                        Image("list.clipboard.fill.circle")
-                            .resizable().scaledToFit()
-                            .frame(width: 15, height: 15)
-                    }).buttonStyle(.plain)
-                }.frame(height: 16)
-                Divider().opacity(0.5)
-                VStack(spacing: 2) {
-                    Text("Nearcast will broadcast your battery data within the local network.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    Text("Your data has been encrypted using the group id, don't share it with others.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            SGroupBox(label: "Peer Info") {
-                HStack {
-                    Text("Local ID")
+                        nearcastGroupID = credentials.groupID
+                        nearcastSharingKey = credentials.sharingKey
+                    }
+                    .disabled(nearCast)
+                    .help("Import a Nearcast setup code copied from another Mac.")
+
                     Spacer()
-                    Text(netcastService.transceiver.localPeerId ?? "")
+                }
+
+                Text("The Group ID identifies the Nearcast group and is not secret. Keep the Sharing Key private; anyone with both values can join the group and decrypt its shared battery information.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            SGroupBox(label: "Connection") {
+                HStack {
+                    Text("Local peer")
+                    Spacer()
+                    Text(netcastService.transceiver.localPeerId ?? "Not active")
                         .font(.callout)
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        .truncationMode(.middle)
                         .foregroundColor(.secondary)
+                        .textSelection(.enabled)
                 }
             }
         }
+        .onAppear {
+            migrateLegacyNearcastCredentialsIfNeeded()
+        }
+    }
+
+    private var credentialsValid: Bool {
+        isNearcastCredentialValid(
+            groupID: nearcastGroupID,
+            sharingKey: nearcastSharingKey
+        )
+    }
+
+    @ViewBuilder
+    private func credentialRow(
+        label: String,
+        value: Binding<String>,
+        secure: Bool,
+        copyLabel: String
+    ) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+            Spacer()
+            Group {
+                if secure {
+                    SecureField("", text: value)
+                } else {
+                    TextField("", text: value)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 330)
+            .disabled(nearCast)
+
+            Button("Copy") {
+                guard !value.wrappedValue.isEmpty else { return }
+                copyToClipboard(value.wrappedValue)
+            }
+            .disabled(value.wrappedValue.isEmpty)
+            .help(copyLabel)
+            .accessibilityLabel(copyLabel)
+        }
+        .frame(minHeight: 28)
+    }
+
+    private func showInvalidCredentials() {
+        _ = createAlert(
+            title: "Invalid Nearcast setup".local,
+            message: "Generate or enter a valid Group ID and Sharing Key first.",
+            button1: "OK".local
+        ).runModal()
     }
 }
 
