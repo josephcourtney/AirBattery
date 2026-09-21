@@ -54,27 +54,46 @@ struct AirBatteryApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     //static let shared = AppDelegate()
-    @AppStorage("showOn") var showOn = "sbar"
-    @AppStorage("machineType") var machineType = "mac"
-    @AppStorage("deviceName") var deviceName = "Mac"
-    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
-    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
-    @AppStorage("nearCast") var nearCast = false
-    @AppStorage("launchAtLogin") var launchAtLogin = false
-    @AppStorage("intBattOnStatusBar") var intBattOnStatusBar = true
-    @AppStorage("batteryPercent") var batteryPercent = "outside"
-    @AppStorage("alertSound") var alertSound = true
-    @AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("hideLevel") var hideLevel = 90
-    @AppStorage("disappearTime") var disappearTime = 20
-    @AppStorage("whitelistMode") var whitelistMode = false
-    @AppStorage("iosBatteryStyle") var iosBatteryStyle = false
-    @AppStorage("updateInterval") var updateInterval = 1
-    @AppStorage("carouselMode") var carouselMode = true
-    
-    //加载旧版设置项
-    @AppStorage("alertLevel") var alertLevel = 10
-    @AppStorage("fullyLevel") var fullyLevel = 100
+    var showOn: String {
+        get { AppPreferences.showOn }
+        set { AppPreferences.showOn = newValue }
+    }
+    var machineType: String {
+        get { AppPreferences.machineType }
+        set { AppPreferences.machineType = newValue }
+    }
+    var deviceName: String {
+        get { AppPreferences.deviceName }
+        set { AppPreferences.deviceName = newValue }
+    }
+    var nearcastGroupID: String {
+        get { AppPreferences.nearcastGroupID }
+        set { AppPreferences.nearcastGroupID = newValue }
+    }
+    var nearcastSharingKey: String {
+        get { AppPreferences.nearcastSharingKey }
+        set { AppPreferences.nearcastSharingKey = newValue }
+    }
+    var nearCast: Bool {
+        get { AppPreferences.nearCast }
+        set { AppPreferences.nearCast = newValue }
+    }
+    var launchAtLogin: Bool {
+        get { AppPreferences.launchAtLogin }
+        set { AppPreferences.launchAtLogin = newValue }
+    }
+    var intBattOnStatusBar: Bool { AppPreferences.intBattOnStatusBar }
+    var batteryPercent: String { AppPreferences.batteryPercent }
+    var alertSound: Bool { AppPreferences.alertSound }
+    var readBTHID: Bool { AppPreferences.readBTHID }
+    var hideLevel: Int { AppPreferences.hideLevel }
+    var disappearTime: Int { AppPreferences.disappearTime }
+    var whitelistMode: Bool { AppPreferences.whitelistMode }
+    var iosBatteryStyle: Bool { AppPreferences.iosBatteryStyle }
+    var updateInterval: Int { AppPreferences.updateInterval }
+    var carouselMode: Bool { AppPreferences.carouselMode }
+    var alertLevel: Int { AppPreferences.alertLevel }
+    var fullyLevel: Int { AppPreferences.fullyLevel }
     
     var statusMenu = NSMenu()
     var menu = NSMenu()
