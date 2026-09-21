@@ -8,6 +8,7 @@ signing_identity := env("SIGNING_IDENTITY", "")
 app_bundle_id := "com.josephcourtney.AirBattery"
 widget_bundle_id := "com.josephcourtney.AirBattery.widget"
 helper_bundle_id := "com.josephcourtney.AirBatteryHelper"
+install_state_dir := ".build/install-state"
 
 # List available recipes.
 default:
@@ -156,26 +157,32 @@ release: (build "Release")
 signing-identities:
     @/usr/bin/security find-identity -v -p codesigning
 
+# Print the signing identity that local signed builds will use.
+# SIGNING_IDENTITY overrides automatic Apple Development identity discovery.
+signing-identity:
+    @requested="{{signing_identity}}"; \
+      if [[ -n "$requested" ]]; then \
+        printf '%s\n' "$requested"; \
+        exit 0; \
+      fi; \
+      identity="$(/usr/bin/security find-identity -v -p codesigning | \
+        /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*)"$/\1/p' | \
+        /usr/bin/head -n 1)"; \
+      if [[ -z "$identity" ]]; then \
+        printf '%s\n' \
+          "No Apple Development signing identity is installed." \
+          "Run 'just signing-identities' to inspect available identities." >&2; \
+        exit 1; \
+      fi; \
+      printf '%s\n' "$identity"
+
 # Build with Xcode's reliable ad-hoc path, then re-sign every nested code object
 # from the inside out with a stable Apple Development identity. This avoids
 # Xcode account/provisioning requirements while giving TCC a persistent signer.
 # Set SIGNING_IDENTITY explicitly to override discovery; '-' is for CI only.
 build-signed configuration="Debug":
     just build-adhoc "{{configuration}}"
-    @requested="{{signing_identity}}"; \
-      if [[ -n "$requested" ]]; then \
-        identity="$requested"; \
-      else \
-        identity="$(/usr/bin/security find-identity -v -p codesigning | \
-          /usr/bin/sed -nE 's/^[[:space:]]*[0-9]+\) [0-9A-F]+ "([^"]*Apple Development:[^"]*)"$/\1/p' | \
-          /usr/bin/head -n 1)"; \
-        if [[ -z "$identity" ]]; then \
-          printf '%s\n' \
-            "No Apple Development signing identity is installed." \
-            "Run 'just signing-identities' to inspect available identities." >&2; \
-          exit 1; \
-        fi; \
-      fi; \
+    @identity="$(just signing-identity)"; \
       app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       test -d "$app" || { echo "Missing $app after ad-hoc build." >&2; exit 1; }; \
       printf 'Re-signing with: %s\n' "$identity"; \
@@ -274,6 +281,133 @@ verify-signing configuration="Debug":
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$helper/Contents/Info.plist")" == "{{helper_bundle_id}}" ]] || { echo "Unexpected helper bundle identifier." >&2; exit 1; }; \
       printf '%s\n' "Signed app:    {{app_bundle_id}}" "Signed widget: {{widget_bundle_id}}" "Signed helper: {{helper_bundle_id}}"
 
+# Compute the semantic fingerprint of a locally installed build.
+# This intentionally hashes only build inputs, not documentation/tests or build caches.
+# Tracked files use Git's cached object IDs plus any worktree diff; only untracked
+# build-input files need to be read and hashed on every check.
+install-fingerprint configuration="Debug":
+    @configuration="{{configuration}}"; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      identity="$(just signing-identity)"; \
+      vendor_arch="${AIRBATTERY_VENDOR_ARCH:-$(uname -m)}"; \
+      vendor_min="${AIRBATTERY_VENDOR_MACOS_MIN:-15.0}"; \
+      { \
+        printf '%s\n' \
+          'schema=2' \
+          "configuration=$configuration" \
+          "install_dir=$install_dir" \
+          "signing_identity=$identity" \
+          "host_arch=$(uname -m)" \
+          "vendor_arch=$vendor_arch" \
+          "vendor_macos_min=$vendor_min" \
+          "developer_dir=${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || true)}" \
+          "xcode=$(xcodebuild -version 2>/dev/null | /usr/bin/tr '\n' '|')" \
+          "sdk=$(xcrun --sdk macosx --show-sdk-version 2>/dev/null)" \
+          "sdk_path=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null)" \
+          "swift=$(xcrun swiftc --version 2>/dev/null | /usr/bin/head -n 1)"; \
+        printf '%s\n' '--- tracked build inputs ---'; \
+        git ls-files -s -- \
+          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
+        printf '%s\n' '--- worktree build-input diff ---'; \
+        git diff --no-ext-diff --binary -- \
+          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
+        printf '%s\n' '--- untracked build inputs ---'; \
+        while IFS= read -r -d '' path; do \
+          if [[ -L "$path" ]]; then \
+            printf 'symlink\t%s\t%s\n' "$path" "$(readlink "$path")"; \
+          elif [[ -f "$path" ]]; then \
+            printf 'file\t%s\t%s\t%s\n' \
+              "$path" \
+              "$(/usr/bin/stat -f '%Lp' "$path")" \
+              "$(git hash-object -- "$path")"; \
+          else \
+            printf 'missing\t%s\n' "$path"; \
+          fi; \
+        done < <(git ls-files -o --exclude-standard -z -- \
+          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules); \
+        printf '%s\n' '--- submodules ---'; \
+        git config -f .gitmodules --get-regexp path | /usr/bin/awk '{print $2}' | \
+          while read -r path; do \
+            expected="$(git ls-files --stage -- "$path" | /usr/bin/awk '{print $2}')"; \
+            if git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then \
+              actual="$(git -C "$path" rev-parse HEAD)"; \
+            else \
+              actual='<not-initialized>'; \
+            fi; \
+            printf '%s\t%s\t%s\n' "$path" "$expected" "$actual"; \
+          done; \
+      } | /usr/bin/shasum -a 256 | /usr/bin/awk '{print $1}'
+
+# Exit successfully only when the installed app exactly matches current build inputs
+# and has not been replaced, modified, or had one of its embedded products removed.
+installed-current configuration="Debug":
+    @configuration="{{configuration}}"; \
+      state="{{install_state_dir}}/$configuration.state"; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      app="$install_dir/AirBattery.app"; \
+      widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      helper="$app/Contents/Library/LoginItems/AirBatteryHelper.app"; \
+      [[ -f "$state" && -d "$app" && -d "$widget" && -d "$helper" ]] || exit 1; \
+      recorded_path="$(/usr/bin/sed -n 's/^app_path=//p' "$state")"; \
+      [[ "$recorded_path" == "$app" ]] || exit 1; \
+      recorded_fp="$(/usr/bin/sed -n 's/^fingerprint=//p' "$state")"; \
+      expected_fp="$(just install-fingerprint "$configuration")"; \
+      [[ -n "$recorded_fp" && "$recorded_fp" == "$expected_fp" ]] || exit 1; \
+      /usr/bin/codesign --verify --deep --strict "$app" >/dev/null 2>&1 || exit 1; \
+      [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null)" == "{{app_bundle_id}}" ]] || exit 1; \
+      [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$widget/Contents/Info.plist" 2>/dev/null)" == "{{widget_bundle_id}}" ]] || exit 1; \
+      [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$helper/Contents/Info.plist" 2>/dev/null)" == "{{helper_bundle_id}}" ]] || exit 1; \
+      recorded_cdhash="$(/usr/bin/sed -n 's/^cdhash=//p' "$state")"; \
+      actual_cdhash="$(/usr/bin/codesign -dvvv "$app" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -n 1)"; \
+      [[ -n "$recorded_cdhash" && "$recorded_cdhash" == "$actual_cdhash" ]] || exit 1
+
+# Record a successfully installed and verified app atomically.
+install-state-write configuration="Debug":
+    @configuration="{{configuration}}"; \
+      state_dir="{{install_state_dir}}"; \
+      state="$state_dir/$configuration.state"; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      app="$install_dir/AirBattery.app"; \
+      /usr/bin/codesign --verify --deep --strict "$app" >/dev/null; \
+      fingerprint="$(just install-fingerprint "$configuration")"; \
+      cdhash="$(/usr/bin/codesign -dvvv "$app" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -n 1)"; \
+      [[ -n "$cdhash" ]] || { echo "Unable to determine installed app CDHash." >&2; exit 1; }; \
+      mkdir -p "$state_dir"; \
+      tmp="$state.tmp.$"; \
+      trap 'rm -f "$tmp"' EXIT; \
+      printf '%s\n' \
+        'schema=2' \
+        "configuration=$configuration" \
+        "app_path=$app" \
+        "fingerprint=$fingerprint" \
+        "cdhash=$cdhash" > "$tmp"; \
+      /bin/mv "$tmp" "$state"; \
+      trap - EXIT
+
+# Explain the cached-install decision without modifying or rebuilding anything.
+install-state configuration="Debug":
+    @configuration="{{configuration}}"; \
+      state="{{install_state_dir}}/$configuration.state"; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      app="$install_dir/AirBattery.app"; \
+      expected="$(just install-fingerprint "$configuration")"; \
+      recorded=''; \
+      [[ -f "$state" ]] && recorded="$(/usr/bin/sed -n 's/^fingerprint=//p' "$state")"; \
+      printf '%s\n' \
+        "Configuration: $configuration" \
+        "Installed app: $app" \
+        "State file:    $state" \
+        "Expected:      $expected" \
+        "Recorded:      ${recorded:-<none>}"; \
+      if just installed-current "$configuration" >/dev/null 2>&1; then \
+        printf '%s\n' 'Status:        current'; \
+      else \
+        printf '%s\n' 'Status:        stale or invalid'; \
+      fi
+
 # Stop the containing app and login helper while leaving the WidgetKit extension
 # alone. During an install, killing the extension before the replacement bundle
 # exists can make WidgetKit immediately relaunch the old registered extension.
@@ -302,10 +436,9 @@ stop: stop-host
     done; \
     /usr/bin/pkill -KILL -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
 
-# Build and stage the complete signed app before touching the installed bundle.
-# The old widget extension remains runnable until the new bundle occupies the
-# registered path, preventing ExtensionFoundation from seeing a missing or
-# partially copied extension during long builds.
+# Build and atomically install the complete signed app, then clean disposable
+# widget registrations and register the installed extension. A successful install
+# records enough state for subsequent 'just run' calls to skip all build/install work.
 install-local configuration="Debug":
     just build-signed "{{configuration}}"
     @src="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
@@ -342,21 +475,34 @@ install-local configuration="Debug":
       /usr/bin/pkill -TERM -x AirBatteryWidgetExtension >/dev/null 2>&1 || true; \
       trap - EXIT; \
       printf '%s\n' "$dst"
-
-# Build the replacement completely, perform the short staged handoff, then
-# launch exactly one signed local build. The containing app launch registers the
-# newly installed WidgetKit extension.
-run configuration="Debug":
-    just install-local "{{configuration}}"
     just widget-registration-clean
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      app="$install_dir/AirBattery.app"; \
-      widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      widget="$install_dir/AirBattery.app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
       /usr/bin/pluginkit -a "$widget" >/dev/null 2>&1 || true; \
       /usr/bin/pluginkit -e use \
         -p com.apple.widgetkit-extension \
-        -i "{{widget_bundle_id}}" >/dev/null 2>&1 || true; \
-      /usr/bin/open "$app"
+        -i "{{widget_bundle_id}}" >/dev/null 2>&1 || true
+    just install-state-write "{{configuration}}"
+
+# Launch the current installed app. Rebuild/re-sign/reinstall only when source,
+# project, native dependencies, toolchain, signing identity, configuration, or
+# the installed bundle itself no longer matches the recorded successful install.
+run configuration="Debug":
+    @configuration="{{configuration}}"; \
+      if just installed-current "$configuration" >/dev/null 2>&1; then \
+        printf '%s\n' "AirBattery $configuration install is current; skipping build and install."; \
+      else \
+        printf '%s\n' "AirBattery $configuration install is stale; rebuilding and installing."; \
+        just install-local "$configuration"; \
+      fi; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      /usr/bin/open "$install_dir/AirBattery.app"
+
+# Explicitly bypass the install cache.
+run-force configuration="Debug":
+    just install-local "{{configuration}}"
+    @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      /usr/bin/open "$install_dir/AirBattery.app"
 
 # Reset macOS Bluetooth privacy consent for this fork.
 # The next launch/use of CoreBluetooth should request permission again.
@@ -430,7 +576,8 @@ widget-registration-status:
 uninstall-local:
     just stop
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      rm -rf "$install_dir/AirBattery.app"
+      rm -rf "$install_dir/AirBattery.app"; \
+      rm -rf "{{install_state_dir}}"
 
 # Run deterministic hostless XCTest coverage. This does not launch AirBattery
 # and does not require Bluetooth or mobile hardware.
@@ -486,5 +633,5 @@ app-path configuration="Debug":
 
 # Remove local Xcode build products, generated native vendor products, and package checkouts.
 clean:
-    rm -rf "{{derived_data}}"
+    rm -rf "{{derived_data}}" "{{install_state_dir}}"
     just vendor-mobile-clean
