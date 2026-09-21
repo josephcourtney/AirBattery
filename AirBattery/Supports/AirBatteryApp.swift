@@ -420,6 +420,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         statusMenu.addItem(menuItem)
     }*/
     
+    @MainActor
     @objc func togglePopover(_ sender: Any?) {
         if menuBarWindow?.isVisible == true {
             dismissMenuBarWindow()
@@ -446,6 +447,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         )
     }
 
+    @MainActor
     private func showMenuBarWindow(
         at screenPoint: NSPoint,
         on screen: NSScreen,
@@ -529,6 +531,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         installMenuBarWindowDismissalMonitors(panel)
     }
 
+    @MainActor
     private func installMenuBarWindowDismissalMonitors(_ panel: NSPanel) {
         menuBarGlobalMouseMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
