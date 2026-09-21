@@ -58,16 +58,6 @@ final class SettingsWindowController: NSWindowController {
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
 
-        DispatchQueue.main.async {
-            guard let splitView = findNSSplitVIew(view: window.contentView),
-                  let controller = splitView.delegate as? NSSplitViewController
-            else {
-                return
-            }
-            controller.splitViewItems.first?.canCollapse = false
-            controller.splitViewItems.first?.minimumThickness = 190
-            controller.splitViewItems.first?.maximumThickness = 190
-        }
     }
 }
 
