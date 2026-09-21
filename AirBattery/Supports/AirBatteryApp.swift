@@ -22,6 +22,7 @@ let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appen
 let systemUUID = getMacDeviceUUID()
 var dockWindow = AutoHideWindow()
 var menuPopover = NSPopover()
+var menuPopoverAnchorPanel: NSPanel?
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var updateDelay = 1
@@ -53,7 +54,7 @@ struct AirBatteryApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDelegate, UNUserNotificationCenterDelegate {
     //static let shared = AppDelegate()
     @AppStorage("showOn") var showOn = "sbar"
     @AppStorage("machineType") var machineType = "mac"
@@ -195,11 +196,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         )
         
         updateDelay = updateInterval
+        menuPopover.delegate = self
         machineType = getMacDeviceType()
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
-        if showOn == "dock" || showOn == "both" { NSApp.setActivationPolicy(.regular) }
+        syncAirBatteryActivationPolicy(
+            surfaceSelection: showOn,
+            settingsVisible: false
+        )
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withTimeZone]
         menu.addItem(withTitle:"Settings...".local, action: #selector(openSetting), keyEquivalent: "")
         menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
@@ -401,26 +406,106 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     }*/
     
     @objc func togglePopover(_ sender: Any?) {
-        if let button = statusBarItem.button, !menuPopover.isShown {
-            var allDevices = AirBatteryModel.getAll()
-            let ibStatus = InternalBattery.status
-            if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
-            let contentView = NSHostingController(rootView: popover(fromDock: false, allDevice: allDevices))
-            menuPopover.setValue(true, forKeyPath: "shouldHideAnchor")
-            menuPopover.contentViewController = contentView
-            menuPopover.behavior = .transient
-            var bound = button.bounds
-            if getMenuBarHeight() == 24.0 { bound.origin.y -= 6 }
-            menuPopover.show(relativeTo: bound, of: button, preferredEdge: .minY)
-            //menuPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            if #available(macOS 26.0, *) {
-                menuPopover.contentViewController?.view.window?.isOpaque = false
-                menuPopover.contentViewController?.view.window?.backgroundColor = .clear
-            }
-            menuPopover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
+        guard !menuPopover.isShown else {
+            menuPopover.performClose(nil)
+            return
+        }
+
+        var allDevices = AirBatteryModel.getAll()
+        let ibStatus = InternalBattery.status
+        if ibStatus.hasBattery {
+            allDevices.insert(ib2ab(ibStatus), at: 0)
+        }
+
+        let contentView = NSHostingController(
+            rootView: popover(fromDock: false, allDevice: allDevices)
+        )
+        menuPopover.setValue(true, forKeyPath: "shouldHideAnchor")
+        menuPopover.contentViewController = contentView
+        menuPopover.behavior = .transient
+
+        let mouseLocation = NSEvent.mouseLocation
+        if let screen = NSScreen.screens.first(where: {
+            NSMouseInRect(mouseLocation, $0.frame, false)
+        }) {
+            showMenuPopover(
+                at: mouseLocation,
+                on: screen
+            )
+        } else if let button = statusBarItem.button {
+            menuPopover.show(
+                relativeTo: button.bounds,
+                of: button,
+                preferredEdge: .minY
+            )
+        }
+
+        if #available(macOS 26.0, *) {
+            menuPopover.contentViewController?.view.window?.isOpaque = false
+            menuPopover.contentViewController?.view.window?.backgroundColor = .clear
         }
     }
-    
+
+    private func showMenuPopover(
+        at screenPoint: NSPoint,
+        on screen: NSScreen
+    ) {
+        menuPopoverAnchorPanel?.orderOut(nil)
+        menuPopoverAnchorPanel = nil
+
+        let anchorSize = NSSize(width: 2, height: 2)
+        let x = min(
+            max(screenPoint.x - anchorSize.width / 2, screen.frame.minX + 2),
+            screen.frame.maxX - anchorSize.width - 2
+        )
+        let y = min(
+            max(screenPoint.y - anchorSize.height / 2, screen.frame.minY + 2),
+            screen.frame.maxY - anchorSize.height - 2
+        )
+
+        let panel = NSPanel(
+            contentRect: NSRect(
+                x: x,
+                y: y,
+                width: anchorSize.width,
+                height: anchorSize.height
+            ),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false,
+            screen: screen
+        )
+        panel.level = .statusBar
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [
+            .canJoinAllSpaces,
+            .fullScreenAuxiliary,
+            .stationary
+        ]
+
+        let anchorView = NSView(
+            frame: NSRect(origin: .zero, size: anchorSize)
+        )
+        panel.contentView = anchorView
+        panel.orderFrontRegardless()
+        menuPopoverAnchorPanel = panel
+
+        menuPopover.show(
+            relativeTo: anchorView.bounds,
+            of: anchorView,
+            preferredEdge: .minY
+        )
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        menuPopoverAnchorPanel?.orderOut(nil)
+        menuPopoverAnchorPanel = nil
+    }
+
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
         if let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
            let url = URL(string: urlString) {
