@@ -662,7 +662,6 @@ class AirBatteryModel {
     }
 
     static func writeData(){
-        //let showMac = ud.object(forKey: "showMacOnWidget") as? Bool ?? true
         let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
 
         let ibStatus = InternalBattery.status
