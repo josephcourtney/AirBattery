@@ -416,7 +416,15 @@ widget-registration-clean:
 
 # Show every physical registration for the AirBattery WidgetKit extension.
 widget-registration-status:
-    @/usr/bin/pluginkit -m -A -D -vv -p com.apple.widgetkit-extension -i "{{widget_bundle_id}}" || true
+    @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      widget="$install_dir/AirBattery.app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      if [[ -d "$widget" ]]; then \
+        printf '%s\n' "--- Installed widget bundle version ---"; \
+        /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$widget/Contents/Info.plist" 2>/dev/null || true; \
+        /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$widget/Contents/Info.plist" 2>/dev/null || true; \
+      fi; \
+      printf '%s\n' "--- PlugInKit registrations ---"; \
+      /usr/bin/pluginkit -m -A -D -vv -p com.apple.widgetkit-extension -i "{{widget_bundle_id}}" || true
 
 # Remove the locally installed development build.
 uninstall-local:
