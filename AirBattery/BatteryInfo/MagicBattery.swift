@@ -4,7 +4,6 @@
 //
 //  Created by apple on 2024/2/9.
 //
-import SwiftUI
 import Foundation
 import IOBluetooth
 
@@ -26,10 +25,9 @@ class MagicBattery {
     static var shared: MagicBattery = MagicBattery()
     
     //var scanTimer: Timer?
-    @AppStorage("readBTDevice") var readBTDevice = true
-    //@AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("updateInterval") var updateInterval = 1
-    @AppStorage("deviceName") var deviceName = "Mac"
+    var readBTDevice: Bool { AppPreferences.readBTDevice }
+    var updateInterval: Int { AppPreferences.updateInterval }
+    var deviceName: String { AppPreferences.deviceName }
     
     func startScan() {
         //let interval = TimeInterval(59.0 * updateInterval)
