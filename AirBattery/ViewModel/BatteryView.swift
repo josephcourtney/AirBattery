@@ -62,6 +62,22 @@ struct mainBatteryView: View {
     @AppStorage("test_iblevel") var test_iblevel = 100
     
     @State var factor = 0.0
+
+    private var menuBarSummary: String {
+        guard item.hasBattery && intBattOnStatusBar else {
+            return "AirBattery — open battery overview"
+        }
+        var parts = ["AirBattery — This Mac \(item.batteryLevel) percent"]
+        if item.lowPower {
+            parts.append("Low Power Mode")
+        }
+        if item.isCharging {
+            parts.append("charging")
+        } else if item.isCharged {
+            parts.append("fully charged")
+        }
+        return parts.joined(separator: ", ")
+    }
     
     var body: some View {
         HStack(alignment: .center, spacing:4){
@@ -149,6 +165,9 @@ struct mainBatteryView: View {
                     .frame(width: 16, height: 16)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(menuBarSummary))
+        .help(menuBarSummary)
         .onReceive(dockTimer) { t in refeshPinnedBar() }
         .onReceive(mainTimer) { t in
             if item.hasBattery {
@@ -161,6 +180,7 @@ struct mainBatteryView: View {
                         InternalBattery.status = getPowerState()
                     }
                     item = InternalBattery.status
+                    statusBarItem.button?.toolTip = menuBarSummary
                     if batteryPercent != "outside" {
                         if width != 42 { setStatusBar(width: 42) }
                     } else {
