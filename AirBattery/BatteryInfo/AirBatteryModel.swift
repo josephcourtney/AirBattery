@@ -415,12 +415,21 @@ class AirBatteryModel {
     }
 
     static func isAirPodsSecondaryRow(_ device: Device, in devices: [Device]) -> Bool {
-        guard device.deviceType.hasPrefix("ap_pod"),
-              airPodsGroup(for: device, in: devices) != nil
+        guard let group = airPodsGroup(for: device, in: devices),
+              let representative =
+                group.caseDevice ??
+                group.leftEarbud ??
+                group.rightEarbud ??
+                group.legacyMergedEarbuds
         else {
             return false
         }
-        return true
+
+        return !(
+            representative.deviceID == device.deviceID &&
+            representative.deviceType == device.deviceType &&
+            representative.deviceName == device.deviceName
+        )
     }
 
     static func groupedDisplayRowCount(_ devices: [Device]) -> Int {
