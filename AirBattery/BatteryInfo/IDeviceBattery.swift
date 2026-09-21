@@ -4,16 +4,16 @@
 //
 //  Created by apple on 2024/2/6.
 //
-import SwiftUI
+import Combine
 import Foundation
 
 class IDeviceBattery: ObservableObject {
     static var shared: IDeviceBattery = IDeviceBattery()
     
     //var scanTimer: Timer?
-    @AppStorage("readPencil") var readPencil = false
-    @AppStorage("readIDevice") var readIDevice = true
-    @AppStorage("updateInterval") var updateInterval = 1
+    var readPencil: Bool { AppPreferences.readPencil }
+    var readIDevice: Bool { AppPreferences.readIDevice }
+    var updateInterval: Int { AppPreferences.updateInterval }
     @Published private(set) var discoveryCandidates: [IDeviceDiscoveryCandidate] = []
 
     private let scanGate = ExclusiveScanGate()
