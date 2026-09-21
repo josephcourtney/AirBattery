@@ -233,6 +233,99 @@ struct SurfaceBatteryGlyph: View {
     }
 }
 
+struct PopoverToolbarSurfaceContent: View {
+    var fromDock = false
+    var nearcastEnabled = false
+    let onHide: () -> Void
+    let onAbout: () -> Void
+    let onSettings: () -> Void
+    let onQuit: () -> Void
+    let onRefreshNearcast: () -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            if fromDock {
+                PopoverToolbarSurfaceButton(
+                    systemName: "minus.circle",
+                    help: "Hide".local,
+                    hoverColor: .myYellow,
+                    action: onHide
+                )
+            }
+
+            PopoverToolbarSurfaceButton(
+                systemName: "info.circle",
+                help: "About AirBattery".local,
+                action: onAbout
+            )
+
+            PopoverToolbarSurfaceButton(
+                systemName: "gearshape",
+                help: "Settings".local,
+                action: onSettings
+            )
+
+            PopoverToolbarSurfaceButton(
+                systemName: "xmark.circle",
+                help: "Quit AirBattery".local,
+                hoverColor: .red,
+                action: onQuit
+            )
+
+            Spacer()
+
+            if nearcastEnabled {
+                PopoverToolbarSurfaceButton(
+                    systemName:
+                        "antenna.radiowaves.left.and.right.circle",
+                    help: "Refresh Nearcast".local,
+                    action: onRefreshNearcast
+                )
+            }
+        }
+        .padding(.top, fromDock ? 8 : 6)
+        .padding(.bottom, 4)
+        .padding(.horizontal, 8)
+    }
+}
+
+private struct PopoverToolbarSurfaceButton: View {
+    let systemName: String
+    let help: String
+    var hoverColor: Color = .accentColor
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 15, weight: .regular))
+                .frame(width: 28, height: 28)
+                .foregroundColor(
+                    isHovered ? hoverColor : .secondary
+                )
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: 7,
+                        style: .continuous
+                    )
+                    .fill(
+                        isHovered
+                            ? hoverColor.opacity(0.12)
+                            : Color.clear
+                    )
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(help)
+        .accessibilityLabel(Text(help))
+        .onHover { isHovered = $0 }
+    }
+}
+
 struct MenuDeviceRowContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
