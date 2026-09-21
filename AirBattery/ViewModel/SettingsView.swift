@@ -1536,7 +1536,13 @@ struct DisplayView: View {
                         mergeEarbuds: twsMergeEnabled,
                         mergeThreshold: twsMerge,
                         reverseWidgetOrder: revListOnWidget,
-                        showMacInDock: showThisMac != "hidden"
+                        showMacInDock: showThisMac != "hidden",
+                        menuBarShowsMac: intBattOnStatusBar,
+                        colorfulBattery: colorfulBattery,
+                        iosBatteryStyle: iosBatteryStyle,
+                        batteryPercent: batteryPercent,
+                        hideLevel: hideLevel,
+                        appearance: appearance
                     )
                 }
             }
@@ -1590,6 +1596,22 @@ private struct DisplaySurfacePreview: View {
     let mergeThreshold: Int
     let reverseWidgetOrder: Bool
     let showMacInDock: Bool
+    let menuBarShowsMac: Bool
+    let colorfulBattery: Bool
+    let iosBatteryStyle: Bool
+    let batteryPercent: String
+    let hideLevel: Int
+    let appearance: String
+
+    @Environment(\.colorScheme) private var systemColorScheme
+
+    private var previewColorScheme: ColorScheme {
+        switch appearance {
+        case "true": return .dark
+        case "false": return .light
+        default: return systemColorScheme
+        }
+    }
 
     private var presentations: [LogicalDevicePresentation] {
         AirBatteryModel.logicalPresentations(
@@ -1602,8 +1624,10 @@ private struct DisplaySurfacePreview: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             previewCard("Menu") {
-                VStack(spacing: 6) {
-                    ForEach(presentations.prefix(4)) { presentation in
+                VStack(spacing: 7) {
+                    menuBarPreview
+                    Divider().opacity(0.4)
+                    ForEach(presentations.prefix(3)) { presentation in
                         previewDeviceRow(presentation)
                     }
                 }
@@ -1658,6 +1682,71 @@ private struct DisplaySurfacePreview: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .environment(\.colorScheme, previewColorScheme)
+    }
+
+    @ViewBuilder
+    private var menuBarPreview: some View {
+        let mac = sampleDevices[0]
+        HStack(spacing: 5) {
+            Text("AirBattery")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Spacer()
+
+            if menuBarShowsMac {
+                if batteryPercent == "outside", mac.batteryLevel <= hideLevel {
+                    Text("\(mac.batteryLevel)%")
+                        .font(.caption2.monospacedDigit())
+                }
+
+                previewBatteryIcon(mac)
+
+                if batteryPercent == "inside", mac.batteryLevel <= hideLevel {
+                    Text("\(mac.batteryLevel)")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundColor(.primary)
+                        .padding(.leading, -20)
+                        .frame(width: 16)
+                }
+            } else {
+                Image(systemName: "bolt.square.fill")
+                    .font(.system(size: 14))
+                    .accessibilityLabel("AirBattery status icon")
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            menuBarShowsMac
+                ? "Menu bar preview, this Mac \(mac.batteryLevel) percent"
+                : "Menu bar preview, AirBattery status icon"
+        )
+    }
+
+    @ViewBuilder
+    private func previewBatteryIcon(_ device: Device) -> some View {
+        let fill = colorfulBattery
+            ? Color(getPowerColor(device))
+            : (device.batteryLevel <= 10 ? Color.red : Color.primary)
+        let fraction = max(0.05, min(1, Double(device.batteryLevel) / 100))
+
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: iosBatteryStyle ? 3 : 2)
+                .stroke(Color.primary.opacity(0.7), lineWidth: 1)
+                .frame(width: iosBatteryStyle ? 27 : 23, height: iosBatteryStyle ? 12 : 10)
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(fill)
+                .frame(
+                    width: (iosBatteryStyle ? 23 : 19) * fraction,
+                    height: iosBatteryStyle ? 8 : 6
+                )
+                .padding(.leading, 2)
+        }
+        .frame(width: iosBatteryStyle ? 28 : 24, height: 14)
+        .accessibilityLabel(
+            "This Mac \(device.batteryLevel) percent" +
+            (device.lowPower ? ", Low Power Mode" : "")
+        )
     }
 
     @ViewBuilder
