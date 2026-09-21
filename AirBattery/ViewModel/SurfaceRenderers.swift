@@ -238,6 +238,7 @@ struct MenuDeviceRowContent: View {
     var compactName = false
     var alerted = false
     var pinned = false
+    var showBatteryTrailing = true
     var now = Date().timeIntervalSince1970
 
     var body: some View {
@@ -318,7 +319,7 @@ struct MenuDeviceRowContent: View {
 
             Spacer()
 
-            if device.hasBattery {
+            if device.hasBattery && showBatteryTrailing {
                 Text("\(device.batteryLevel)%")
                     .foregroundColor(
                         device.batteryLevel <= 10 ? .darkMyRed : .primary
