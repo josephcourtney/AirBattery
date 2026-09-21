@@ -183,8 +183,11 @@ enum AppPreferences {
 class LogReader {
     static let shared = LogReader()
 
-    @AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("logReaderLastTS") var lastTS: String = ""   // e.g. "2025-07-01 12:34:56 +0000"
+    var readBTHID: Bool { AppPreferences.readBTHID }
+    var lastTS: String {
+        get { AppPreferences.logReaderLastTS }
+        set { AppPreferences.logReaderLastTS = newValue }
+    }
 
     private var isRunning = false
     private var queued = false
@@ -539,8 +542,7 @@ func randomString(length: Int) -> String {
 }
 
 func getPowerState() -> iBattery {
-    @AppStorage("machineType") var machineType = "mac"
-    if !machineType.lowercased().contains("book") { return iBattery(hasBattery: false, isCharging: false, isCharged: false, acPowered: false, timeLeft: "", batteryLevel: 0) }
+    if !AppPreferences.machineType.lowercased().contains("book") { return iBattery(hasBattery: false, isCharging: false, isCharged: false, acPowered: false, timeLeft: "", batteryLevel: 0) }
     let internalFinder = InternalFinder()
     if let internalBattery = internalFinder.getInternalBattery() {
         if let level = internalBattery.charge {
@@ -565,14 +567,26 @@ func getPowerColor(_ device: Device) -> String {
 }
 
 func getDarkMode() -> Bool {
-    @AppStorage("appearance") var appearance = "auto"
-    return (appearance == "auto") ? NSApp.effectiveAppearance == NSAppearance(named: .darkAqua) : appearance.boolValue
+    let appearance = AppPreferences.appearance
+    return (appearance == "auto")
+        ? NSApp.effectiveAppearance == NSAppearance(named: .darkAqua)
+        : appearance.boolValue
 }
 
 func ib2ab(_ ib: iBattery) -> Device {
-    @AppStorage("machineType") var machineType = "mac"
-    @AppStorage("deviceName") var deviceName = "Mac"
-    return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970))
+    Device(
+        hasBattery: ib.hasBattery,
+        deviceID: "@MacInternalBattery",
+        deviceType: AppPreferences.machineType,
+        deviceName: AppPreferences.deviceName,
+        deviceModel: macID,
+        batteryLevel: ib.batteryLevel,
+        isCharging: ib.isCharging ? 1 : 0,
+        isCharged: ib.isCharged,
+        acPowered: ib.acPowered,
+        lowPower: ib.lowPower,
+        lastUpdate: Date().timeIntervalSince1970
+    )
 }
 
 func copyToClipboard(_ text: String) {
@@ -629,13 +643,12 @@ func getMacModelIdentifier() -> String {
 }
 
 func getMacDeviceName() -> String {
-    @AppStorage("machineType") var machineType = "mac"
     var computerName: CFString?
     if let dynamicStore = SCDynamicStoreCreate(nil, "GetComputerName" as CFString, nil, nil) {
         computerName = SCDynamicStoreCopyComputerName(dynamicStore, nil) as CFString?
     }
     if let name = computerName as String? { return name }
-    return machineType
+    return AppPreferences.machineType
 }
 
 func getFirstNCharacters(of string: String, count: Int) -> String? {
