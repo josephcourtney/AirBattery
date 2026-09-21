@@ -5,14 +5,14 @@
 //  Created by apple on 2024/6/10.
 //
 
-import SwiftUI
+import Combine
 import Foundation
 import MultipeerKit
 
 class MultipeerService: ObservableObject {
-    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
-    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
-    @AppStorage("deviceName") var deviceName = "Mac"
+    var nearcastGroupID: String { AppPreferences.nearcastGroupID }
+    var nearcastSharingKey: String { AppPreferences.nearcastSharingKey }
+    var deviceName: String { AppPreferences.deviceName }
     let transceiver: MultipeerTransceiver
 
     init(serviceType: String) {
