@@ -92,7 +92,11 @@ struct AirPodsBatteryGroup: Hashable {
     let legacyMergedEarbuds: Device?
 
     var components: [Device] {
-        [caseDevice, leftEarbud, rightEarbud].compactMap { $0 }
+        var result = [caseDevice, leftEarbud, rightEarbud].compactMap { $0 }
+        if leftEarbud == nil, rightEarbud == nil, let legacyMergedEarbuds {
+            result.append(legacyMergedEarbuds)
+        }
+        return result
     }
 
     var componentCount: Int {
@@ -242,7 +246,7 @@ class AirBatteryModel {
         let right = matching.first { $0.deviceType == "ap_pod_right" }
         let legacyMerged = matching.first { $0.deviceType == "ap_pod_all" }
 
-        guard caseDevice != nil, left != nil || right != nil || legacyMerged != nil else {
+        guard caseDevice != nil || left != nil || right != nil || legacyMerged != nil else {
             return nil
         }
         return AirPodsBatteryGroup(
