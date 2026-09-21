@@ -30,7 +30,7 @@ brew install lihaoyun6/tap/airbattery
 
 - AirBattery will automatically search for all devices supported by the **"Nearbility Engine"** without manual configuration.  
 - Click the Dock icon / status bar icon, or add a widget to view the battery usage of your devices.  
-- You can also use the **"Nearcast"** feature to check the battery usage of other Macs and their peripherals in the LAN at any time.  
+- You can also use **Nearcast** to share battery information with other Macs on the local network. Nearcast uses a non-secret Group ID plus a private Sharing Key; Macs must use the same pair to exchange data.  
 - You can also change the status bar icon to a real-time battery icon in preferences, just like the one that comes with the system.  
 - If necessary, you can hide certain devices in the Dock menu or status bar menu, and unhide them at any time.  
 
@@ -45,7 +45,7 @@ brew install lihaoyun6/tap/airbattery
 > If this symbol appears, it means that the device has not updated its battery information for more than ten minutes, and may be offline or turned off.  
 
 **4. My iPhone is not connected to WiFi, can I get the battery info?**
-> Please install AirBattery v1.1.2 or higher, enable the **`iPhone / iPad(Cellular) over BT`** in the preferences, and keep the device's Bluetooth turned on ***(Only supports iPhone or cellular iPad!)***  
+> Enable **Discovery → Apple Devices → Use Bluetooth** and keep the device's Bluetooth turned on. Bluetooth discovery supports iPhone and cellular iPad battery readings; paired Apple Watch battery access still requires the iPhone to be visible through Network & USB.  
 
 **5. Why does AirBattery need Bluetooth permission?**
 > AirBattery needs Bluetooth to capture packets from peripheral devices in order to parse their battery information.  
