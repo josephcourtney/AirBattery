@@ -65,7 +65,7 @@ struct SItem<Content: View>: View {
             if let label = label { Text(label) }
             Spacer()
             content()
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
 
@@ -94,7 +94,7 @@ struct SSlider: View {
                 let modulo: Int = base % 1
                 value = base - modulo
             }), in: range).frame(maxWidth: width)
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
 
@@ -108,9 +108,12 @@ struct SInfoButton: View {
         }, label: {
             Image(systemName: "info.circle")
                 .font(.system(size: 15, weight: .light))
-                .opacity(0.5)
+                .opacity(0.62)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         })
         .buttonStyle(.plain)
+        .accessibilityLabel("More information")
         .sheet(isPresented: $isPresented) {
             VStack(alignment: .trailing) {
                 GroupBox { Text(tips).padding() }
@@ -144,7 +147,7 @@ struct SButton: View {
             if let tips = tips { SInfoButton(tips: tips) }
             Button(buttonTitle,
                    action: { action() })
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
 
@@ -200,7 +203,7 @@ struct SPicker<T: Hashable, Content: View, Style: PickerStyle>: View {
                 .fixedSize()
                 .pickerStyle(style)
                 .buttonStyle(.borderless)
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
 
@@ -224,7 +227,7 @@ struct SToggle: View {
                 .toggleStyle(.switch)
                 .scaleEffect(0.7)
                 .frame(width: 32)
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
 
@@ -263,6 +266,6 @@ struct SSteper: View {
                 }
             Stepper("", value: $value)
                 .padding(.leading, -6)
-        }.frame(height: 16)
+        }.frame(minHeight: 28)
     }
 }
