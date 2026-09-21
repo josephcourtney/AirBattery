@@ -24,7 +24,6 @@ var dockWindow = AutoHideWindow()
 var statusMenuIsOpen = false
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
-var updateDelay = 1
 var keepAliveActivity: NSObjectProtocol? = nil
 
 @main
@@ -175,7 +174,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         
         AirBatteryModel.migrateLegacySharedStorageIfNeeded()
 
-        updateDelay = updateInterval
         machineType = getMacDeviceType()
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
@@ -239,6 +237,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         btdBattery.startScan()
         MagicBattery.shared.startScan()
         IDeviceBattery.shared.startScan()
+        MonitoringCoordinator.shared.start()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             AirBatteryModel.writeData()
@@ -312,7 +311,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        if let act = keepAliveActivity { ProcessInfo.processInfo.endActivity(act) }
+        MonitoringCoordinator.shared.stop()
+        if let act = keepAliveActivity {
+            ProcessInfo.processInfo.endActivity(act)
+        }
 
         _ = process(path: "/usr/bin/killall", arguments: ["idevicesyslog"])
     }
