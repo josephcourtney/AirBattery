@@ -194,6 +194,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             ]
         )
         
+        AirBatteryModel.migrateLegacySharedStorageIfNeeded()
+
         updateDelay = updateInterval
         machineType = getMacDeviceType()
         deviceName = getMacDeviceName()
