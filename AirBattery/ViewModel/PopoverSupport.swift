@@ -76,6 +76,7 @@ enum DeviceActions {
         )
     }
 
+    @MainActor
     static func togglePin(for device: Device) -> [String] {
         var names = AppPreferences.pinnedNames
         if names.contains(device.deviceName) {
