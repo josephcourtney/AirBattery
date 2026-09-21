@@ -44,10 +44,10 @@ struct MultiBatteryView: View {
         .onChange(of: appearance) { _, _ in
             NSApp.dockTile.display()
         }
-        .onChange(of: twsMergeEnabled) { _ in
+        .onChange(of: twsMergeEnabled) { _, _ in
             refreshDockPresentations(now: Date().timeIntervalSince1970)
         }
-        .onChange(of: twsMerge) { _ in
+        .onChange(of: twsMerge) { _, _ in
             refreshDockPresentations(now: Date().timeIntervalSince1970)
         }
         .onReceive(alertTimer) { _ in batteryAlert() }
@@ -554,7 +554,7 @@ struct popover: View {
                         DispatchQueue.main.asyncAfter(
                             deadline: .now() + 0.2
                         ) {
-                            NSApp.activate(ignoringOtherApps: true)
+                            NSApp.activate()
                         }
                     },
                     onSettings: {
@@ -981,7 +981,7 @@ struct nearcastView: View {
 }
 
 func openAboutPanel() {
-    NSApp.activate(ignoringOtherApps: true)
+    NSApp.activate()
     NSApp.orderFrontStandardAboutPanel(nil)
 }
 
