@@ -139,7 +139,13 @@ class InternalFinder {
 
         for ps in sources {
             // Fetch the information for a given power source out of our snapshot
-            let info = IOPSGetPowerSourceDescription(snapshot, ps).takeUnretainedValue() as! Dictionary<String, Any>
+            guard let description =
+                IOPSGetPowerSourceDescription(snapshot, ps)?
+                    .takeUnretainedValue(),
+                let info = description as? [String: Any]
+            else {
+                continue
+            }
 
             // Pull out the name and capacity
             battery.name = info[kIOPSNameKey] as? String
@@ -209,11 +215,18 @@ class InternalFinder {
     }
 
     fileprivate func getTemperature() -> Double? {
-        if let value = IORegistryEntryCreateCFProperty(self.serviceInternal, "Temperature" as CFString, kCFAllocatorDefault, 0) {
-            return value.takeRetainedValue() as! Double / 100.0
+        guard let value = IORegistryEntryCreateCFProperty(
+            serviceInternal,
+            "Temperature" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let number = value.takeRetainedValue() as? NSNumber
+        else {
+            return nil
         }
 
-        return nil
+        return number.doubleValue / 100
     }
 
     fileprivate func getDoubleValue(_ identifier: CFString) -> Double? {
@@ -233,8 +246,14 @@ class InternalFinder {
     }
 
     fileprivate func getManufactureDate() -> Date? {
-        if let value = IORegistryEntryCreateCFProperty(self.serviceInternal, "ManufactureDate" as CFString, kCFAllocatorDefault, 0) {
-            let date = value.takeRetainedValue() as! Int
+        if let value = IORegistryEntryCreateCFProperty(
+            serviceInternal,
+            "ManufactureDate" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let number = value.takeRetainedValue() as? NSNumber {
+            let date = number.intValue
 
             let day = date & 31
             let month = (date >> 5) & 15
