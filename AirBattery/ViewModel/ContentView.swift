@@ -345,12 +345,12 @@ struct popover: View {
     }
 
     private func hideAirPodsGroup(_ group: AirPodsBatteryGroup) {
-        var blackList = AppPreferences.blockedNames
+        var blackList = AppPreferences.hiddenDeviceNames
         let devices = group.components
         for device in devices where !blackList.contains(device.deviceName) {
             blackList.append(device.deviceName)
         }
-        AppPreferences.blockedNames = blackList
+        AppPreferences.hiddenDeviceNames = blackList
         hiddenDevices = AirBatteryModel.getBlackList()
         allDevices.removeAll { device in
             devices.contains(where: { $0.deviceName == device.deviceName })
@@ -516,11 +516,11 @@ struct popover: View {
             },
             onHide: {
                 hidden.append(index)
-                var blackList = AppPreferences.blockedNames
+                var blackList = AppPreferences.hiddenDeviceNames
                 if !blackList.contains(device.deviceName) {
                     blackList.append(device.deviceName)
                 }
-                AppPreferences.blockedNames = blackList
+                AppPreferences.hiddenDeviceNames = blackList
                 if pinnedList.contains(device.deviceName) {
                     refeshPinnedBar()
                 }
@@ -738,9 +738,9 @@ struct popover: View {
                                 if !hidden2.contains(index){
                                     Button(action: {
                                         hidden2.append(index)
-                                        var blackList = AppPreferences.blockedNames
+                                        var blackList = AppPreferences.hiddenDeviceNames
                                         blackList.removeAll { $0 == hiddenDevices[index].deviceName }
-                                        AppPreferences.blockedNames = blackList
+                                        AppPreferences.hiddenDeviceNames = blackList
                                         let pinnedList = AppPreferences.pinnedNames
                                         if pinnedList.contains(hiddenDevices[index].deviceName){
                                             refeshPinnedBar()
