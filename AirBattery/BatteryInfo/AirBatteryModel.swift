@@ -535,19 +535,6 @@ class AirBatteryModel {
         return nil
     }
     
-    static func singleDeviceName() -> String {
-        var url: URL
-        let bundleIdentifier = Bundle.main.bundleIdentifier
-        if bundleIdentifier == key {
-            url = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("singleDeviceName")
-            let devicename = try? String(contentsOf: url, encoding: .utf8)
-            return devicename ?? ""
-        } else {
-            url = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(key)/Data/Documents/singleDeviceName")
-            try? ud.string(forKey: "deviceOnWidget")?.write(to: url, atomically: true, encoding: .utf8)
-        }
-        return ""
-    }
     
     static func getJsonURL() -> URL {
         var url: URL

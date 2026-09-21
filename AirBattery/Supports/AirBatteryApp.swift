@@ -542,23 +542,17 @@ func refeshPinnedBar(unpin: String? = nil) {
 @discardableResult
 func ensureLoginItem(enabled: Bool) -> Bool {
     let helperBundleIdentifier = "com.josephcourtney.AirBatteryHelper"
-    if #available(macOS 13.0, *) {
-        do {
-            let service = SMAppService.loginItem(identifier: helperBundleIdentifier)
-            if enabled {
-                try service.register()
-            } else {
-                try service.unregister()
-            }
-            return true
-        } catch {
-            NSLog("[AirBattery] SMAppService register/unregister failed: \(error.localizedDescription)")
-            return false
+    do {
+        let service = SMAppService.loginItem(identifier: helperBundleIdentifier)
+        if enabled {
+            try service.register()
+        } else {
+            try service.unregister()
         }
-    } else {
-        let ok = SMLoginItemSetEnabled(helperBundleIdentifier as CFString, enabled)
-        if !ok { NSLog("[AirBattery] SMLoginItemSetEnabled failed for \(helperBundleIdentifier)") }
-        return ok
+        return true
+    } catch {
+        NSLog("[AirBattery] SMAppService register/unregister failed: \(error.localizedDescription)")
+        return false
     }
 }
 

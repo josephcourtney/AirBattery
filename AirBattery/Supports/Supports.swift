@@ -395,7 +395,7 @@ func getPowerState() -> iBattery {
     if let internalBattery = internalFinder.getInternalBattery() {
         if let level = internalBattery.charge {
             var ib = iBattery(hasBattery: true, isCharging: internalBattery.isCharging ?? false, isCharged :internalBattery.isCharged ?? false, acPowered: internalBattery.acPowered ?? false, timeLeft: internalBattery.timeLeft, batteryLevel: Int(level))
-            if #available(macOS 12.0, *) { ib.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled }
+            ib.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
             return ib
         }
     }

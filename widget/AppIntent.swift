@@ -8,7 +8,6 @@
 import WidgetKit
 import AppIntents
 
-@available(macOS 14.0, *)
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
     nonisolated(unsafe) static var title: LocalizedStringResource = "Configuration"
     nonisolated(unsafe) static var description = IntentDescription("AirBattery battery usage widget")
@@ -26,7 +25,6 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 }
 
 
-@available(macOS 14.0, *)
 struct BatteryOverviewConfigurationIntent: WidgetConfigurationIntent {
     nonisolated(unsafe) static var title: LocalizedStringResource =
         "Battery Overview"

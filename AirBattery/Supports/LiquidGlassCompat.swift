@@ -64,15 +64,9 @@ private struct LiquidGlassPanelModifier<S: Shape>: ViewModifier {
 
     @ViewBuilder
     private func fallback(content: Content) -> some View {
-        if #available(macOS 12.0, *) {
-            content
-                .background(shape.fill(.thinMaterial))
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.7))
-        } else {
-            content
-                .background(shape.fill(Color.primary.opacity(0.055)))
-                .overlay(shape.stroke(Color.primary.opacity(0.12), lineWidth: 0.7))
-        }
+        content
+            .background(shape.fill(.thinMaterial))
+            .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.7))
     }
 }
 
@@ -108,20 +102,14 @@ extension View {
             containerBackground(for: .widget) {
                 Color.clear
             }
-        } else if #available(macOS 14.0, *) {
+        } else {
             containerBackground(for: .widget) {
                 fallback
             }
-        } else {
-            background(fallback)
         }
         #else
-        if #available(macOS 14.0, *) {
-            containerBackground(for: .widget) {
-                fallback
-            }
-        } else {
-            background(fallback)
+        containerBackground(for: .widget) {
+            fallback
         }
         #endif
     }

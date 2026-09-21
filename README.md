@@ -16,7 +16,7 @@
 
 ## Installation and Usage
 ### System Requirements:
-- macOS 11.0 and Later  
+- macOS 15.0 and Later  
 
 ### Installation:
 Download the latest installation file [here](../../releases/latest) or install via Homebrew:  

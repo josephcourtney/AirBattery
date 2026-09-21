@@ -488,32 +488,30 @@ struct popover: View {
                 .onHover { overPinButton = $0 }
             }
 
-            if #available(macOS 14, *) {
-                Button {
-                    copyToClipboard(device.deviceName)
-                    DispatchQueue.main.async {
-                        _ = createAlert(
-                            title: "Device Name Copied".local,
-                            message: String(
-                                format:
-                                    "Device name \"%@\" has been copied to the clipboard.".local,
-                                device.deviceName
-                            ),
-                            button1: "OK".local
-                        ).runModal()
-                    }
-                } label: {
-                    Image("list.clipboard.fill.circle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                        .foregroundColor(
-                            overCopyButton ? .accentColor : .secondary
-                        )
+            Button {
+                copyToClipboard(device.deviceName)
+                DispatchQueue.main.async {
+                    _ = createAlert(
+                        title: "Device Name Copied".local,
+                        message: String(
+                            format:
+                                "Device name \"%@\" has been copied to the clipboard.".local,
+                            device.deviceName
+                        ),
+                        button1: "OK".local
+                    ).runModal()
                 }
-                .buttonStyle(.plain)
-                .onHover { overCopyButton = $0 }
+            } label: {
+                Image("list.clipboard.fill.circle")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .foregroundColor(
+                        overCopyButton ? .accentColor : .secondary
+                    )
             }
+            .buttonStyle(.plain)
+            .onHover { overCopyButton = $0 }
 
             if device.deviceID != "@MacInternalBattery" {
                 Button {
@@ -953,21 +951,19 @@ struct nearcastView: View {
                                         .buttonStyle(PlainButtonStyle())
                                         .onHover{ hovering in overPinButton = hovering }
                                     }
-                                    if #available(macOS 14, *) {
-                                        Button(action: {
-                                            copyToClipboard(devices[index].deviceName)
-                                            _ = createAlert(title: "Device Name Copied".local,
-                                                            message: String(format: "Device name \"%@\" has been copied to the clipboard.".local, devices[index].deviceName),
-                                                            button1: "OK".local).runModal()
-                                        }, label: {
-                                            Image("list.clipboard.fill.circle")
-                                                .resizable().scaledToFit()
-                                                .frame(width: 18, height: 18, alignment: .center)
-                                                .foregroundColor(overCopyButton ? .accentColor : .secondary)
-                                        })
-                                        .buttonStyle(PlainButtonStyle())
-                                        .onHover{ hovering in overCopyButton = hovering }
-                                    }
+                                    Button(action: {
+                                        copyToClipboard(devices[index].deviceName)
+                                        _ = createAlert(title: "Device Name Copied".local,
+                                                        message: String(format: "Device name \"%@\" has been copied to the clipboard.".local, devices[index].deviceName),
+                                                        button1: "OK".local).runModal()
+                                    }, label: {
+                                        Image("list.clipboard.fill.circle")
+                                            .resizable().scaledToFit()
+                                            .frame(width: 18, height: 18, alignment: .center)
+                                            .foregroundColor(overCopyButton ? .accentColor : .secondary)
+                                    })
+                                    .buttonStyle(PlainButtonStyle())
+                                    .onHover{ hovering in overCopyButton = hovering }
                                 }
                             }
                         } else {

@@ -1477,12 +1477,10 @@ struct DisplayView: View {
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
     @AppStorage("revListOnWidget") var revListOnWidget = false
-    @AppStorage("deviceOnWidget") var deviceOnWidget = ""
     @AppStorage("widgetInterval") var widgetInterval = 0
     @AppStorage("deviceName") var deviceName = "Mac"
 
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
-    @State private var widgetDevices = [String]()
 
     var body: some View {
         ScrollView {
@@ -1598,26 +1596,6 @@ struct DisplayView: View {
                         Text("System Default").tag(-1)
                         Text("Same as Discovery").tag(0)
                     }
-                    if #unavailable(macOS 14) {
-                        Divider().opacity(0.5)
-                        SPicker("Single-device widget", selection: $deviceOnWidget) {
-                            Text("Not Set").tag("")
-                            if InternalBattery.status.hasBattery {
-                                Text(deviceName).tag(deviceName)
-                            }
-                            ForEach(widgetDevices, id: \.self) { device in
-                                Text(device).tag(device)
-                            }
-                            if !widgetDevices.contains(deviceOnWidget),
-                               deviceOnWidget != deviceName,
-                               !deviceOnWidget.isEmpty {
-                                Text(deviceOnWidget).tag(deviceOnWidget)
-                            }
-                        }
-                        .onChange(of: deviceOnWidget) { _ in
-                            _ = AirBatteryModel.singleDeviceName()
-                        }
-                    }
                     Divider().opacity(0.5)
                     SButton("Reload all widgets", buttonTitle: "Reload") {
                         AirBatteryModel.writeData()
@@ -1643,10 +1621,8 @@ struct DisplayView: View {
             }
         }
         .onAppear {
-            refreshWidgetDevices()
         }
         .onReceive(dockTimer) { _ in
-            refreshWidgetDevices()
         }
     }
 
@@ -1679,11 +1655,6 @@ struct DisplayView: View {
         }
     }
 
-    private func refreshWidgetDevices() {
-        widgetDevices = AirBatteryModel.getAll(noFilter: true)
-            .filter(\.hasBattery)
-            .map(\.deviceName)
-    }
 }
 
 private struct DisplaySurfacePreview: View {

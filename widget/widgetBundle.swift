@@ -6,65 +6,11 @@
 //
 
 import WidgetKit
-import SwiftUI
-
-extension View {
-    @ViewBuilder
-    func widgetBackground(_ backgroundView: some View) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            containerBackground(for: .widget) { Color.clear }
-        } else if #available(macOS 14.0, *) {
-            containerBackground(for: .widget) { backgroundView }
-        } else {
-            background(backgroundView)
-        }
-        #else
-        if #available(macOS 14.0, *) {
-            containerBackground(for: .widget) { backgroundView }
-        } else {
-            background(backgroundView)
-        }
-        #endif
-    }
-}
-
-extension WidgetConfiguration {
-    func disableContentMarginsIfNeeded() -> some WidgetConfiguration {
-        if #available(macOS 12.0, *) {
-            return self.contentMarginsDisabled()
-        } else {
-            return self
-        }
-    }
-    
-    func supportFamily() -> some WidgetConfiguration {
-        if #available(macOS 14, *) {
-            return self.supportedFamilies([.systemLarge, .systemMedium])
-        } else {
-            return self.supportedFamilies([.systemLarge, .systemMedium, .systemSmall])
-        }
-    }
-}
 
 @main
 struct widgetBundle: WidgetBundle {
     var body: some Widget {
-        widgets()
-    }
-    
-    func widgets() -> some Widget {
-        if #available(macOS 14, *) {
-            return WidgetBundleBuilder.buildBlock(
-                BatteryOverviewWidget(),
-                batteryWidget2New()
-            )
-        } else {
-            return WidgetBundleBuilder.buildBlock(
-                batteryWidget(),
-                batteryWidget2(),
-                batteryWidget3()
-            )
-        }
+        BatteryOverviewWidget()
+        batteryWidget2New()
     }
 }
