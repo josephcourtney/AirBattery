@@ -18,17 +18,14 @@ struct SettingsView: View {
         NavigationView {
             List(selection: $selectedItem) {
                 NavigationLink(destination: GeneralView(), tag: "General", selection: $selectedItem) {
-                    Label("General", image: "gear")
+                    Label("General", systemImage: "gearshape")
                 }
                 NavigationLink(destination: DisplayView(), tag: "Display", selection: $selectedItem) {
-                    Label("Menu & Dock", image: "dock")
-                }
-                NavigationLink(destination: DiscoveryView(), tag: "Discovery", selection: $selectedItem) {
-                    Label("Discovery", image: "nearbility")
+                    Label("Display", systemImage: "rectangle.3.group")
                 }
                 NavigationLink(destination: DevicesView(), tag: "Devices", selection: $selectedItem) {
                     HStack {
-                        Label("Devices", image: "nearbility")
+                        Label("Devices", systemImage: "rectangle.stack")
                         Spacer()
                         if discoveryPolicy.reviewCount > 0 {
                             Text("\(discoveryPolicy.reviewCount)")
@@ -36,18 +33,19 @@ struct SettingsView: View {
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
                                 .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                                .accessibilityLabel("\(discoveryPolicy.reviewCount) devices need review")
                         }
                     }
                 }
-                NavigationLink(destination: NearcastView(), tag: "Nearcast", selection: $selectedItem) {
-                    Label("Nearcast", image: "nearcast")
+                NavigationLink(destination: DiscoveryView(), tag: "Discovery", selection: $selectedItem) {
+                    Label("Discovery", systemImage: "antenna.radiowaves.left.and.right")
                 }
-                NavigationLink(destination: WidgetView(), tag: "Widget", selection: $selectedItem) {
-                    Label("Widgets", image: "widget")
+                NavigationLink(destination: NearcastView(), tag: "Nearcast", selection: $selectedItem) {
+                    Label("Nearcast", systemImage: "network")
                 }
                 if showDebug {
                     NavigationLink(destination: DebugView(selectedItem: $selectedItem), tag: "Debug", selection: $selectedItem) {
-                        Label("Debug", image: "debug")
+                        Label("Debug", systemImage: "ladybug")
                     }
                 }
             }
@@ -55,11 +53,11 @@ struct SettingsView: View {
             .padding(.top, 9)
         }
         .frame(
-            minWidth: 720,
-            idealWidth: 900,
+            minWidth: 760,
+            idealWidth: 960,
             maxWidth: .infinity,
-            minHeight: 520,
-            idealHeight: 700,
+            minHeight: 540,
+            idealHeight: 720,
             maxHeight: .infinity
         )
         .background(Color(nsColor: .windowBackgroundColor))
