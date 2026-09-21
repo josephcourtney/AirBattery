@@ -86,6 +86,62 @@ final class DeviceIdentifierSetTests: XCTestCase {
     }
 }
 
+final class DevicePresentationNamingTests: XCTestCase {
+    func testUsesIntentionalCompactNamesForAppleDevices() {
+        XCTAssertEqual(
+            DevicePresentationNaming.compactName(
+                deviceType: "iPhone",
+                displayName: "Joseph’s iPhone"
+            ),
+            "iPhone"
+        )
+        XCTAssertEqual(
+            DevicePresentationNaming.compactName(
+                deviceType: "Watch",
+                displayName: "Joseph’s Apple Watch"
+            ),
+            "Watch"
+        )
+        XCTAssertEqual(
+            DevicePresentationNaming.compactName(
+                deviceType: "macbookpro",
+                displayName: "LT-0801530"
+            ),
+            "Mac"
+        )
+    }
+
+    func testAirPodsComponentsShareCompactName() {
+        for type in ["ap_case", "ap_pod_left", "ap_pod_right", "ap_pod_all"] {
+            XCTAssertEqual(
+                DevicePresentationNaming.compactName(
+                    deviceType: type,
+                    displayName: "Joseph’s AirPods"
+                ),
+                "AirPods"
+            )
+        }
+    }
+
+    func testUnknownDeviceKeepsFullDisplayName() {
+        XCTAssertEqual(
+            DevicePresentationNaming.compactName(
+                deviceType: "general_bt",
+                displayName: "MX Master 3S"
+            ),
+            "MX Master 3S"
+        )
+    }
+
+    func testComponentLabelsAreUserFacing() {
+        XCTAssertEqual(DevicePresentationNaming.componentLabel(.primary), "Battery")
+        XCTAssertEqual(DevicePresentationNaming.componentLabel(.caseBattery), "Case")
+        XCTAssertEqual(DevicePresentationNaming.componentLabel(.leftEarbud), "Left")
+        XCTAssertEqual(DevicePresentationNaming.componentLabel(.rightEarbud), "Right")
+        XCTAssertEqual(DevicePresentationNaming.componentLabel(.earbuds), "Earbuds")
+    }
+}
+
 final class IDeviceInfoParserTests: XCTestCase {
     func testParsesDeviceMetadata() {
         let output = """
