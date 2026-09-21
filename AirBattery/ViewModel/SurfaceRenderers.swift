@@ -1073,3 +1073,124 @@ private struct IconRingCell: View {
         .compositingGroup()
     }
 }
+
+
+struct WidgetSingleBatterySurfaceContent: View {
+    let item: Device?
+    let deviceName: String
+    let warningText: String
+
+    private let lineWidth = 10.0
+
+    var body: some View {
+        if let item {
+            VStack(spacing: 10) {
+                ZStack {
+                    Group {
+                        Group {
+                            Circle()
+                                .trim(from: 0, to: 0.8)
+                                .stroke(
+                                    style: StrokeStyle(
+                                        lineWidth: lineWidth,
+                                        lineCap: .round,
+                                        lineJoin: .round
+                                    )
+                                )
+                                .opacity(0.15)
+
+                            Circle()
+                                .trim(
+                                    from: 0,
+                                    to: Double(item.batteryLevel) /
+                                        100 * 0.8
+                                )
+                                .stroke(
+                                    Color(getPowerColor(item)),
+                                    style: StrokeStyle(
+                                        lineWidth: lineWidth,
+                                        lineCap: .round,
+                                        lineJoin: .round
+                                    )
+                                )
+                        }
+                        .rotationEffect(.degrees(126))
+
+                        Image(getDeviceIcon(item))
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 50, height: 50)
+
+                        if item.isCharging != 0 || item.acPowered {
+                            Image("batt_bolt_mask")
+                                .interpolation(.high)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 18)
+                                .blendMode(.destinationOut)
+                                .offset(y: -55.5)
+
+                            Image("batt_bolt")
+                                .interpolation(.high)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16)
+                                .foregroundColor(
+                                    item.batteryLevel == 100
+                                        ? .myGreen
+                                        : .primary
+                                )
+                                .offset(y: -55.5)
+                        }
+                    }
+                    .frame(width: 110, height: 110)
+
+                    Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
+                        .font(.system(size: 17))
+                        .offset(x: 1, y: 47)
+                }
+                .compositingGroup()
+
+                Text(item.deviceName)
+                    .font(.system(size: 12))
+                    .frame(width: 144)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .offset(y: item.isCharging != 0 ? 5 : 3.5)
+        } else {
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .trim(from: 0, to: 0.8)
+                        .stroke(
+                            style: StrokeStyle(
+                                lineWidth: lineWidth,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .frame(width: 110, height: 110)
+                        .rotationEffect(.degrees(126))
+                        .opacity(0.15)
+
+                    Text("     ")
+                        .font(.system(size: 17))
+                        .offset(x: 1, y: 47)
+                }
+
+                Text(
+                    deviceName.isEmpty
+                        ? warningText
+                        : "Searching: " + deviceName
+                )
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.6))
+                .frame(width: 150)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            }
+            .offset(y: 3.5)
+        }
+    }
+}
