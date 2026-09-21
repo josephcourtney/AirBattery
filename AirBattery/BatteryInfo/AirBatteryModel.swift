@@ -560,13 +560,28 @@ class AirBatteryModel {
         return url
     }
     
+    static func widgetStoredDevices(
+        from devices: [Device],
+        internalBattery: Device?,
+        reverse: Bool
+    ) -> [Device] {
+        var ordered = reverse ? Array(devices.reversed()) : devices
+        if let internalBattery, internalBattery.hasBattery {
+            ordered.insert(internalBattery, at: 0)
+        }
+        return ordered
+    }
+
     static func writeData(){
         //let showMac = ud.object(forKey: "showMacOnWidget") as? Bool ?? true
         let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
-        
-        var devices = getAll(reverse: revList)
+
         let ibStatus = InternalBattery.status
-        if ibStatus.hasBattery { devices.insert(ib2ab(ibStatus), at: 0) }
+        let devices = widgetStoredDevices(
+            from: getAll(),
+            internalBattery: ibStatus.hasBattery ? ib2ab(ibStatus) : nil,
+            reverse: revList
+        )
         do {
             let jsonData = try JSONEncoder().encode(devices)
             try jsonData.write(to: getJsonURL())
