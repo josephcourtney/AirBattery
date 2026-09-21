@@ -401,16 +401,17 @@ widget-status:
 widget-registration-clean:
     @products="$PWD/{{derived_data}}/Build/Products"; \
       if [[ -d "$products" ]]; then \
-        /usr/bin/find "$products" -mindepth 2 -maxdepth 2 -type d -name 'AirBattery.app' -print0 | \
-          while IFS= read -r -d '' app; do \
-            widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
-            if [[ -d "$widget" ]]; then \
-              printf 'Unregistering build-product widget: %s\n' "$widget"; \
-              /usr/bin/pluginkit -r "$widget" >/dev/null 2>&1 || true; \
-            fi; \
-            printf 'Removing disposable build product: %s\n' "$app"; \
-            /bin/rm -rf "$app"; \
-          done; \
+        shopt -s nullglob; \
+        for app in "$products"/*/AirBattery.app; do \
+          [[ -d "$app" ]] || continue; \
+          widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+          if [[ -d "$widget" ]]; then \
+            printf 'Unregistering build-product widget: %s\n' "$widget"; \
+            /usr/bin/pluginkit -r "$widget" >/dev/null 2>&1 || true; \
+          fi; \
+          printf 'Removing disposable build product: %s\n' "$app"; \
+          /bin/rm -rf "$app"; \
+        done; \
       fi
 
 # Show every physical registration for the AirBattery WidgetKit extension.
