@@ -233,7 +233,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         IOBluetoothDevice.register(forConnectNotifications: self, selector: #selector(deviceIsConnected(notification:fromDevice:)))
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURLEvent(_:replyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
         //if let window = NSApplication.shared.windows.first { window.close() }
-        launchAtLogin = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.josephcourtney.AirBatteryHelper" }
+        launchAtLogin = isLoginItemEnabled()
         print("⚙️ Launch AirBattery at login = \(launchAtLogin)")
         print("⚙️ Icon mode = \(showOn)")
         migrateLegacyNearcastCredentialsIfNeeded()
@@ -578,18 +578,31 @@ func refeshPinnedBar(unpin: String? = nil) {
 }
 
 @discardableResult
+func isLoginItemEnabled() -> Bool {
+    switch SMAppService.mainApp.status {
+    case .enabled, .requiresApproval:
+        return true
+    case .notRegistered, .notFound:
+        return false
+    @unknown default:
+        return false
+    }
+}
+
+@discardableResult
 func ensureLoginItem(enabled: Bool) -> Bool {
-    let helperBundleIdentifier = "com.josephcourtney.AirBatteryHelper"
+    let service = SMAppService.mainApp
     do {
-        let service = SMAppService.loginItem(identifier: helperBundleIdentifier)
         if enabled {
-            try service.register()
-        } else {
+            if service.status == .notRegistered || service.status == .notFound {
+                try service.register()
+            }
+        } else if service.status != .notRegistered {
             try service.unregister()
         }
         return true
     } catch {
-        NSLog("[AirBattery] SMAppService register/unregister failed: \(error.localizedDescription)")
+        NSLog("[AirBattery] SMAppService main-app registration failed: \(error.localizedDescription)")
         return false
     }
 }
