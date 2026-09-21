@@ -18,7 +18,6 @@ var updaterController: SPUStandardUpdaterController!
 var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = AirBatteryModel.getNearcastURL()
 let systemUUID = getMacDeviceUUID()
-var dockWindow = AutoHideWindow()
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var keepAliveActivity: NSObjectProtocol? = nil
@@ -104,69 +103,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         completionHandler()
     }
     
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // 用户点击 Dock 图标时会调用这个方法
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
         if showOn == "sbar" || showOn == "none" {
             openSettingPanel()
             return false
         }
-        if dockWindow.isVisible {
-            dockWindow.orderOut(nil)
-        } else {
-            var allDevices = AirBatteryModel.getAll()
-            let ibStatus = InternalBattery.status
-            if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
-            let contentViewSwiftUI = popover(fromDock: true, allDevice: allDevices)
-            let contentView = NSHostingView(rootView: contentViewSwiftUI)
-            contentView.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
-            contentView.layoutSubtreeIfNeeded()
-            let menuHeight = ceil(max(contentView.fittingSize.height, 1))
-            let mouse = NSEvent.mouseLocation
-            var menuX = mouse.x
-            var menuY = mouse.y
-            if let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) {
-                let visibleFrame = screen.visibleFrame
-                var dockOrientation = "bottom"
-                if let defaults = UserDefaults(suiteName: "com.apple.dock"), let orientation = defaults.string(forKey: "orientation") { dockOrientation = orientation }
-                switch dockOrientation {
-                case "bottom":
-                    // Dock 位于屏幕底部
-                    if menuX + 186 > visibleFrame.maxX {
-                        menuX = visibleFrame.maxX - 362
-                    } else if menuX - 166 < visibleFrame.minX {
-                        menuX = visibleFrame.minX + 10
-                    } else {
-                        menuX = menuX - 176
-                    }
-                    menuY = max(menuY, visibleFrame.origin.y) + 20
-                case "right":
-                    // Dock 位于屏幕右侧
-                    menuX = menuX + 352 > visibleFrame.maxX ? visibleFrame.maxX - 372 : menuX + 10
-                    menuY = max(menuY - menuHeight/2, visibleFrame.origin.y)
-                case "left":
-                    // Dock 位于屏幕左侧
-                    menuX = menuX + 352 > visibleFrame.maxX ? visibleFrame.maxX - 372 : menuX
-                    menuX = menuX < visibleFrame.origin.x ? visibleFrame.origin.x + 20 : menuX + 10
-                    menuY = max(menuY - menuHeight/2, visibleFrame.origin.y)
-                default:
-                    print("⚠️ Failed to get Dock orientation!")
-                }
-            }
-            contentView.frame = NSRect(x: menuX, y: menuY, width: 352, height: menuHeight)
-            dockWindow = AutoHideWindow(contentRect: contentView.frame, styleMask: [.fullSizeContentView], backing: .buffered, defer: false)
-            dockWindow.title = "AirBattery Dock Window"
-            dockWindow.level = .popUpMenu
-            dockWindow.contentView = contentView
-            dockWindow.isOpaque = false
-            dockWindow.backgroundColor = NSColor.clear
-            dockWindow.contentView?.wantsLayer = true
-            dockWindow.contentView?.layer?.cornerRadius = 7
-            dockWindow.contentView?.layer?.masksToBounds = true
-            dockWindow.makeKeyAndOrderFront(nil)
-        }
+
+        DockPopoverController.shared.toggle()
         return true
     }
-    
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         // default defaults (used if not set)
         ud.register(
@@ -379,25 +328,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
-        dockWindow.orderOut(nil)
+        DockPopoverController.shared.hide()
         return menu
-    }
-}
-
-class NNSWindow: NSWindow {
-    override var canBecomeKey: Bool {
-        return true
-    }
-}
-
-class AutoHideWindow: NSWindow {
-    override var canBecomeKey: Bool {
-        return true
-    }
-    
-    override func resignKey() {
-        super.resignKey()
-        self.orderOut(nil)
     }
 }
 
