@@ -7,7 +7,6 @@ xcode_app := env("XCODE_APP", "/Applications/Xcode.app")
 signing_identity := env("SIGNING_IDENTITY", "")
 app_bundle_id := "com.josephcourtney.AirBattery"
 widget_bundle_id := "com.josephcourtney.AirBattery.widget"
-helper_bundle_id := "com.josephcourtney.AirBatteryHelper"
 install_state_dir := ".build/install-state"
 
 # List available recipes.
@@ -267,19 +266,16 @@ build-adhoc configuration="Debug": vendor-mobile
         build
     just verify-signing "{{configuration}}"
 
-# Verify the host app and its embedded helper/widget signatures and identifiers.
+# Verify the host app and embedded widget signatures and identifiers.
 verify-signing configuration="Debug":
     @app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
-      helper="$app/Contents/Library/LoginItems/AirBatteryHelper.app"; \
       test -d "$app" || { echo "Missing $app; run 'just build-signed {{configuration}}' first." >&2; exit 1; }; \
       test -d "$widget" || { echo "Missing embedded widget extension: $widget" >&2; exit 1; }; \
-      test -d "$helper" || { echo "Missing embedded login helper: $helper" >&2; exit 1; }; \
       codesign --verify --deep --strict --verbose=2 "$app"; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == "{{app_bundle_id}}" ]] || { echo "Unexpected app bundle identifier." >&2; exit 1; }; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$widget/Contents/Info.plist")" == "{{widget_bundle_id}}" ]] || { echo "Unexpected widget bundle identifier." >&2; exit 1; }; \
-      [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$helper/Contents/Info.plist")" == "{{helper_bundle_id}}" ]] || { echo "Unexpected helper bundle identifier." >&2; exit 1; }; \
-      printf '%s\n' "Signed app:    {{app_bundle_id}}" "Signed widget: {{widget_bundle_id}}" "Signed helper: {{helper_bundle_id}}"
+      printf '%s\n' "Signed app:    {{app_bundle_id}}" "Signed widget: {{widget_bundle_id}}"
 
 # Compute the semantic fingerprint of a locally installed build.
 # This intentionally hashes only build inputs, not documentation/tests or build caches.
@@ -307,11 +303,11 @@ install-fingerprint configuration="Debug":
           "swift=$(xcrun swiftc --version 2>/dev/null | /usr/bin/head -n 1)"; \
         printf '%s\n' '--- tracked build inputs ---'; \
         git ls-files -s -- \
-          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery widget abt tools/mobile \
           AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- worktree build-input diff ---'; \
         git diff --no-ext-diff --no-textconv --binary -- \
-          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery widget abt tools/mobile \
           AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- untracked build inputs ---'; \
         while IFS= read -r -d '' path; do \
@@ -326,7 +322,7 @@ install-fingerprint configuration="Debug":
             printf 'missing\t%s\n' "$path"; \
           fi; \
         done < <(git ls-files -o --exclude-standard -z -- \
-          AirBattery AirBatteryHelper widget abt tools/mobile \
+          AirBattery widget abt tools/mobile \
           AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules); \
         printf '%s\n' '--- submodules ---'; \
         git config -f .gitmodules --get-regexp path | /usr/bin/awk '{print $2}' | \
@@ -349,8 +345,7 @@ installed-current configuration="Debug":
       install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       app="$install_dir/AirBattery.app"; \
       widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
-      helper="$app/Contents/Library/LoginItems/AirBatteryHelper.app"; \
-      [[ -f "$state" && -d "$app" && -d "$widget" && -d "$helper" ]] || exit 1; \
+      [[ -f "$state" && -d "$app" && -d "$widget" ]] || exit 1; \
       recorded_path="$(/usr/bin/sed -n 's/^app_path=//p' "$state")"; \
       [[ "$recorded_path" == "$app" ]] || exit 1; \
       recorded_fp="$(/usr/bin/sed -n 's/^fingerprint=//p' "$state")"; \
@@ -359,7 +354,6 @@ installed-current configuration="Debug":
       /usr/bin/codesign --verify --deep --strict "$app" >/dev/null 2>&1 || exit 1; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null)" == "{{app_bundle_id}}" ]] || exit 1; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$widget/Contents/Info.plist" 2>/dev/null)" == "{{widget_bundle_id}}" ]] || exit 1; \
-      [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$helper/Contents/Info.plist" 2>/dev/null)" == "{{helper_bundle_id}}" ]] || exit 1; \
       recorded_cdhash="$(/usr/bin/sed -n 's/^cdhash=//p' "$state")"; \
       actual_cdhash="$(/usr/bin/codesign -dvvv "$app" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -n 1)"; \
       [[ -n "$recorded_cdhash" && "$recorded_cdhash" == "$actual_cdhash" ]] || exit 1
@@ -417,21 +411,18 @@ install-state configuration="Debug":
         printf '%s\n' 'Status:        stale or invalid'; \
       fi
 
-# Stop the containing app and login helper while leaving the WidgetKit extension
-# alone. During an install, killing the extension before the replacement bundle
-# exists can make WidgetKit immediately relaunch the old registered extension.
+# Stop the containing app while leaving the WidgetKit extension alone. During
+# an install, killing the extension before the replacement bundle exists can
+# make WidgetKit immediately relaunch the old registered extension.
 stop-host:
     @/usr/bin/pkill -TERM -x AirBattery >/dev/null 2>&1 || true
-    @/usr/bin/pkill -TERM -x AirBatteryHelper >/dev/null 2>&1 || true
     @for _ in 1 2 3 4 5 6 7 8 9 10; do \
-      if ! /usr/bin/pgrep -x AirBattery >/dev/null 2>&1 && \
-         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1; then \
+      if ! /usr/bin/pgrep -x AirBattery >/dev/null 2>&1; then \
         exit 0; \
       fi; \
       /bin/sleep 0.1; \
     done; \
-    /usr/bin/pkill -KILL -x AirBattery >/dev/null 2>&1 || true; \
-    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true
+    /usr/bin/pkill -KILL -x AirBattery >/dev/null 2>&1 || true
 
 # Stop every locally running AirBattery process. Use this for an explicit full
 # shutdown; install-local deliberately uses stop-host instead.
@@ -540,7 +531,7 @@ bluetooth-diagnose:
         /usr/bin/defaults read "{{app_bundle_id}}" "$key" 2>/dev/null || echo '<unset>'; \
       done; \
       printf '%s\n' '--- Running processes ---'; \
-      /usr/bin/pgrep -alf 'AirBattery|AirBatteryHelper|AirBatteryWidgetExtension' || true; \
+      /usr/bin/pgrep -alf 'AirBattery|AirBatteryWidgetExtension' || true; \
       printf '%s\n' '--- Recent Bluetooth/BLE logs ---'; \
       /usr/bin/log show --last 10m --style compact --predicate 'process == "AirBattery"' 2>/dev/null | \
         /usr/bin/grep -E 'Bluetooth|BLE|permission|scanning' | /usr/bin/tail -n 80 || true; \
