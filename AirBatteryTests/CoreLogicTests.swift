@@ -142,6 +142,63 @@ final class DevicePresentationNamingTests: XCTestCase {
     }
 }
 
+final class NearcastCredentialFormatTests: XCTestCase {
+    func testV2SetupCodeRoundTrips() throws {
+        let groupID = "ncg-abcdefghijklmnop"
+        let rawKey = Data(repeating: 0x5A, count: 32).base64EncodedString()
+        let sharingKey = "nck2-" + rawKey
+
+        XCTAssertTrue(
+            NearcastCredentialFormat.isValid(
+                groupID: groupID,
+                sharingKey: sharingKey
+            )
+        )
+
+        let code = try XCTUnwrap(
+            NearcastCredentialFormat.setupCode(
+                groupID: groupID,
+                sharingKey: sharingKey
+            )
+        )
+        let parsed = try XCTUnwrap(NearcastCredentialFormat.parseSetupCode(code))
+        XCTAssertEqual(parsed.groupID, groupID)
+        XCTAssertEqual(parsed.sharingKey, sharingKey)
+    }
+
+    func testLegacyCredentialRemainsValidForMigration() {
+        let legacy = "nc-abcdefghijklmnopqrst"
+        XCTAssertEqual(legacy.count, 23)
+        XCTAssertTrue(NearcastCredentialFormat.isLegacySharingKey(legacy))
+        XCTAssertTrue(
+            NearcastCredentialFormat.isValid(
+                groupID: String(legacy.prefix(15)),
+                sharingKey: legacy
+            )
+        )
+    }
+
+    func testRejectsMismatchedOrMalformedCredentials() {
+        let rawKey = Data(repeating: 0xA5, count: 32).base64EncodedString()
+        XCTAssertFalse(
+            NearcastCredentialFormat.isValid(
+                groupID: "wrong-group",
+                sharingKey: "nck2-" + rawKey
+            )
+        )
+        XCTAssertNil(
+            NearcastCredentialFormat.parseSetupCode(
+                "airbattery-nearcast:wrong-group:nck2-" + rawKey
+            )
+        )
+        XCTAssertFalse(
+            NearcastCredentialFormat.isLegacySharingKey(
+                "nc-contains_invalid_chars"
+            )
+        )
+    }
+}
+
 final class IDeviceInfoParserTests: XCTestCase {
     func testParsesDeviceMetadata() {
         let output = """
