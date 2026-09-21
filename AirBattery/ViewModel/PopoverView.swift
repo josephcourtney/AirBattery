@@ -185,7 +185,6 @@ struct popover: View {
     ) -> some View {
         DeviceRowHoverControls(
             infoText: genericInfoText(for: device),
-            infoText: infoText,
             device: device,
             alerted: alertList.contains {
                 $0.name == device.deviceName
