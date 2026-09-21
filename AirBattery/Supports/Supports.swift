@@ -139,7 +139,7 @@ enum AppPreferences {
     }
 
     static var bleDiscoveryMode: String {
-        get { string("bleDiscoveryMode", default: BLEDiscoveryMode.review.rawValue) }
+        get { string("bleDiscoveryMode", default: "review") }
         set { ud.set(newValue, forKey: "bleDiscoveryMode") }
     }
 
