@@ -172,7 +172,6 @@ class IDeviceBattery: ObservableObject {
     }
 
     func writeBatteryInfo(_ id: String, _ connectType: String) {
-        //print("ℹ️ Getting Battery Info for \(id)")
         let source: IDeviceConnectionSource = connectType == "-n" ? .network : .usb
         let lastUpdate = Date().timeIntervalSince1970
         if connectType == "" {
