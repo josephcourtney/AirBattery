@@ -146,6 +146,166 @@ private struct PopoverHostSurfaceModifier: ViewModifier {
     }
 }
 
+private enum DeviceActions {
+    static func configureBatteryAlert(
+        for device: Device,
+        onChange: @escaping ([btAlert]) -> Void
+    ) {
+        let alerts =
+            ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+        let initial = alerts.first { $0.name == device.deviceName } ??
+            btAlert(
+                name: device.deviceName,
+                full: 80,
+                fullOn: true,
+                fullSound: true,
+                low: 20,
+                lowOn: true,
+                lowSound: true
+            )
+
+        let controller = AlertWindowController()
+        controller.showAlert(
+            with: initial,
+            iconName: getDeviceIcon(device),
+            onConfirm: { newAlert in
+                var updated =
+                    ud.get(
+                        objectType: [btAlert].self,
+                        forKey: "alertList"
+                    ) ?? []
+                updated.removeAll { $0.name == device.deviceName }
+                updated.append(newAlert)
+                ud.set(object: updated, forKey: "alertList")
+                onChange(updated)
+            },
+            onCancel: {}
+        )
+    }
+
+    static func togglePin(for device: Device) -> [String] {
+        var names = AppPreferences.pinnedNames
+        if names.contains(device.deviceName) {
+            names.removeAll { $0 == device.deviceName }
+            AppPreferences.pinnedNames = names
+            refeshPinnedBar(unpin: device.deviceName)
+        } else {
+            names.append(device.deviceName)
+            AppPreferences.pinnedNames = names
+            refeshPinnedBar()
+        }
+        return names
+    }
+}
+
+private struct DeviceRowHoverControls: View {
+    let infoText: String
+    let infoColor: Color
+    let device: Device
+    let alerted: Bool
+    let pinned: Bool
+    let canPin: Bool
+    let canHide: Bool
+    let onAlert: () -> Void
+    let onPin: () -> Void
+    let onCopy: () -> Void
+    let onHide: () -> Void
+
+    init(
+        infoText: String,
+        infoColor: Color = .secondary,
+        device: Device,
+        alerted: Bool,
+        pinned: Bool,
+        canPin: Bool = true,
+        canHide: Bool = false,
+        onAlert: @escaping () -> Void,
+        onPin: @escaping () -> Void,
+        onCopy: @escaping () -> Void,
+        onHide: @escaping () -> Void = {}
+    ) {
+        self.infoText = infoText
+        self.infoColor = infoColor
+        self.device = device
+        self.alerted = alerted
+        self.pinned = pinned
+        self.canPin = canPin
+        self.canHide = canHide
+        self.onAlert = onAlert
+        self.onPin = onPin
+        self.onCopy = onCopy
+        self.onHide = onHide
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(infoText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(infoColor)
+
+            Spacer().frame(width: 1)
+
+            if device.hasBattery {
+                DeviceRowActionButton(
+                    imageName: alerted
+                        ? "bell.circle.fill"
+                        : "bell.circle",
+                    help: alerted ? "Edit battery alert" : "Add battery alert",
+                    action: onAlert
+                )
+
+                if canPin {
+                    DeviceRowActionButton(
+                        imageName: pinned
+                            ? "pin.circle.fill"
+                            : "pin.circle",
+                        help: pinned ? "Unpin from menu bar" : "Pin to menu bar",
+                        action: onPin
+                    )
+                }
+
+                DeviceRowActionButton(
+                    imageName: "list.clipboard.fill.circle",
+                    help: "Copy device name",
+                    action: onCopy
+                )
+
+                if canHide {
+                    DeviceRowActionButton(
+                        imageName: "eye.slash.circle",
+                        help: "Hide device",
+                        action: onHide
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct DeviceRowActionButton: View {
+    let imageName: String
+    let help: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+                .foregroundColor(
+                    isHovered ? .accentColor : .secondary
+                )
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(help)
+        .onHover { isHovered = $0 }
+    }
+}
+
 struct popover: View {
     var fromDock: Bool = false
     var allDevice: [Device]
@@ -158,10 +318,6 @@ struct popover: View {
 
     @State private var allDevices = [Device]()
     @State private var hiddenDevices = AirBatteryModel.getBlackList()
-    @State private var overCopyButton = false
-    @State private var overHideButton = false
-    @State private var overAlertButton = false
-    @State private var overPinButton = false
     @State private var overStack = -1
     @State private var overStack2 = -1
     @State private var overStackNC = -1
@@ -179,54 +335,13 @@ struct popover: View {
     }
 
     private func configureBatteryAlert(for device: Device) {
-        alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
-        let controller = AlertWindowController()
-
-        if let existing = alertList.first(where: { $0.name == device.deviceName }) {
-            controller.showAlert(
-                with: existing,
-                iconName: getDeviceIcon(device),
-                onConfirm: { newAlert in
-                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
-                    alertList.removeAll { $0.name == device.deviceName }
-                    alertList.append(newAlert)
-                    ud.set(object: alertList, forKey: "alertList")
-                },
-                onCancel: {}
-            )
-        } else {
-            let newAlert = btAlert(
-                name: device.deviceName,
-                full: 80,
-                fullOn: true,
-                fullSound: true,
-                low: 20,
-                lowOn: true,
-                lowSound: true
-            )
-            controller.showAlert(
-                with: newAlert,
-                iconName: getDeviceIcon(device),
-                onConfirm: { confirmed in
-                    alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
-                    alertList.append(confirmed)
-                    ud.set(object: alertList, forKey: "alertList")
-                },
-                onCancel: {}
-            )
+        DeviceActions.configureBatteryAlert(for: device) {
+            alertList = $0
         }
     }
 
     private func togglePin(for device: Device) {
-        pinnedList = AppPreferences.pinnedNames
-        if pinnedList.contains(device.deviceName) {
-            pinnedList.removeAll { $0 == device.deviceName }
-            refeshPinnedBar(unpin: device.deviceName)
-        } else {
-            pinnedList.append(device.deviceName)
-            refeshPinnedBar()
-        }
-        AppPreferences.pinnedNames = pinnedList
+        pinnedList = DeviceActions.togglePin(for: device)
     }
 
     private func hideAirPodsGroup(_ group: AirPodsBatteryGroup) {
@@ -355,116 +470,62 @@ struct popover: View {
         for device: Device,
         index: Int
     ) -> some View {
-        HStack(spacing: 3) {
-            if device.deviceID == "@MacInternalBattery" {
-                Text(device.isCharging != 0 ? "Until Full:" : "Until Empty:")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                Text(InternalBattery.status.timeLeft)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-            } else {
-                let update = device.realUpdate != 0
+        let infoText: String
+        if device.deviceID == "@MacInternalBattery" {
+            let prefix = device.isCharging != 0
+                ? "Until Full:"
+                : "Until Empty:"
+            infoText = "\(prefix) \(InternalBattery.status.timeLeft)"
+        } else {
+            let update =
+                device.realUpdate != 0
                     ? device.realUpdate
                     : device.lastUpdate
-                Text(
-                    "\(Int((Date().timeIntervalSince1970 - update) / 60))" +
-                        " mins ago".local
-                )
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
-            }
-
-            Spacer().frame(width: 1)
-
-            Button {
-                configureBatteryAlert(for: device)
-            } label: {
-                Image(
-                    alertList.contains(where: { $0.name == device.deviceName })
-                        ? "bell.circle.fill"
-                        : "bell.circle"
-                )
-                .resizable()
-                .scaledToFit()
-                .frame(width: 18, height: 18)
-                .foregroundColor(
-                    overAlertButton ? .accentColor : .secondary
-                )
-            }
-            .buttonStyle(.plain)
-            .onHover { overAlertButton = $0 }
-
-            if device.deviceID != "@MacInternalBattery" {
-                Button {
-                    togglePin(for: device)
-                } label: {
-                    Image(
-                        pinnedList.contains(device.deviceName)
-                            ? "pin.circle.fill"
-                            : "pin.circle"
-                    )
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 18, height: 18)
-                    .foregroundColor(
-                        overPinButton ? .accentColor : .secondary
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { overPinButton = $0 }
-            }
-
-            Button {
-                copyToClipboard(device.deviceName)
-                DispatchQueue.main.async {
-                    _ = createAlert(
-                        title: "Device Name Copied".local,
-                        message: String(
-                            format:
-                                "Device name \"%@\" has been copied to the clipboard.".local,
-                            device.deviceName
-                        ),
-                        button1: "OK".local
-                    ).runModal()
-                }
-            } label: {
-                Image("list.clipboard.fill.circle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 18, height: 18)
-                    .foregroundColor(
-                        overCopyButton ? .accentColor : .secondary
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { overCopyButton = $0 }
-
-            if device.deviceID != "@MacInternalBattery" {
-                Button {
-                    hidden.append(index)
-                    var blackList =
-                        AppPreferences.blockedNames
-                    if !blackList.contains(device.deviceName) {
-                        blackList.append(device.deviceName)
-                    }
-                    AppPreferences.blockedNames = blackList
-                    if pinnedList.contains(device.deviceName) {
-                        refeshPinnedBar()
-                    }
-                } label: {
-                    Image("eye.slash.circle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                        .foregroundColor(
-                            overHideButton ? .accentColor : .secondary
-                        )
-                }
-                .buttonStyle(.plain)
-                .onHover { overHideButton = $0 }
-            }
+            let minutes = Int(
+                (Date().timeIntervalSince1970 - update) / 60
+            )
+            infoText = "\(minutes) " + "mins ago".local
         }
+
+        DeviceRowHoverControls(
+            infoText: infoText,
+            device: device,
+            alerted: alertList.contains {
+                $0.name == device.deviceName
+            },
+            pinned: pinnedList.contains(device.deviceName),
+            canPin: device.deviceID != "@MacInternalBattery",
+            canHide: device.deviceID != "@MacInternalBattery",
+            onAlert: {
+                configureBatteryAlert(for: device)
+            },
+            onPin: {
+                togglePin(for: device)
+            },
+            onCopy: {
+                copyToClipboard(device.deviceName)
+                _ = createAlert(
+                    title: "Device Name Copied".local,
+                    message: String(
+                        format:
+                            "Device name \"%@\" has been copied to the clipboard.".local,
+                        device.deviceName
+                    ),
+                    button1: "OK".local
+                ).runModal()
+            },
+            onHide: {
+                hidden.append(index)
+                var blackList = AppPreferences.blockedNames
+                if !blackList.contains(device.deviceName) {
+                    blackList.append(device.deviceName)
+                }
+                AppPreferences.blockedNames = blackList
+                if pinnedList.contains(device.deviceName) {
+                    refeshPinnedBar()
+                }
+            }
+        )
     }
 
     var body: some View {
