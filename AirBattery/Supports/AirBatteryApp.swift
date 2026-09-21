@@ -57,7 +57,7 @@ struct AirBatteryApp: App {
 
 @MainActor
 func dismissMenuBarWindow() {
-    if #available(macOS 26.0, *),
+    if #available(macOS 27.0, *),
        statusBarItem != nil,
        let session = statusBarItem.expandedInterfaceSession
     {
@@ -191,7 +191,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             dockWindow.contentView?.wantsLayer = true
             dockWindow.contentView?.layer?.cornerRadius = 7
             dockWindow.contentView?.layer?.masksToBounds = true
-            if #available(macOS 26.0, *) {
+            if #available(macOS 27.0, *) {
                 dockWindow.backgroundColor = .clear
                 dockWindow.isOpaque = false
             }
@@ -292,7 +292,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         //menu.delegate = self
         //statusMenu.delegate = self
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if #available(macOS 26.0, *) {
+        if #available(macOS 27.0, *) {
             statusBarItem.expandedInterfaceDelegate = self
         }
         //statusBarItem.menu = statusMenu
@@ -433,7 +433,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     
     @MainActor
     @objc func togglePopover(_ sender: Any?) {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 27.0, *) {
             // AppKit owns the expanded-interface lifecycle and invokes the
             // delegate for the specific replicated status item that was used.
             return
@@ -563,7 +563,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         menuBarWindow = panel
         panel.orderFrontRegardless()
 
-        if #unavailable(macOS 26.0) {
+        if #unavailable(macOS 27.0) {
             installMenuBarWindowDismissalMonitors(panel)
         }
     }
@@ -646,9 +646,9 @@ class AutoHideWindow: NSWindow {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 27.0, *)
+@MainActor
 extension AppDelegate: NSStatusItemExpandedInterfaceDelegate {
-    @MainActor
     func statusItem(
         _ statusItem: NSStatusItem,
         didBegin session: NSStatusItemExpandedInterfaceSession
@@ -701,7 +701,6 @@ extension AppDelegate: NSStatusItemExpandedInterfaceDelegate {
         )
     }
 
-    @MainActor
     func statusItemDidEndExpandedInterfaceSession(
         _ statusItem: NSStatusItem,
         animated: Bool
