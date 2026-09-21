@@ -1,210 +1,275 @@
 //
-//  SInfoButton.swift
+//  GroupForm.swift
 //  AirBattery
-//
-//  Created by apple on 2024/10/28.
 //
 
 import SwiftUI
 
 struct SForm<Content: View>: View {
     var spacing: CGFloat = 30
-    var noSpacer: Bool = false
+    var noSpacer = false
     @ViewBuilder let content: () -> Content
-    
+
     var body: some View {
-        VStack(spacing: spacing) {
+        VStack(alignment: .leading, spacing: spacing) {
             content()
             if !noSpacer {
-                Spacer().frame(minHeight: 0)
+                Spacer(minLength: 0)
             }
         }
-        .padding(.bottom, noSpacer ? 0 : -spacing)
         .padding()
-        .frame(maxWidth: .infinity)
-        
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 
 struct SGroupBox<Content: View>: View {
-    var label: LocalizedStringKey? = nil
+    var label: LocalizedStringKey?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        GroupBox(label: label != nil ? Text(label!).font(.headline) : nil) {
-            VStack(spacing: 10) { content() }.padding(5)
+        if let label {
+            GroupBox {
+                groupContent
+            } label: {
+                Text(label).font(.headline)
+            }
+        } else {
+            GroupBox {
+                groupContent
+            }
         }
+    }
+
+    private var groupContent: some View {
+        VStack(spacing: 10) {
+            content()
+        }
+        .padding(5)
     }
 }
 
 struct SInfoButton: View {
-    var tips: LocalizedStringKey
-    @State private var isPresented: Bool = false
-    
+    let tips: LocalizedStringKey
+    @State private var isPresented = false
+
     var body: some View {
-        Button(action: {
+        Button {
             isPresented = true
-        }, label: {
+        } label: {
             Image(systemName: "info.circle")
                 .font(.system(size: 15, weight: .light))
                 .opacity(0.62)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
-        })
+        }
         .buttonStyle(.plain)
         .accessibilityLabel("More information")
         .sheet(isPresented: $isPresented) {
             VStack(alignment: .trailing) {
-                GroupBox { Text(tips).padding() }
-                Button(action: {
+                GroupBox {
+                    Text(tips).padding()
+                }
+                Button("OK") {
                     isPresented = false
-                }, label: {
-                    Text("OK").frame(width: 30)
-                }).keyboardShortcut(.defaultAction)
-            }.padding()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding()
         }
     }
 }
 
 struct SButton: View {
-    var title: LocalizedStringKey
-    var buttonTitle: LocalizedStringKey
-    var tips: LocalizedStringKey?
-    var action: () -> Void
-    
-    init(_ title: LocalizedStringKey, buttonTitle: LocalizedStringKey, tips: LocalizedStringKey? = nil, action: @escaping () -> Void) {
+    let title: LocalizedStringKey
+    let buttonTitle: LocalizedStringKey
+    let tips: LocalizedStringKey?
+    let action: () -> Void
+
+    init(
+        _ title: LocalizedStringKey,
+        buttonTitle: LocalizedStringKey,
+        tips: LocalizedStringKey? = nil,
+        action: @escaping () -> Void
+    ) {
         self.title = title
         self.buttonTitle = buttonTitle
         self.tips = tips
         self.action = action
     }
-    
+
     var body: some View {
-        HStack(spacing: 4) {
+        LabeledContent {
+            HStack(spacing: 4) {
+                if let tips {
+                    SInfoButton(tips: tips)
+                }
+                Button(buttonTitle, action: action)
+            }
+        } label: {
             Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Button(buttonTitle,
-                   action: { action() })
-        }.frame(minHeight: 28)
+        }
+        .frame(minHeight: 28)
     }
 }
 
 struct SField: View {
-    var title: LocalizedStringKey
-    var placeholder: LocalizedStringKey
-    var tips: LocalizedStringKey?
+    let title: LocalizedStringKey
+    let placeholder: LocalizedStringKey
+    let tips: LocalizedStringKey?
     @Binding var text: String
-    var width: Double
-    
-    init(_ title: LocalizedStringKey, placeholder:LocalizedStringKey = "", tips: LocalizedStringKey? = nil, text: Binding<String>, width: Double = .infinity) {
+    let width: Double
+
+    init(
+        _ title: LocalizedStringKey,
+        placeholder: LocalizedStringKey = "",
+        tips: LocalizedStringKey? = nil,
+        text: Binding<String>,
+        width: Double = .infinity
+    ) {
         self.title = title
         self.placeholder = placeholder
         self.tips = tips
-        self._text = text
+        _text = text
         self.width = width
     }
-    
+
     var body: some View {
-        HStack(spacing: 4) {
+        LabeledContent {
+            HStack(spacing: 4) {
+                if let tips {
+                    SInfoButton(tips: tips)
+                }
+                TextField(placeholder, text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: width)
+            }
+        } label: {
             Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: width)
         }
     }
 }
 
 struct SPicker<T: Hashable, Content: View, Style: PickerStyle>: View {
-    var title: LocalizedStringKey
+    let title: LocalizedStringKey
     @Binding var selection: T
-    var style: Style
-    var tips: LocalizedStringKey?
+    let style: Style
+    let tips: LocalizedStringKey?
     @ViewBuilder let content: () -> Content
-    
-    init(_ title: LocalizedStringKey, selection: Binding<T>, style: Style = .menu, tips: LocalizedStringKey? = nil, @ViewBuilder content: @escaping () -> Content) {
-            self.title = title
-            self._selection = selection
-            self.style = style
-            self.tips = tips
-            self.content = content
-        }
-    
+
+    init(
+        _ title: LocalizedStringKey,
+        selection: Binding<T>,
+        style: Style = .menu,
+        tips: LocalizedStringKey? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        _selection = selection
+        self.style = style
+        self.tips = tips
+        self.content = content
+    }
+
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Picker(selection: $selection, content: { content() }, label: {})
+        LabeledContent {
+            HStack(spacing: 4) {
+                if let tips {
+                    SInfoButton(tips: tips)
+                }
+                Picker("", selection: $selection) {
+                    content()
+                }
+                .labelsHidden()
                 .fixedSize()
                 .pickerStyle(style)
-                .buttonStyle(.borderless)
-        }.frame(minHeight: 28)
+            }
+        } label: {
+            Text(title)
+        }
+        .frame(minHeight: 28)
     }
 }
 
 struct SToggle: View {
-    var title: LocalizedStringKey
+    let title: LocalizedStringKey
     @Binding var isOn: Bool
-    var tips: LocalizedStringKey?
-    
-    init(_ title: LocalizedStringKey, isOn: Binding<Bool>, tips: LocalizedStringKey? = nil) {
+    let tips: LocalizedStringKey?
+
+    init(
+        _ title: LocalizedStringKey,
+        isOn: Binding<Bool>,
+        tips: LocalizedStringKey? = nil
+    ) {
         self.title = title
-        self._isOn = isOn
+        _isOn = isOn
         self.tips = tips
     }
-    
+
     var body: some View {
-        HStack(spacing: 4) {
+        LabeledContent {
+            HStack(spacing: 4) {
+                if let tips {
+                    SInfoButton(tips: tips)
+                }
+                Toggle("", isOn: $isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+        } label: {
             Text(title)
-            Spacer()
-            if let tips = tips { SInfoButton(tips: tips) }
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .scaleEffect(0.7)
-                .frame(width: 32)
-        }.frame(minHeight: 28)
+        }
+        .frame(minHeight: 28)
     }
 }
 
 struct SSteper: View {
-    var title: LocalizedStringKey
+    let title: LocalizedStringKey
     @Binding var value: Int
-    var min: Int
-    var max: Int
-    var width: CGFloat
-    var tips: LocalizedStringKey?
-    
-    init(_ title: LocalizedStringKey, value: Binding<Int>, min: Int = 0, max: Int = 100, width: CGFloat = 45, tips: LocalizedStringKey? = nil) {
+    let min: Int
+    let max: Int
+    let width: CGFloat
+    let tips: LocalizedStringKey?
+
+    init(
+        _ title: LocalizedStringKey,
+        value: Binding<Int>,
+        min: Int = 0,
+        max: Int = 100,
+        width: CGFloat = 45,
+        tips: LocalizedStringKey? = nil
+    ) {
         self.title = title
-        self._value = value
+        _value = value
         self.tips = tips
         self.width = width
         self.min = min
         self.max = max
     }
-    
+
+    private var clampedValue: Binding<Int> {
+        Binding(
+            get: { value },
+            set: { value = Swift.min(max, Swift.max(min, $0)) }
+        )
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
-            Text(title)
-            Spacer()
-            if let tips = tips {
-                SInfoButton(tips: tips)
-                    .padding(.trailing, 2)
-            }
-            TextField("", value: $value, formatter: NumberFormatter())
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
-                .frame(width: width)
-                .onChange(of: value) { newValue in
-                    if newValue > max { value = max }
-                    if newValue < min { value = min }
+        LabeledContent {
+            HStack(spacing: 4) {
+                if let tips {
+                    SInfoButton(tips: tips)
                 }
-            Stepper("", value: $value)
-                .padding(.leading, -6)
-        }.frame(minHeight: 28)
+                TextField("", value: clampedValue, formatter: NumberFormatter())
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: width)
+                Stepper("", value: clampedValue, in: min...max)
+                    .labelsHidden()
+            }
+        } label: {
+            Text(title)
+        }
+        .frame(minHeight: 28)
     }
 }
