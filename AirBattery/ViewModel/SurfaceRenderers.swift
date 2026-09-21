@@ -1209,7 +1209,23 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     private var columns: Int {
-        family == .small ? 2 : 4
+        switch family {
+        case .small:
+            return 2
+        case .medium:
+            return 4
+        case .large:
+            return 3
+        }
+    }
+
+    private var rowCount: Int {
+        switch family {
+        case .small, .medium:
+            return 2
+        case .large:
+            return 3
+        }
     }
 
     private var diameter: CGFloat {
@@ -1253,9 +1269,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
 
     var body: some View {
         VStack(spacing: verticalSpacing) {
-            overviewRow(start: 0)
-            if items.count > columns || family != .medium {
-                overviewRow(start: columns)
+            ForEach(0..<rowCount, id: \.self) { row in
+                overviewRow(start: row * columns)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -1273,7 +1288,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
                         showPercentage: showPercentages,
                         showLabel: showLabels
                     )
-                } else if family != .medium || start > 0 {
+                } else {
                     OverviewRingPlaceholder(
                         diameter: diameter,
                         showPercentage: showPercentages,
