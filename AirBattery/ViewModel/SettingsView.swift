@@ -1632,23 +1632,8 @@ struct DisplayView: View {
     }
 
     private func applySurfaceSelection(_ newValue: String) {
-        switch newValue {
-        case "sbar":
-            statusBarItem.isVisible = true
-            for item in pinnedItems { item.isVisible = true }
-        case "both":
-            statusBarItem.isVisible = true
-            for item in pinnedItems { item.isVisible = true }
-        case "dock":
-            statusBarItem.isVisible = false
-            for item in pinnedItems { item.isVisible = false }
-        default:
-            statusBarItem.isVisible = false
-            for item in pinnedItems { item.isVisible = false }
-        }
-
-        syncAirBatteryActivationPolicy(
-            surfaceSelection: newValue,
+        applyAirBatterySurfaceSelection(
+            newValue,
             settingsVisible: true
         )
 
@@ -1659,6 +1644,7 @@ struct DisplayView: View {
                 button1: "OK"
             ).runModal()
         }
+
     }
 
 }
