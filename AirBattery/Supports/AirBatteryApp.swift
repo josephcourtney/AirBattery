@@ -171,7 +171,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         nc.addObserver(self, selector: #selector(onDisplayWake), name: NSWorkspace.screensDidWakeNotification, object: nil)
         IOBluetoothDevice.register(forConnectNotifications: self, selector: #selector(deviceIsConnected(notification:fromDevice:)))
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURLEvent(_:replyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
-        //if let window = NSApplication.shared.windows.first { window.close() }
         launchAtLogin = isLoginItemEnabled()
         print("⚙️ Launch AirBattery at login = \(launchAtLogin)")
         print("⚙️ Icon mode = \(showOn)")
@@ -269,35 +268,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    @objc func deviceIsConnected(notification: IOBluetoothUserNotification, fromDevice device: IOBluetoothDevice) {
-        if readBTHID {
-            let now = Date()
-            if now.timeIntervalSince(startTime) >= 10 {
-                if let name = device.name, let macAdd = device.addressString {
-                    if AirBatteryModel.checkIfBlocked(name: name) { return }
-                    //if let prefix = getFirstNCharacters(of: macAdd, count: 8) {
-                        print("ℹ️ \(name) (\(macAdd)) connected")
-                        DispatchQueue.global(qos: .background).async {
-                            usleep(2500000)
-                            //if !appleMacPrefix.contains(prefix) {
-                            if !device.isAppleDevice {
-                                SPBluetoothDataModel.shared.refeshData { _ in
-                                    LogReader.shared.run(.connect)
-                                    MagicBattery.shared.getIOBTBattery()
-                                    MagicBattery.shared.getOtherBTBattery()
-                                }
-                            } else {
-                                if let device = AirBatteryModel.getByName(name) {
-                                    if ["Trackpad", "Keyboard", "MMouse", "Mouse"].contains(device.deviceType) {
-                                        SPBluetoothDataModel.shared.refeshData { _ in MagicBattery.shared.scanDevices() }
-                                    }
-                                } else {
-                                    SPBluetoothDataModel.shared.refeshData { _ in MagicBattery.shared.scanDevices() }
-                                }
-                            }
-                        }
-                    //}
+    @objc func deviceIsConnected(
+        notification: IOBluetoothUserNotification,
+        fromDevice device: IOBluetoothDevice
+    ) {
+        guard readBTHID,
+              Date().timeIntervalSince(startTime) >= 10,
+              let name = device.name,
+              let address = device.addressString,
+              !AirBatteryModel.checkIfBlocked(name: name)
+        else {
+            return
+        }
+
+        print("ℹ️ \(name) (\(address)) connected")
+        DispatchQueue.global(qos: .utility).async {
+            usleep(2_500_000)
+
+            if !device.isAppleDevice {
+                SPBluetoothDataModel.shared.refeshData { _ in
+                    LogReader.shared.run(.connect)
+                    MagicBattery.shared.getIOBTBattery()
+                    MagicBattery.shared.getOtherBTBattery()
                 }
+                return
+            }
+
+            if let known = AirBatteryModel.getByName(name),
+               !["Trackpad", "Keyboard", "MMouse", "Mouse"]
+                   .contains(known.deviceType) {
+                return
+            }
+
+            SPBluetoothDataModel.shared.refeshData { _ in
+                MagicBattery.shared.scanDevices()
             }
         }
     }
