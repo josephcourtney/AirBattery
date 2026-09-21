@@ -165,10 +165,9 @@ battery presentation, or the native mobile stack, exercise at least:
   ring with the numeric value beneath it; percentage-disabled cells use a full
   ring. Small/Medium annotation-heavy layouts must not clip, and Large uses a
   balanced 3-column grid rather than stretching the Medium 4-column layout;
-- legacy widget compatibility: existing `widget.battery`,
-  `widget.battery.part2`, and `widget.battery.part4` placements continue to
-  render after upgrading, while the gallery marks them Legacy and recommends
-  Battery Overview for new placements;
+- widget gallery inventory on macOS 14+: only Battery Overview and Single
+  Battery are offered; historical Battery List / Battery Rings kinds are no
+  longer registered;
 - Display preview host geometry: the Popover preview stays at the production
   352-point width; widget previews show a visible rounded host boundary, do not
   clip charging indicators or rings, and AirPods `Case/L/R` percentages never
