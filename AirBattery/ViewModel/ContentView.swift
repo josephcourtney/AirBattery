@@ -720,6 +720,22 @@ struct popover: View {
                         openSettingPanel()
                     }
 
+                    Menu {
+                        Button("Quit AirBattery") {
+                            NSApp.terminate(nil)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("More")
+                    .accessibilityLabel("More AirBattery actions")
+
                     Spacer()
 
                     if nearCast {
