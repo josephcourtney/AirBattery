@@ -60,8 +60,6 @@
 		18F0B0052F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
 		18F0B00F2F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
 		18F0B0102F6F000100AB0001 /* CoreLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0012F6F000100AB0001 /* CoreLogic.swift */; };
-		18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */; };
-		18F0B0222F70000100AB0001 /* SurfaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */; };
 		18F0B0312F80000100AB0001 /* MonitoringCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */; };
 		18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */; };
 		18F0B0372F80000100AB0001 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0362F80000100AB0001 /* StatusBarController.swift */; };
@@ -74,6 +72,14 @@
 		18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */; };
 		18F0B04D2F80000100AB0001 /* PopoverSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04C2F80000100AB0001 /* PopoverSupport.swift */; };
 		18F0B04F2F80000100AB0001 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04E2F80000100AB0001 /* PopoverView.swift */; };
+		18F0B0512F80000100AB0001 /* StatusBarSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0502F80000100AB0001 /* StatusBarSurface.swift */; };
+		18F0B0522F80000100AB0001 /* StatusBarSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0502F80000100AB0001 /* StatusBarSurface.swift */; };
+		18F0B0542F80000100AB0001 /* PopoverSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0532F80000100AB0001 /* PopoverSurface.swift */; };
+		18F0B0552F80000100AB0001 /* PopoverSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0532F80000100AB0001 /* PopoverSurface.swift */; };
+		18F0B0572F80000100AB0001 /* DockSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0562F80000100AB0001 /* DockSurface.swift */; };
+		18F0B0582F80000100AB0001 /* DockSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0562F80000100AB0001 /* DockSurface.swift */; };
+		18F0B05A2F80000100AB0001 /* WidgetSurfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */; };
+		18F0B05B2F80000100AB0001 /* WidgetSurfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -166,7 +172,6 @@
 		18F615F22B763DD800873AA4 /* BLEBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEBattery.swift; sourceTree = "<group>"; };
 		18F615F82B76439300873AA4 /* AirBatteryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirBatteryModel.swift; sourceTree = "<group>"; };
 		18F0B0012F6F000100AB0001 /* CoreLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogic.swift; sourceTree = "<group>"; };
-		18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceRenderers.swift; sourceTree = "<group>"; };
 		18F0B0032F6F000100AB0001 /* CoreLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogicTests.swift; sourceTree = "<group>"; };
 		18F0B0062F6F000100AB0001 /* AirBatteryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AirBatteryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitoringCoordinator.swift; sourceTree = "<group>"; };
@@ -181,6 +186,10 @@
 		18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 		18F0B04C2F80000100AB0001 /* PopoverSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverSupport.swift; sourceTree = "<group>"; };
 		18F0B04E2F80000100AB0001 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		18F0B0502F80000100AB0001 /* StatusBarSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarSurface.swift; sourceTree = "<group>"; };
+		18F0B0532F80000100AB0001 /* PopoverSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverSurface.swift; sourceTree = "<group>"; };
+		18F0B0562F80000100AB0001 /* DockSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockSurface.swift; sourceTree = "<group>"; };
+		18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSurfaces.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -338,7 +347,10 @@
 				18F0B04C2F80000100AB0001 /* PopoverSupport.swift */,
 				18F0B04E2F80000100AB0001 /* PopoverView.swift */,
 				18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */,
-				18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */,
+				18F0B0502F80000100AB0001 /* StatusBarSurface.swift */,
+				18F0B0532F80000100AB0001 /* PopoverSurface.swift */,
+				18F0B0562F80000100AB0001 /* DockSurface.swift */,
+				18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */,
 				18347DCD2B88417500A78DF6 /* BatteryView.swift */,
 				1819E94B2CC2A8C2007B95E9 /* BatteryAlertView.swift */,
 				1841D4802AAA28880022A1BE /* SettingsView.swift */,
@@ -579,7 +591,10 @@
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
 				18F0B04D2F80000100AB0001 /* PopoverSupport.swift in Sources */,
 				18F0B04F2F80000100AB0001 /* PopoverView.swift in Sources */,
-				18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */,
+				18F0B0512F80000100AB0001 /* StatusBarSurface.swift in Sources */,
+				18F0B0542F80000100AB0001 /* PopoverSurface.swift in Sources */,
+				18F0B0572F80000100AB0001 /* DockSurface.swift in Sources */,
+				18F0B05A2F80000100AB0001 /* WidgetSurfaces.swift in Sources */,
 				18F615F32B763DD800873AA4 /* BLEBattery.swift in Sources */,
 				1895851B2B724DCD00108E5C /* IDeviceBattery.swift in Sources */,
 				18F615F92B76439300873AA4 /* AirBatteryModel.swift in Sources */,
@@ -623,7 +638,10 @@
 				18892AA32B82F09C0017377E /* InternalBattery.swift in Sources */,
 				18892A8E2B81F8320017377E /* widgetBundle.swift in Sources */,
 				18892A902B81F8320017377E /* BatteryWidget.swift in Sources */,
-				18F0B0222F70000100AB0001 /* SurfaceRenderers.swift in Sources */,
+				18F0B0522F80000100AB0001 /* StatusBarSurface.swift in Sources */,
+				18F0B0552F80000100AB0001 /* PopoverSurface.swift in Sources */,
+				18F0B0582F80000100AB0001 /* DockSurface.swift in Sources */,
+				18F0B05B2F80000100AB0001 /* WidgetSurfaces.swift in Sources */,
 				180B1C0E2C1204E400DDB570 /* AppIntent.swift in Sources */,
 				18B8E5C92B83C9AD00A20D03 /* BatteryWidget2.swift in Sources */,
 			);
