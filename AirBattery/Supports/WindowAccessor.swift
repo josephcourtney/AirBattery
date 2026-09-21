@@ -29,6 +29,27 @@ func syncAirBatteryActivationPolicy(
 }
 
 @MainActor
+func applyAirBatterySurfaceSelection(
+    _ surfaceSelection: String,
+    settingsVisible: Bool
+) {
+    let showsMenuBar =
+        surfaceSelection == "sbar" || surfaceSelection == "both"
+
+    if statusBarItem != nil {
+        statusBarItem.isVisible = showsMenuBar
+    }
+    for item in pinnedItems {
+        item.isVisible = showsMenuBar
+    }
+
+    syncAirBatteryActivationPolicy(
+        surfaceSelection: surfaceSelection,
+        settingsVisible: settingsVisible
+    )
+}
+
+@MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
