@@ -464,11 +464,8 @@ class AirBatteryModel {
     }
     
     static func updateDevice(_ device: Device) {
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(device.deviceName) { return }
         if lock { return }
         lock = true
-        //self.Devices.removeAll(where: {blockedItems.contains($0.deviceName)})
         if let index = self.Devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
             var merged = device
             merged.mergeIdentifiers(fromExisting: self.Devices[index])
@@ -496,14 +493,14 @@ class AirBatteryModel {
     }
     
     static func getBlackList() -> [Device] {
-        let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+        let blackList = AppPreferences.hiddenDeviceNames
         let devices = getAll(noFilter: true)
         return devices.filter({ blackList.contains($0.deviceName) })
     }
     
     static func getAll(reverse: Bool = false, noFilter: Bool = false) -> [Device] {
-        let thisMac = ud.string(forKey: "deviceName")
-        let disappearTime = (ud.object(forKey: "disappearTime") ?? 20) as! Int
+        let thisMac = AppPreferences.deviceName
+        let disappearTime = AppPreferences.disappearTime
         let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
         let now = Double(Date().timeIntervalSince1970)
         var list = (reverse ? Array(Devices.reversed()) : Devices).filter {
@@ -681,7 +678,7 @@ class AirBatteryModel {
     }
     
     static func ncGetAll(url: URL, fromWidget: Bool = false) -> [Device] {
-        let disappearTime = (ud.object(forKey: "disappearTime") ?? 20) as! Int
+        let disappearTime = AppPreferences.disappearTime
         let devices = readData(url: url)
         let now = Double(Date().timeIntervalSince1970)
         var localDevices = getAll().map({ $0.deviceName })
@@ -693,8 +690,8 @@ class AirBatteryModel {
     }
     
     static func checkIfBlocked(name: String) -> Bool {
-        let whitelistMode = ud.bool(forKey: "whitelistMode")
-        let filteredNames = (ud.object(forKey: "blockedDevices") as? [String]) ?? []
+        let whitelistMode = AppPreferences.whitelistMode
+        let filteredNames = AppPreferences.nameRules
 
         if whitelistMode {
             // An empty allowlist should not make Bluetooth discovery silently
