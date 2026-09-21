@@ -154,6 +154,9 @@ battery presentation, or the native mobile stack, exercise at least:
 - BLE battery-access policy inheritance and an identity-specific override;
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
+- renderer parity: compare Display previews against the live menu bar, popover,
+  Dock tile, Battery List widget, and Battery Rings widget using the same fixture
+  state; differences should be limited to system host chrome/compositing;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
 - repeatedly switch to Nearcast and back to other Settings pages, then close and
