@@ -58,7 +58,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     @AppStorage("showOn") var showOn = "sbar"
     @AppStorage("machineType") var machineType = "mac"
     @AppStorage("deviceName") var deviceName = "Mac"
-    @AppStorage("ncGroupID") var ncGroupID = ""
+    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
+    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
     @AppStorage("nearCast") var nearCast = false
     @AppStorage("launchAtLogin") var launchAtLogin = false
     @AppStorage("intBattOnStatusBar") var intBattOnStatusBar = true
@@ -227,7 +228,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         launchAtLogin = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "com.josephcourtney.AirBatteryHelper" }
         print("⚙️ Launch AirBattery at login = \(launchAtLogin)")
         print("⚙️ Icon mode = \(showOn)")
-        if ncGroupID != "" { if nearCast { netcastService.resume() } }
+        migrateLegacyNearcastCredentialsIfNeeded()
+        if nearCast {
+            if isNearcastCredentialValid(
+                groupID: nearcastGroupID,
+                sharingKey: nearcastSharingKey
+            ) {
+                netcastService.resume()
+            } else {
+                nearCast = false
+            }
+        }
         if let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) { SPBluetoothDataModel.shared.data = result }
         
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
