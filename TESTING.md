@@ -155,8 +155,10 @@ battery presentation, or the native mobile stack, exercise at least:
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
 - renderer parity: compare Display previews against the live menu bar, popover,
-  Dock tile, Battery List widget, and Battery Rings widget using the same fixture
-  state; differences should be limited to system host chrome/compositing;
+  Dock tile, and every supported widget family (Battery List Small/Medium/Large,
+  Single Battery Small, Battery Rings Medium/Large, and Battery Rings — Icons
+  Small/Medium) using the same fixture state; differences should be limited to
+  system host sizing, margins, chrome, and compositing;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
 - repeatedly switch to Nearcast and back to other Settings pages, then close and
