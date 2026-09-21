@@ -9,8 +9,39 @@ import SwiftUI
 import WidgetKit
 import AppKit
 
+private enum SettingsSection: String, Hashable {
+    case general
+    case display
+    case devices
+    case discovery
+    case nearcast
+    case debug
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .general: return "General"
+        case .display: return "Display"
+        case .devices: return "Devices"
+        case .discovery: return "Discovery"
+        case .nearcast: return "Nearcast"
+        case .debug: return "Debug"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: return "gearshape"
+        case .display: return "rectangle.3.group"
+        case .devices: return "rectangle.stack"
+        case .discovery: return "antenna.radiowaves.left.and.right"
+        case .nearcast: return "network"
+        case .debug: return "ladybug"
+        }
+    }
+}
+
 struct SettingsView: View {
-    @State private var selectedItem: String? = "General"
+    @State private var selectedItem: SettingsSection? = .general
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
@@ -42,46 +73,24 @@ struct SettingsView: View {
             maxHeight: .infinity
         )
         .onChange(of: showDebug) { _, enabled in
-            if !enabled && selectedItem == "Debug" {
-                selectedItem = "General"
+            if !enabled && selectedItem == .debug {
+                selectedItem = .general
             }
         }
     }
 
     private var sidebar: some View {
         List(selection: $selectedItem) {
+            settingsSidebarRow(.general)
+            settingsSidebarRow(.display)
             settingsSidebarRow(
-                "General",
-                systemImage: "gearshape",
-                tag: "General"
-            )
-            settingsSidebarRow(
-                "Display",
-                systemImage: "rectangle.3.group",
-                tag: "Display"
-            )
-            settingsSidebarRow(
-                "Devices",
-                systemImage: "rectangle.stack",
-                tag: "Devices",
+                .devices,
                 badge: discoveryPolicy.reviewCount
             )
-            settingsSidebarRow(
-                "Discovery",
-                systemImage: "antenna.radiowaves.left.and.right",
-                tag: "Discovery"
-            )
-            settingsSidebarRow(
-                "Nearcast",
-                systemImage: "network",
-                tag: "Nearcast"
-            )
+            settingsSidebarRow(.discovery)
+            settingsSidebarRow(.nearcast)
             if showDebug {
-                settingsSidebarRow(
-                    "Debug",
-                    systemImage: "ladybug",
-                    tag: "Debug"
-                )
+                settingsSidebarRow(.debug)
             }
         }
         .listStyle(.sidebar)
@@ -91,34 +100,32 @@ struct SettingsView: View {
     @ViewBuilder
     private var detailView: some View {
         switch selectedItem {
-        case "Display":
+        case .display:
             DisplayView()
-        case "Devices":
+        case .devices:
             DevicesView()
-        case "Discovery":
+        case .discovery:
             DiscoveryView()
-        case "Nearcast":
+        case .nearcast:
             NearcastView()
-        case "Debug":
+        case .debug:
             if showDebug {
                 DebugView(selectedItem: $selectedItem)
             } else {
                 GeneralView()
             }
-        default:
+        case .general, .none:
             GeneralView()
         }
     }
 
     @ViewBuilder
     private func settingsSidebarRow(
-        _ title: String,
-        systemImage: String,
-        tag: String,
+        _ section: SettingsSection,
         badge: Int = 0
     ) -> some View {
         HStack(spacing: 8) {
-            Label(title, systemImage: systemImage)
+            Label(section.title, systemImage: section.systemImage)
             Spacer()
             if badge > 0 {
                 Text("\(badge)")
@@ -131,8 +138,9 @@ struct SettingsView: View {
                     .accessibilityLabel("\(badge) devices need review")
             }
         }
-        .tag(tag)
+        .tag(section)
     }
+
 }
 
 struct GeneralView: View {
@@ -2074,7 +2082,7 @@ struct DebugView: View {
     @State private var fullCharged: Bool = false
     @State private var isPresented: Bool = false
     
-    @Binding var selectedItem: String?
+    @Binding var selectedItem: SettingsSection?
     
     var body: some View {
         SForm(noSpacer: true) {
@@ -2169,7 +2177,7 @@ struct DebugView: View {
             Button("Hide Debug Menu", action: {
                 test_debug = false
                 showDebug = false
-                selectedItem = "General"
+                selectedItem = .general
             })
             .padding(.top, -6)
         }
