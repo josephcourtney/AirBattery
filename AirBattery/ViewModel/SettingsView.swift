@@ -42,7 +42,7 @@ struct SettingsView: View {
     }
 
     private var sidebar: some View {
-        List {
+        VStack(spacing: 4) {
             settingsSidebarButton(
                 "General",
                 systemImage: "gearshape",
@@ -76,9 +76,12 @@ struct SettingsView: View {
                     tag: "Debug"
                 )
             }
+            Spacer()
         }
-        .listStyle(.sidebar)
-        .padding(.top, 9)
+        .padding(.horizontal, 8)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     @ViewBuilder
@@ -131,14 +134,17 @@ struct SettingsView: View {
             .padding(.vertical, 3)
         }
         .buttonStyle(.plain)
-        .listRowBackground(
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(
                     selectedItem == tag
-                        ? Color.accentColor.opacity(0.18)
+                        ? Color.accentColor.opacity(0.22)
                         : Color.clear
                 )
         )
+        .foregroundColor(selectedItem == tag ? .primary : .primary)
         .accessibilityAddTraits(
             selectedItem == tag ? .isSelected : []
         )
@@ -1709,40 +1715,43 @@ private struct DisplaySurfacePreview: View {
         )
     }
 
+    private var previewColumns: [GridItem] {
+        [
+            GridItem(
+                .adaptive(minimum: 320, maximum: 520),
+                spacing: 12,
+                alignment: .top
+            )
+        ]
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        LazyVGrid(columns: previewColumns, alignment: .leading, spacing: 12) {
             previewCard("Menu") {
                 VStack(spacing: 7) {
                     menuBarPreview
                     Divider().opacity(0.4)
-                    ForEach(presentations.prefix(3)) { presentation in
-                        previewDeviceRow(presentation)
+                    ForEach(presentations.prefix(4)) { presentation in
+                        menuPreviewRow(presentation)
                     }
                 }
             }
 
             previewCard("Dock") {
-                HStack(alignment: .top, spacing: 8) {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8)
+                    ],
+                    spacing: 8
+                ) {
                     ForEach(
                         presentations.filter {
-                            showMacInDock || $0.representative.deviceID != "@MacInternalBattery"
+                            showMacInDock ||
+                                $0.representative.deviceID != "@MacInternalBattery"
                         }.prefix(4)
                     ) { presentation in
-                        VStack(spacing: 4) {
-                            Text(presentation.compactName)
-                                .font(.caption2)
-                                .lineLimit(1)
-                            if presentation.components.count > 1 {
-                                HStack(spacing: 3) {
-                                    ForEach(presentation.components.prefix(3)) { component in
-                                        compactBattery(component)
-                                    }
-                                }
-                            } else if let component = presentation.components.first {
-                                compactBattery(component)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
+                        dockPreviewCell(presentation)
                     }
                 }
             }
@@ -1751,25 +1760,14 @@ private struct DisplaySurfacePreview: View {
                 let rows = reverseWidgetOrder
                     ? Array(presentations.reversed())
                     : presentations
-                VStack(spacing: 5) {
+                VStack(spacing: 7) {
                     ForEach(rows.prefix(4)) { presentation in
-                        HStack(spacing: 5) {
-                            Image(getDeviceIcon(presentation.representative))
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 15, height: 15)
-                            Text(presentation.compactName)
-                                .font(.caption2)
-                                .lineLimit(1)
-                            Spacer()
-                            Text(previewBatterySummary(presentation))
-                                .font(.caption2.monospacedDigit())
-                        }
+                        widgetPreviewRow(presentation)
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.colorScheme, previewColorScheme)
     }
 
@@ -1850,7 +1848,7 @@ private struct DisplaySurfacePreview: View {
             content()
         }
         .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -1862,28 +1860,130 @@ private struct DisplaySurfacePreview: View {
     }
 
     @ViewBuilder
-    private func previewDeviceRow(_ presentation: LogicalDevicePresentation) -> some View {
-        HStack(spacing: 6) {
+    private func menuPreviewRow(
+        _ presentation: LogicalDevicePresentation
+    ) -> some View {
+        HStack(alignment: .top, spacing: 7) {
             Image(getDeviceIcon(presentation.representative))
                 .resizable()
                 .scaledToFit()
                 .frame(width: 16, height: 16)
-            Text(presentation.displayName)
-                .font(.caption)
-                .lineLimit(1)
-            Spacer()
-            Text(previewBatterySummary(presentation))
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(presentation.displayName)
+                    .font(.caption)
+                    .lineLimit(1)
+
+                if presentation.components.count > 1 {
+                    Text(compactComponentSummary(presentation))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if presentation.components.count == 1,
+               let component = presentation.components.first {
+                Text(
+                    "\(component.level)%" +
+                        (component.charging != 0 ? " ⚡︎" : "")
+                )
                 .font(.caption.monospacedDigit())
+            }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(presentation.displayName), \(previewBatterySummary(presentation))"
+            "\(presentation.displayName), " +
+                accessibilityBatterySummary(presentation)
         )
     }
 
     @ViewBuilder
-    private func compactBattery(_ component: BatteryComponentPresentation) -> some View {
-        VStack(spacing: 1) {
+    private func dockPreviewCell(
+        _ presentation: LogicalDevicePresentation
+    ) -> some View {
+        VStack(spacing: 5) {
+            Text(presentation.compactName)
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
+
+            if presentation.components.count > 1 {
+                HStack(spacing: 5) {
+                    ForEach(presentation.components.prefix(3)) { component in
+                        compactBattery(component, diameter: 30)
+                    }
+                }
+            } else if let component = presentation.components.first {
+                compactBattery(component, diameter: 34)
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 66)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.primary.opacity(0.035))
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(presentation.compactName), " +
+                accessibilityBatterySummary(presentation)
+        )
+    }
+
+    @ViewBuilder
+    private func widgetPreviewRow(
+        _ presentation: LogicalDevicePresentation
+    ) -> some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(getDeviceIcon(presentation.representative))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(presentation.compactName)
+                    .font(.caption)
+                    .lineLimit(1)
+
+                if presentation.components.count > 1 {
+                    Text(compactComponentSummary(presentation))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if presentation.components.count == 1,
+               let component = presentation.components.first {
+                Text(
+                    "\(component.level)%" +
+                        (component.charging != 0 ? " ⚡︎" : "")
+                )
+                .font(.caption.monospacedDigit())
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(presentation.compactName), " +
+                accessibilityBatterySummary(presentation)
+        )
+    }
+
+    @ViewBuilder
+    private func compactBattery(
+        _ component: BatteryComponentPresentation,
+        diameter: CGFloat
+    ) -> some View {
+        VStack(spacing: 2) {
             ZStack {
                 Circle()
                     .stroke(Color.secondary.opacity(0.25), lineWidth: 3)
@@ -1895,26 +1995,59 @@ private struct DisplaySurfacePreview: View {
                     )
                     .rotationEffect(.degrees(-90))
                 Text("\(component.level)")
-                    .font(.system(size: 7, weight: .medium, design: .rounded))
+                    .font(
+                        .system(
+                            size: max(7, diameter * 0.27),
+                            weight: .medium,
+                            design: .rounded
+                        )
+                    )
             }
-            .frame(width: 24, height: 24)
-            Text(component.label)
-                .font(.system(size: 7))
+            .frame(width: diameter, height: diameter)
+
+            Text(shortComponentLabel(component.role))
+                .font(.system(size: 8))
                 .foregroundColor(.secondary)
+                .lineLimit(1)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(component.label), \(component.level) percent" +
-            (component.charging != 0 ? ", charging" : "")
+                (component.charging != 0 ? ", charging" : "")
         )
     }
 
-    private func previewBatterySummary(_ presentation: LogicalDevicePresentation) -> String {
+    private func shortComponentLabel(
+        _ role: BatteryComponentRole
+    ) -> String {
+        switch role {
+        case .caseBattery: return "Case"
+        case .leftEarbud: return "L"
+        case .rightEarbud: return "R"
+        case .earbuds: return "Earbuds"
+        case .primary: return "Battery"
+        }
+    }
+
+    private func compactComponentSummary(
+        _ presentation: LogicalDevicePresentation
+    ) -> String {
         presentation.components.map { component in
-            let prefix = component.role == .primary ? "" : component.label + " "
-            return prefix + "\(component.level)%" + (component.charging != 0 ? "⚡︎" : "")
+            let label = shortComponentLabel(component.role)
+            return label + " \(component.level)%" +
+                (component.charging != 0 ? "⚡︎" : "")
         }
         .joined(separator: " · ")
+    }
+
+    private func accessibilityBatterySummary(
+        _ presentation: LogicalDevicePresentation
+    ) -> String {
+        presentation.components.map { component in
+            "\(component.label) \(component.level) percent" +
+                (component.charging != 0 ? ", charging" : "")
+        }
+        .joined(separator: ", ")
     }
 
     private var sampleDevices: [Device] {
