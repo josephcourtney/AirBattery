@@ -1755,25 +1755,18 @@ private struct DisplaySurfacePreview: View {
         )
     }
 
-    private var previewColumns: [GridItem] {
-        [
-            GridItem(
-                .adaptive(minimum: 340, maximum: 560),
-                spacing: 12,
-                alignment: .top
-            )
-        ]
-    }
+    private let familyColumns = [
+        GridItem(
+            .adaptive(minimum: 360, maximum: 420),
+            spacing: 22,
+            alignment: .top
+        )
+    ]
 
     var body: some View {
-        LazyVGrid(
-            columns: previewColumns,
-            alignment: .leading,
-            spacing: 12
-        ) {
-            previewCard("Menu Bar") {
+        VStack(alignment: .leading, spacing: 24) {
+            previewSection("Menu Bar") {
                 HStack {
-                    Spacer()
                     StatusBarBatteryContent(
                         item: sampleInternalBattery,
                         showMacBattery: menuBarShowsMac,
@@ -1787,7 +1780,9 @@ private struct DisplaySurfacePreview: View {
                 .frame(height: 28)
             }
 
-            previewCard("Popover") {
+            Divider().opacity(0.35)
+
+            previewSection("Popover") {
                 VStack(spacing: 0) {
                     ForEach(presentations.indices, id: \.self) { index in
                         MenuDeviceRowContent(
@@ -1801,45 +1796,126 @@ private struct DisplaySurfacePreview: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(
-                        cornerRadius: 8,
-                        style: .continuous
-                    )
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                .frame(maxWidth: 520)
+                .background(Color(nsColor: .controlBackgroundColor))
+            }
+
+            Divider().opacity(0.35)
+
+            previewSection("Dock") {
+                DockTileSurfaceContent(
+                    presentations: dockPresentations,
+                    darkMode: previewColorScheme == .dark,
+                    showMacAsPercent: showMacAsPercent
                 )
             }
 
-            previewCard("Dock") {
-                HStack {
-                    Spacer()
-                    DockTileSurfaceContent(
-                        presentations: dockPresentations,
-                        darkMode: previewColorScheme == .dark,
-                        showMacAsPercent: showMacAsPercent
-                    )
-                    Spacer()
-                }
-            }
+            Divider().opacity(0.35)
 
-            previewCard("Widget — Battery List") {
-                WidgetListSurfaceContent(
-                    presentations: Array(widgetPresentations.prefix(8)),
-                    rowHeight: 31
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Widgets")
+                    .font(.headline)
+
+                Text(
+                    "Each preview below is the production renderer at its " +
+                    "supported widget-family size. WidgetKit may still add " +
+                    "system host margins or compositing."
                 )
-                .frame(minHeight: 185)
-            }
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            previewCard("Widget — Battery Rings") {
-                HStack {
-                    Spacer()
-                    WidgetBatteryRingsSurfaceContent(
-                        devices: widgetRingDevices
-                    )
-                    Spacer()
+                LazyVGrid(
+                    columns: familyColumns,
+                    alignment: .leading,
+                    spacing: 24
+                ) {
+                    widgetFamilyPreview(
+                        "Battery List — Small",
+                        family: .small
+                    ) {
+                        WidgetBatteryListRingsSurfaceContent(
+                            devices: widgetRingDevices,
+                            family: .small
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery List — Medium",
+                        family: .medium
+                    ) {
+                        WidgetBatteryListRingsSurfaceContent(
+                            devices: widgetRingDevices,
+                            family: .medium
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery List — Large",
+                        family: .large
+                    ) {
+                        WidgetListSurfaceContent(
+                            presentations: Array(
+                                widgetPresentations.prefix(8)
+                            ),
+                            rowHeight: 31
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Single Battery — Small",
+                        family: .small
+                    ) {
+                        WidgetSingleBatterySurfaceContent(
+                            item: widgetRingDevices.first {
+                                $0.deviceType == "iPhone"
+                            },
+                            deviceName: "Joseph’s iPhone",
+                            warningText: "Right click to configure"
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery Rings — Medium",
+                        family: .medium
+                    ) {
+                        WidgetBatteryRingsSurfaceContent(
+                            devices: widgetRingDevices
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery Rings — Large",
+                        family: .large
+                    ) {
+                        WidgetListSurfaceContent(
+                            presentations: Array(
+                                widgetPresentations.prefix(11)
+                            ),
+                            rowHeight: 20
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery Rings — Icons — Small",
+                        family: .small
+                    ) {
+                        WidgetIconRingsSurfaceContent(
+                            devices: widgetRingDevices,
+                            family: .small
+                        )
+                    }
+
+                    widgetFamilyPreview(
+                        "Battery Rings — Icons — Medium",
+                        family: .medium
+                    ) {
+                        WidgetIconRingsSurfaceContent(
+                            devices: widgetRingDevices,
+                            family: .medium
+                        )
+                    }
                 }
-                .frame(minHeight: 145)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1847,28 +1923,43 @@ private struct DisplaySurfacePreview: View {
     }
 
     @ViewBuilder
-    private func previewCard<Content: View>(
+    private func previewSection<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.secondary)
-
+                .font(.headline)
             content()
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func widgetFamilyPreview<Content: View>(
+        _ title: String,
+        family: WidgetPreviewFamily,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Text(family.dimensionLabel)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundColor(.secondary)
+            }
+
+            content()
+                .frame(
+                    width: family.size.width,
+                    height: family.size.height,
+                    alignment: .center
+                )
+                .clipped()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var sampleInternalBattery: iBattery {
@@ -1940,6 +2031,27 @@ private struct DisplaySurfacePreview: View {
                 lastUpdate: now
             )
         ]
+    }
+}
+
+private enum WidgetPreviewFamily {
+    case small
+    case medium
+    case large
+
+    var size: CGSize {
+        switch self {
+        case .small:
+            return CGSize(width: 158, height: 158)
+        case .medium:
+            return CGSize(width: 338, height: 158)
+        case .large:
+            return CGSize(width: 338, height: 354)
+        }
+    }
+
+    var dimensionLabel: String {
+        "\(Int(size.width))×\(Int(size.height))"
     }
 }
 
