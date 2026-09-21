@@ -6,7 +6,6 @@
 //
 import AppKit
 import SwiftUI
-import WidgetKit
 //import UserNotifications
 
 struct MultiBatteryView: View {
@@ -14,16 +13,11 @@ struct MultiBatteryView: View {
     @AppStorage("carouselMode") var carouselMode = true
     @AppStorage("appearance") var appearance = "auto"
     @AppStorage("showOn") var showOn = "sbar"
-    @AppStorage("widgetInterval") var widgetInterval = 0
-    @AppStorage("readBTHID") var readBTHID = true
-    @AppStorage("deviceName") var deviceName = "Mac"
-    @AppStorage("nearCast") var nearCast = false
-    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
-    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
 
     @Environment(\.colorScheme) private var systemColorScheme
+    @ObservedObject private var monitoring = MonitoringCoordinator.shared
 
     @State private var rollCount = 1
     @State private var lastTime = Double(Date().timeIntervalSince1970)
@@ -50,27 +44,7 @@ struct MultiBatteryView: View {
         .onChange(of: twsMerge) { _, _ in
             refreshDockPresentations(now: Date().timeIntervalSince1970)
         }
-        .onReceive(alertTimer) { _ in batteryAlert() }
-        .onReceive(widgetViewTimer) { _ in
-            if widgetInterval != -1 { WidgetCenter.shared.reloadAllTimelines() }
-        }
-        .onReceive(dockTimer) { _ in
-            IDeviceBattery.shared.scanDevices()
-        }
-        .onReceive(widgetDataTimer) { _ in
-            SPBluetoothDataModel.shared.refeshData(completion: { _ in
-                DispatchQueue.global(qos: .background).async {
-                    MagicBattery.shared.scanDevices()
-                    AirBatteryModel.writeData()
-                }
-            }, error: {
-                AirBatteryModel.writeData()
-            })
-        }
-        .onReceive(nearCastTimer) { _ in
-            sendNearcastSnapshotIfNeeded()
-        }
-        .onReceive(dockTimer) { time in
+        .onReceive(monitoring.$fiveSecondTick) { time in
             guard showOn == "both" || showOn == "dock" else { return }
             refreshDockPresentations(now: time.timeIntervalSince1970)
             NSApp.dockTile.display()
@@ -131,42 +105,7 @@ struct MultiBatteryView: View {
         return Array(devices[start..<min(start + 4, devices.count)])
     }
 
-    private func sendNearcastSnapshotIfNeeded() {
-        guard nearCast,
-              isNearcastCredentialValid(
-                groupID: nearcastGroupID,
-                sharingKey: nearcastSharingKey
-              )
-        else {
-            return
-        }
 
-        var allDevices = AirBatteryModel.getAll()
-        allDevices.insert(ib2ab(InternalBattery.status), at: 0)
-        do {
-            let jsonData = try JSONEncoder().encode(allDevices)
-            guard let jsonString = String(data: jsonData, encoding: .utf8),
-                  let data = encryptNearcastString(
-                    jsonString,
-                    groupID: nearcastGroupID,
-                    sharingKey: nearcastSharingKey
-                  )
-            else {
-                return
-            }
-
-            netcastService.sendMessage(
-                NCMessage(
-                    id: nearcastGroupID,
-                    sender: systemUUID ?? deviceName,
-                    command: "",
-                    content: data
-                )
-            )
-        } catch {
-            print("Write JSON error：\(error)")
-        }
-    }
 }
 
 struct BlurView: NSViewRepresentable {
@@ -215,6 +154,8 @@ struct popover: View {
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
     
+    @ObservedObject private var monitoring = MonitoringCoordinator.shared
+
     @State private var allDevices = [Device]()
     @State private var hiddenDevices = AirBatteryModel.getBlackList()
     @State private var overCopyButton = false
@@ -799,7 +740,7 @@ struct popover: View {
         .frame(width: 352)
         .modifier(PopoverHostSurfaceModifier(fromDock: fromDock))
         .onAppear { allDevices = allDevice }
-        .onReceive(mainTimer) { t in
+        .onReceive(monitoring.$secondTick) { _ in
             if !fromDock && statusMenuIsOpen {
                 allDevices = AirBatteryModel.getAll()
                 hiddenDevices = AirBatteryModel.getBlackList()
