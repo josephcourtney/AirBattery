@@ -584,6 +584,10 @@ class AirBatteryModel {
         sharedDataDirectory().appendingPathComponent("heartbeat")
     }
 
+    static func touchHeartbeat() {
+        try? Data().write(to: getHeartbeatURL(), options: .atomic)
+    }
+
     static func snapshotIsFresh(
         maxAge: TimeInterval = 120,
         now: Date = Date()
@@ -660,7 +664,7 @@ class AirBatteryModel {
         do {
             let jsonData = try JSONEncoder().encode(devices)
             try jsonData.write(to: getJsonURL(), options: .atomic)
-            try Data().write(to: getHeartbeatURL(), options: .atomic)
+            touchHeartbeat()
         } catch {
             print("Write JSON error：\(error)")
         }
