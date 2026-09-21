@@ -210,7 +210,7 @@ public struct ProcessExecutionResult {
 
 func processWithStatus(path: String, arguments: [String], timeout: Int = 0) -> ProcessExecutionResult? {
     let task = Process()
-    task.launchPath = path
+    task.executableURL = URL(fileURLWithPath: path)
     task.arguments = arguments
 
     let errorPipe = Pipe()
@@ -256,7 +256,7 @@ func processWithStatus(path: String, arguments: [String], timeout: Int = 0) -> P
 
 func process(path: String, arguments: [String], timeout: Int = 0) -> String? {
     let task = Process()
-    task.launchPath = path
+    task.executableURL = URL(fileURLWithPath: path)
     task.arguments = arguments
     task.standardError = Pipe()
 
