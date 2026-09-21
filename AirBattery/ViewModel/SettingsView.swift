@@ -1757,8 +1757,8 @@ private struct DisplaySurfacePreview: View {
 
     private let familyColumns = [
         GridItem(
-            .adaptive(minimum: 360, maximum: 420),
-            spacing: 22,
+            .adaptive(minimum: 340, maximum: 360),
+            spacing: 16,
             alignment: .top
         )
     ]
@@ -1796,8 +1796,20 @@ private struct DisplaySurfacePreview: View {
                         }
                     }
                 }
-                .frame(maxWidth: 520)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .padding(.horizontal, 6)
+                .frame(width: 352)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(
+                            Color.secondary.opacity(0.23),
+                            lineWidth: 1
+                        )
+                        .padding(.horizontal, 5)
+                )
+                .liquidGlassPanel(
+                    cornerRadius: 5,
+                    tint: .primary.opacity(0.02)
+                )
             }
 
             Divider().opacity(0.35)
@@ -1946,13 +1958,28 @@ private struct DisplaySurfacePreview: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
-            content()
-                .frame(
-                    width: family.size.width,
-                    height: family.size.height,
-                    alignment: .center
-                )
-                .clipped()
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(
+                            cornerRadius: 22,
+                            style: .continuous
+                        )
+                        .stroke(
+                            Color.secondary.opacity(0.22),
+                            lineWidth: 1
+                        )
+                    )
+
+                content()
+                    .padding(family.hostPadding)
+            }
+            .frame(
+                width: family.size.width,
+                height: family.size.height,
+                alignment: .center
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -2037,14 +2064,24 @@ private enum WidgetPreviewFamily {
     var size: CGSize {
         switch self {
         case .small:
-            return CGSize(width: 158, height: 158)
+            return CGSize(width: 172, height: 172)
         case .medium:
-            return CGSize(width: 338, height: 158)
+            return CGSize(width: 352, height: 172)
         case .large:
-            return CGSize(width: 338, height: 354)
+            return CGSize(width: 352, height: 368)
         }
     }
 
+    var hostPadding: CGFloat {
+        switch self {
+        case .small:
+            return 8
+        case .medium:
+            return 8
+        case .large:
+            return 10
+        }
+    }
 }
 
 struct NameRulesEditor: View {
