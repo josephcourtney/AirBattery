@@ -801,7 +801,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         if AirBatteryModel.checkIfBlocked(name: name) { return }
         
         if let deviceName = peripheral.name{
-            //NSLog("AirPods: \(messageType) message [\(data.hexEncodedString())]")
             let now = Date().timeIntervalSince1970
             let dataHex = data.hexEncodedString()
             let index = dataHex.index(dataHex.startIndex, offsetBy: 14)
