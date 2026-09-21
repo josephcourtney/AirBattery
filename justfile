@@ -320,6 +320,11 @@ install-local configuration="Debug":
       trap cleanup EXIT; \
       /usr/bin/ditto "$src" "$stage"; \
       /usr/bin/codesign --verify --deep --strict --verbose=2 "$stage"; \
+      src_widget="$src/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      if [[ -d "$src_widget" ]]; then \
+        /usr/bin/pluginkit -r "$src_widget" >/dev/null 2>&1 || true; \
+      fi; \
+      /bin/rm -rf "$src"; \
       just stop-host; \
       if [[ -e "$dst" ]]; then /bin/mv "$dst" "$backup"; fi; \
       if ! /bin/mv "$stage" "$dst"; then \
@@ -343,8 +348,15 @@ install-local configuration="Debug":
 # newly installed WidgetKit extension.
 run configuration="Debug":
     just install-local "{{configuration}}"
+    just widget-registration-clean
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      /usr/bin/open "$install_dir/AirBattery.app"
+      app="$install_dir/AirBattery.app"; \
+      widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      /usr/bin/pluginkit -a "$widget" >/dev/null 2>&1 || true; \
+      /usr/bin/pluginkit -e use \
+        -p com.apple.widgetkit-extension \
+        -i "{{widget_bundle_id}}" >/dev/null 2>&1 || true; \
+      /usr/bin/open "$app"
 
 # Reset macOS Bluetooth privacy consent for this fork.
 # The next launch/use of CoreBluetooth should request permission again.
@@ -382,6 +394,28 @@ bluetooth-diagnose:
 # Show whether macOS currently knows about the AirBattery WidgetKit extension.
 widget-status:
     @/usr/bin/pluginkit -m -A -D -v -i "{{widget_bundle_id}}" || true
+
+# Remove registrations for disposable Xcode build-product copies of the widget.
+# PlugInKit may rediscover a removed extension while its containing app still
+# exists, so this also removes those disposable AirBattery.app products.
+widget-registration-clean:
+    @products="$PWD/{{derived_data}}/Build/Products"; \
+      if [[ -d "$products" ]]; then \
+        /usr/bin/find "$products" -mindepth 2 -maxdepth 2 -type d -name 'AirBattery.app' -print0 | \
+          while IFS= read -r -d '' app; do \
+            widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+            if [[ -d "$widget" ]]; then \
+              printf 'Unregistering build-product widget: %s\n' "$widget"; \
+              /usr/bin/pluginkit -r "$widget" >/dev/null 2>&1 || true; \
+            fi; \
+            printf 'Removing disposable build product: %s\n' "$app"; \
+            /bin/rm -rf "$app"; \
+          done; \
+      fi
+
+# Show every physical registration for the AirBattery WidgetKit extension.
+widget-registration-status:
+    @/usr/bin/pluginkit -m -A -D -vv -p com.apple.widgetkit-extension -i "{{widget_bundle_id}}" || true
 
 # Remove the locally installed development build.
 uninstall-local:
