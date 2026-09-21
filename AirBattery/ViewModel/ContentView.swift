@@ -762,14 +762,7 @@ struct popover: View {
                     }
                 }
                 .padding(.horizontal, 6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(Color.secondary, lineWidth: 1)
-                        .padding(.vertical, -1)
-                        .padding(.horizontal, 5)
-                        .opacity(0.23)
-                )
-                .liquidGlassPanel(cornerRadius: 5, tint: .primary.opacity(0.02))
+                .popoverDevicePanelSurface()
                 .offset(y: 2.5)
                 if nearCast {
                     ForEach(allNearcast.indices, id: \.self) { index in
