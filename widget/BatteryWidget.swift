@@ -223,12 +223,8 @@ struct BatteryOverviewEntryView: View {
             return .small
         case .systemMedium:
             return .medium
-        case .systemLarge:
+        default:
             return .large
-        case .systemExtraLarge:
-            return .large
-        @unknown default:
-            return .medium
         }
     }
 }
