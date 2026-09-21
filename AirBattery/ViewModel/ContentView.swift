@@ -6,7 +6,6 @@
 //
 import AppKit
 import SwiftUI
-//import UserNotifications
 
 struct MultiBatteryView: View {
     @AppStorage("showThisMac") var showThisMac = "icon"
@@ -551,7 +550,7 @@ struct popover: View {
                     },
                     onAbout: {
                         dockWindow.orderOut(nil)
-                        statusBarItem.menu?.cancelTracking()
+                        StatusBarController.shared.cancelMenuTracking()
                         openAboutPanel()
                         DispatchQueue.main.asyncAfter(
                             deadline: .now() + 0.2
@@ -561,7 +560,7 @@ struct popover: View {
                     },
                     onSettings: {
                         dockWindow.orderOut(nil)
-                        statusBarItem.menu?.cancelTracking()
+                        StatusBarController.shared.cancelMenuTracking()
                         openSettingPanel()
                     },
                     onQuit: {
@@ -802,7 +801,7 @@ struct popover: View {
         .modifier(PopoverHostSurfaceModifier(fromDock: fromDock))
         .onAppear { allDevices = allDevice }
         .onReceive(monitoring.$secondTick) { _ in
-            if !fromDock && statusMenuIsOpen {
+            if !fromDock && StatusBarController.shared.isMenuOpen {
                 allDevices = AirBatteryModel.getAll()
                 hiddenDevices = AirBatteryModel.getBlackList()
                 hidden = [Int]()
