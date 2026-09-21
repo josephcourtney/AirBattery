@@ -475,8 +475,6 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
-						CreatedOnToolsVersion = 15.1;
-					};
 					1841D44A2AA6071C0022A1BE = {
 						CreatedOnToolsVersion = 14.3.1;
 					};
