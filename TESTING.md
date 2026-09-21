@@ -159,6 +159,10 @@ battery presentation, or the native mobile stack, exercise at least:
   Single Battery Small, Battery Rings Medium/Large, and Battery Rings — Icons
   Small/Medium) using the same fixture state; differences should be limited to
   system host sizing, margins, chrome, and compositing;
+- Display preview host geometry: the Popover preview stays at the production
+  352-point width; widget previews show a visible rounded host boundary, do not
+  clip charging indicators or rings, and AirPods `Case/L/R` percentages never
+  wrap the `%` onto a separate line;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
 - repeatedly switch to Nearcast and back to other Settings pages, then close and
