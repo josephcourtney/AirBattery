@@ -80,10 +80,10 @@ struct mainBatteryView: View {
             }
 
             item = InternalBattery.status
-            statusBarItem.button?.toolTip = menuBarSummary
+            StatusBarController.shared.statusItem.button?.toolTip = menuBarSummary
 
             guard item.hasBattery && intBattOnStatusBar else {
-                if statusBarItem.length != 36 {
+                if StatusBarController.shared.statusItem.length != 36 {
                     setStatusBar(width: 36)
                 }
                 return
@@ -95,7 +95,7 @@ struct mainBatteryView: View {
             } else {
                 targetWidth = 76
             }
-            if statusBarItem.length != CGFloat(targetWidth) {
+            if StatusBarController.shared.statusItem.length != CGFloat(targetWidth) {
                 setStatusBar(width: targetWidth)
             }
         }
@@ -103,5 +103,5 @@ struct mainBatteryView: View {
 }
 
 func setStatusBar(width: Double) {
-    statusBarItem.length = CGFloat(width)
+    StatusBarController.shared.setLength(CGFloat(width))
 }
