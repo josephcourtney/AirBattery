@@ -42,9 +42,7 @@ struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
     private func makeEntry(
         configuration: SingleBatteryConfigurationIntent
     ) -> SimpleEntry {
-        let mainApp = NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == "com.josephcourtney.AirBattery"
-        }
+        let mainApp = AirBatteryModel.snapshotIsFresh()
 
         var data = AirBatteryModel.readData()
         for file in getFiles(withExtension: "json", in: ncFolder) {
@@ -115,9 +113,7 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         configuration: BatteryOverviewConfigurationIntent,
         family: WidgetFamily
     ) -> BatteryOverviewEntry {
-        let mainApp = NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == "com.josephcourtney.AirBattery"
-        }
+        let mainApp = AirBatteryModel.snapshotIsFresh()
 
         var data = AirBatteryModel.readData()
         for file in getFiles(withExtension: "json", in: ncFolder) {
