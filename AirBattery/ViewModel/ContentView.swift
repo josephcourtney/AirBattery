@@ -487,7 +487,10 @@ struct popover: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")\(group.name)")
+                Text(
+                    "\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")" +
+                    (fromDock ? "AirPods" : group.name)
+                )
                     .font(.system(size: 12))
                     .foregroundColor(.blackWhite)
                     .lineLimit(1)
@@ -740,7 +743,15 @@ struct popover: View {
                                         .foregroundColor(.blackWhite)
                                         .frame(width: 22, height: 22, alignment: .center)
                                     HStack(spacing: 1) {
-                                        Text("\(((Date().timeIntervalSince1970 - allDevices[index].lastUpdate) / 60) > 10 ? "⚠︎ " : "")\(allDevices[index].deviceName)")
+                                        Text(
+                                            "\(((Date().timeIntervalSince1970 - allDevices[index].lastUpdate) / 60) > 10 ? "⚠︎ " : "")" +
+                                            (fromDock
+                                                ? DevicePresentationNaming.compactName(
+                                                    deviceType: allDevices[index].deviceType,
+                                                    displayName: allDevices[index].deviceName
+                                                )
+                                                : allDevices[index].deviceName)
+                                        )
                                             .font(.system(size: 12))
                                             .foregroundColor(.blackWhite)
                                             .frame(height: 24, alignment: .center)
