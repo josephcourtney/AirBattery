@@ -1701,24 +1701,45 @@ private struct DisplaySurfacePreview: View {
 
     private var previewColorScheme: ColorScheme {
         switch appearance {
-        case "true": return .dark
-        case "false": return .light
-        default: return systemColorScheme
+        case "true":
+            return .dark
+        case "false":
+            return .light
+        default:
+            return systemColorScheme
         }
     }
 
     private var presentations: [LogicalDevicePresentation] {
-        AirBatteryModel.logicalPresentations(
+        let values = AirBatteryModel.logicalPresentations(
             from: sampleDevices,
             mergeEarbuds: mergeEarbuds,
             mergeThreshold: mergeThreshold
         )
+        return reverseWidgetOrder ? Array(values.reversed()) : values
+    }
+
+    private var dockPresentations: [LogicalDevicePresentation] {
+        Array(
+            presentations
+                .filter {
+                    showMacInDock ||
+                        $0.representative.deviceID != "@MacInternalBattery"
+                }
+                .prefix(4)
+        )
+    }
+
+    private var widgetRingDevices: [Device] {
+        presentations
+            .flatMap(\.components)
+            .map(\.device)
     }
 
     private var previewColumns: [GridItem] {
         [
             GridItem(
-                .adaptive(minimum: 320, maximum: 520),
+                .adaptive(minimum: 340, maximum: 560),
                 spacing: 12,
                 alignment: .top
             )
@@ -1726,113 +1747,84 @@ private struct DisplaySurfacePreview: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: previewColumns, alignment: .leading, spacing: 12) {
-            previewCard("Menu") {
-                VStack(spacing: 7) {
-                    menuBarPreview
-                    Divider().opacity(0.4)
-                    ForEach(presentations.prefix(4)) { presentation in
-                        menuPreviewRow(presentation)
+        LazyVGrid(
+            columns: previewColumns,
+            alignment: .leading,
+            spacing: 12
+        ) {
+            previewCard("Menu Bar") {
+                HStack {
+                    Spacer()
+                    StatusBarBatteryContent(
+                        item: sampleInternalBattery,
+                        showMacBattery: menuBarShowsMac,
+                        colorfulBattery: colorfulBattery,
+                        iosBatteryStyle: iosBatteryStyle,
+                        batteryPercent: batteryPercent,
+                        hideLevel: hideLevel
+                    )
+                    Spacer()
+                }
+                .frame(height: 28)
+            }
+
+            previewCard("Popover") {
+                VStack(spacing: 0) {
+                    ForEach(presentations.indices, id: \.self) { index in
+                        MenuDeviceRowContent(
+                            presentation: presentations[index]
+                        )
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+
+                        if index != presentations.count - 1 {
+                            Divider()
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: 8,
+                        style: .continuous
+                    )
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                )
             }
 
             previewCard("Dock") {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8)
-                    ],
-                    spacing: 8
-                ) {
-                    ForEach(
-                        presentations.filter {
-                            showMacInDock ||
-                                $0.representative.deviceID != "@MacInternalBattery"
-                        }.prefix(4)
-                    ) { presentation in
-                        dockPreviewCell(presentation)
-                    }
+                HStack {
+                    Spacer()
+                    DockTileSurfaceContent(
+                        presentations: dockPresentations,
+                        darkMode: previewColorScheme == .dark,
+                        showMacAsPercent: showMacInDock
+                    )
+                    Spacer()
                 }
             }
 
-            previewCard("Widget") {
-                let rows = reverseWidgetOrder
-                    ? Array(presentations.reversed())
-                    : presentations
-                VStack(spacing: 7) {
-                    ForEach(rows.prefix(4)) { presentation in
-                        widgetPreviewRow(presentation)
-                    }
+            previewCard("Widget — Battery List") {
+                WidgetListSurfaceContent(
+                    presentations: Array(presentations.prefix(8)),
+                    rowHeight: 31
+                )
+                .frame(minHeight: 185)
+            }
+
+            previewCard("Widget — Battery Rings") {
+                HStack {
+                    Spacer()
+                    WidgetBatteryRingsSurfaceContent(
+                        devices: widgetRingDevices
+                    )
+                    Spacer()
                 }
+                .frame(minHeight: 145)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.colorScheme, previewColorScheme)
-    }
-
-    @ViewBuilder
-    private var menuBarPreview: some View {
-        let mac = sampleDevices[0]
-        HStack(spacing: 5) {
-            Text("AirBattery")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-            Spacer()
-
-            if menuBarShowsMac {
-                if batteryPercent == "outside", mac.batteryLevel <= hideLevel {
-                    Text("\(mac.batteryLevel)%")
-                        .font(.caption2.monospacedDigit())
-                }
-
-                previewBatteryIcon(mac)
-
-                if batteryPercent == "inside", mac.batteryLevel <= hideLevel {
-                    Text("\(mac.batteryLevel)")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundColor(.primary)
-                        .padding(.leading, -20)
-                        .frame(width: 16)
-                }
-            } else {
-                Image(systemName: "bolt.square.fill")
-                    .font(.system(size: 14))
-                    .accessibilityLabel("AirBattery status icon")
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            menuBarShowsMac
-                ? "Menu bar preview, this Mac \(mac.batteryLevel) percent"
-                : "Menu bar preview, AirBattery status icon"
-        )
-    }
-
-    @ViewBuilder
-    private func previewBatteryIcon(_ device: Device) -> some View {
-        let fill = colorfulBattery
-            ? Color(getPowerColor(device))
-            : (device.batteryLevel <= 10 ? Color.red : Color.primary)
-        let fraction = CGFloat(max(0.05, min(1, Double(device.batteryLevel) / 100)))
-
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: iosBatteryStyle ? 3 : 2)
-                .stroke(Color.primary.opacity(0.7), lineWidth: 1)
-                .frame(width: iosBatteryStyle ? 27 : 23, height: iosBatteryStyle ? 12 : 10)
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(fill)
-                .frame(
-                    width: CGFloat(iosBatteryStyle ? 23 : 19) * fraction,
-                    height: iosBatteryStyle ? 8 : 6
-                )
-                .padding(.leading, 2)
-        }
-        .frame(width: iosBatteryStyle ? 28 : 24, height: 14)
-        .accessibilityLabel(
-            "This Mac \(device.batteryLevel) percent" +
-            (device.lowPower ? ", Low Power Mode" : "")
-        )
     }
 
     @ViewBuilder
@@ -1845,10 +1837,11 @@ private struct DisplaySurfacePreview: View {
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
+
             content()
         }
         .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
@@ -1859,195 +1852,16 @@ private struct DisplaySurfacePreview: View {
         )
     }
 
-    @ViewBuilder
-    private func menuPreviewRow(
-        _ presentation: LogicalDevicePresentation
-    ) -> some View {
-        HStack(alignment: .top, spacing: 7) {
-            Image(getDeviceIcon(presentation.representative))
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(presentation.displayName)
-                    .font(.caption)
-                    .lineLimit(1)
-
-                if presentation.components.count > 1 {
-                    Text(compactComponentSummary(presentation))
-                        .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            if presentation.components.count == 1,
-               let component = presentation.components.first {
-                Text(
-                    "\(component.level)%" +
-                        (component.charging != 0 ? " ⚡︎" : "")
-                )
-                .font(.caption.monospacedDigit())
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(presentation.displayName), " +
-                accessibilityBatterySummary(presentation)
+    private var sampleInternalBattery: iBattery {
+        iBattery(
+            hasBattery: true,
+            isCharging: false,
+            isCharged: false,
+            acPowered: false,
+            timeLeft: "02:14",
+            batteryLevel: 69,
+            lowPower: true
         )
-    }
-
-    @ViewBuilder
-    private func dockPreviewCell(
-        _ presentation: LogicalDevicePresentation
-    ) -> some View {
-        VStack(spacing: 5) {
-            Text(presentation.compactName)
-                .font(.caption2.weight(.medium))
-                .lineLimit(1)
-
-            if presentation.components.count > 1 {
-                HStack(spacing: 5) {
-                    ForEach(presentation.components.prefix(3)) { component in
-                        compactBattery(component, diameter: 30)
-                    }
-                }
-            } else if let component = presentation.components.first {
-                compactBattery(component, diameter: 34)
-            }
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, minHeight: 66)
-        .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Color.primary.opacity(0.035))
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(presentation.compactName), " +
-                accessibilityBatterySummary(presentation)
-        )
-    }
-
-    @ViewBuilder
-    private func widgetPreviewRow(
-        _ presentation: LogicalDevicePresentation
-    ) -> some View {
-        HStack(alignment: .top, spacing: 7) {
-            Image(getDeviceIcon(presentation.representative))
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(presentation.compactName)
-                    .font(.caption)
-                    .lineLimit(1)
-
-                if presentation.components.count > 1 {
-                    Text(compactComponentSummary(presentation))
-                        .font(.caption2.monospacedDigit())
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            if presentation.components.count == 1,
-               let component = presentation.components.first {
-                Text(
-                    "\(component.level)%" +
-                        (component.charging != 0 ? " ⚡︎" : "")
-                )
-                .font(.caption.monospacedDigit())
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(presentation.compactName), " +
-                accessibilityBatterySummary(presentation)
-        )
-    }
-
-    @ViewBuilder
-    private func compactBattery(
-        _ component: BatteryComponentPresentation,
-        diameter: CGFloat
-    ) -> some View {
-        VStack(spacing: 2) {
-            ZStack {
-                Circle()
-                    .stroke(Color.secondary.opacity(0.25), lineWidth: 3)
-                Circle()
-                    .trim(from: 0, to: Double(component.level) / 100)
-                    .stroke(
-                        Color(getPowerColor(component.device)),
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                Text("\(component.level)")
-                    .font(
-                        .system(
-                            size: max(7, diameter * 0.27),
-                            weight: .medium,
-                            design: .rounded
-                        )
-                    )
-            }
-            .frame(width: diameter, height: diameter)
-
-            Text(shortComponentLabel(component.role))
-                .font(.system(size: 8))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(component.label), \(component.level) percent" +
-                (component.charging != 0 ? ", charging" : "")
-        )
-    }
-
-    private func shortComponentLabel(
-        _ role: BatteryComponentRole
-    ) -> String {
-        switch role {
-        case .caseBattery: return "Case"
-        case .leftEarbud: return "L"
-        case .rightEarbud: return "R"
-        case .earbuds: return "Earbuds"
-        case .primary: return "Battery"
-        }
-    }
-
-    private func compactComponentSummary(
-        _ presentation: LogicalDevicePresentation
-    ) -> String {
-        presentation.components.map { component in
-            let label = shortComponentLabel(component.role)
-            return label + " \(component.level)%" +
-                (component.charging != 0 ? "⚡︎" : "")
-        }
-        .joined(separator: " · ")
-    }
-
-    private func accessibilityBatterySummary(
-        _ presentation: LogicalDevicePresentation
-    ) -> String {
-        presentation.components.map { component in
-            "\(component.label) \(component.level) percent" +
-                (component.charging != 0 ? ", charging" : "")
-        }
-        .joined(separator: ", ")
     }
 
     private var sampleDevices: [Device] {
