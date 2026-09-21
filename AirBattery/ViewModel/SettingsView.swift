@@ -570,7 +570,6 @@ struct DevicesView: View {
                         Text("Battery components")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
                         airPodsComponentRows(group)
                     }
                 } else if let representative = representativeDevice(device) {
@@ -582,55 +581,87 @@ struct DevicesView: View {
                                 (representative.isCharging != 0 ? " · charging" : "")
                             )
                         }
-                        detailRow("Type", representative.deviceType)
                         if let model = representative.deviceModel, !model.isEmpty {
                             detailRow("Model", model)
                         }
-                        detailRow("Identifier", representative.deviceID)
+                        detailRow(
+                            "Available through",
+                            sortedSources(device.sources).map(\.rawValue).joined(separator: " · ")
+                        )
+                        if let source = representative.batterySource {
+                            detailRow("Last battery via", batterySourceLabel(source))
+                        }
                         detailRow("Last update", relativeAge(representative.lastUpdate))
                         if !representative.parentName.isEmpty {
                             detailRow("Parent", representative.parentName)
                         }
                     }
                 } else {
-                    Text("Known from a saved Bluetooth policy; no retained battery record.")
+                    Text("Known from a saved Bluetooth policy; no retained battery reading.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
-                if !device.iDeviceCandidates.isEmpty {
-                    Divider().opacity(0.5)
-                    Text("Apple device discovery")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    ForEach(device.iDeviceCandidates) { candidate in
-                        iDeviceDetails(candidate)
-                    }
-                }
-
-                if let ble = device.ble {
-                    if !ble.identities.isEmpty {
-                        Divider().opacity(0.5)
-                        Text("Bluetooth identities")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                        ForEach(ble.identities) { candidate in
-                            identityDetail(candidate, logicalPolicy: ble.policy)
+                DisclosureGroup(
+                    isExpanded: Binding(
+                        get: { technicalExpandedKnown.contains(device.id) },
+                        set: { expanded in
+                            if expanded { technicalExpandedKnown.insert(device.id) }
+                            else { technicalExpandedKnown.remove(device.id) }
                         }
-                    } else if device.sources.contains(.bluetooth) {
-                        Divider().opacity(0.5)
-                        Text("Bluetooth device not observed during this launch.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    )
+                ) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        if let representative = representativeDevice(device) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                detailRow("Type", representative.deviceType)
+                                detailRow("Canonical ID", representative.deviceID)
+                                if let mobileID = representative.mobileDeviceID, !mobileID.isEmpty {
+                                    detailRow("Mobile UDID", mobileID)
+                                }
+                                if let bleID = representative.bleDeviceID, !bleID.isEmpty {
+                                    detailRow("Bluetooth ID", bleID)
+                                }
+                            }
+                        }
 
-                    if !ble.exactRules.isEmpty {
-                        Text("Identity-specific overrides take precedence over the device rule.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        if !device.iDeviceCandidates.isEmpty {
+                            Divider().opacity(0.5)
+                            Text("Apple device connections")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            ForEach(device.iDeviceCandidates) { candidate in
+                                iDeviceTechnicalDetails(candidate)
+                            }
+                        }
+
+                        if let ble = device.ble {
+                            if !ble.identities.isEmpty {
+                                Divider().opacity(0.5)
+                                Text("Bluetooth identities")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                ForEach(ble.identities) { candidate in
+                                    identityDetail(candidate, logicalPolicy: ble.policy)
+                                }
+                            } else if device.sources.contains(.bluetooth) {
+                                Text("Bluetooth device not observed during this launch.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            if !ble.exactRules.isEmpty {
+                                Text("Identity overrides take precedence over the device battery-access policy.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
+                    .padding(.top, 5)
+                } label: {
+                    Label("Technical Details", systemImage: "wrench.and.screwdriver")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(.top, 6)
@@ -649,7 +680,7 @@ struct DevicesView: View {
                 }
                 Spacer()
                 if let ble = device.ble {
-                    logicalPolicyMenu(name: device.name, currentPolicy: ble.policy)
+                    logicalPolicyMenu(name: device.name, currentPolicy: ble.policy, hasOverrides: !ble.exactRules.isEmpty)
                 }
             }
         }
@@ -667,8 +698,27 @@ struct DevicesView: View {
                 }
             )
         ) {
-            iDeviceDetails(candidate)
-                .padding(.top, 5)
+            VStack(alignment: .leading, spacing: 7) {
+                iDeviceDetails(candidate)
+
+                DisclosureGroup(
+                    isExpanded: Binding(
+                        get: { technicalExpandedNearby.contains(rowID) },
+                        set: { expanded in
+                            if expanded { technicalExpandedNearby.insert(rowID) }
+                            else { technicalExpandedNearby.remove(rowID) }
+                        }
+                    )
+                ) {
+                    iDeviceTechnicalDetails(candidate)
+                        .padding(.top, 4)
+                } label: {
+                    Label("Technical Details", systemImage: "wrench.and.screwdriver")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.top, 5)
         } label: {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -702,8 +752,27 @@ struct DevicesView: View {
                 }
             )
         ) {
-            candidateDetails(candidate)
-                .padding(.top, 5)
+            VStack(alignment: .leading, spacing: 7) {
+                candidateDetails(candidate, suggested: suggested)
+
+                DisclosureGroup(
+                    isExpanded: Binding(
+                        get: { technicalExpandedNearby.contains(rowID) },
+                        set: { expanded in
+                            if expanded { technicalExpandedNearby.insert(rowID) }
+                            else { technicalExpandedNearby.remove(rowID) }
+                        }
+                    )
+                ) {
+                    candidateTechnicalDetails(candidate)
+                        .padding(.top, 4)
+                } label: {
+                    Label("Technical Details", systemImage: "wrench.and.screwdriver")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.top, 5)
         } label: {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -727,17 +796,19 @@ struct DevicesView: View {
     @ViewBuilder
     private func sourceBadge(_ text: String) -> some View {
         Text(text)
-            .font(.caption2)
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
+            .font(.caption2.weight(.medium))
+            .foregroundColor(.primary.opacity(0.72))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
             .background(Capsule().fill(Color.secondary.opacity(0.12)))
+            .accessibilityLabel("Source: \(text)")
     }
 
     @ViewBuilder
     private func logicalPolicyMenu(
         name: String,
-        currentPolicy: BLEDevicePolicy?
+        currentPolicy: BLEDevicePolicy?,
+        hasOverrides: Bool
     ) -> some View {
         Menu {
             ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
@@ -750,28 +821,36 @@ struct DevicesView: View {
                 policyStore.clearLogicalPolicy(name: name)
             }
         } label: {
-            Text(currentPolicy?.title ?? "Per identity")
-                .frame(minWidth: 82, alignment: .trailing)
+            Text(
+                "Battery access: " +
+                (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
+            )
+            .font(.caption)
+            .frame(minWidth: 128, alignment: .trailing)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .accessibilityLabel(
+            "Battery access policy: " +
+            (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
+        )
     }
 
     @ViewBuilder
     private func reviewMenu(_ candidate: BLEDiscoveryCandidate, suggested: Bool) -> some View {
         Menu {
-            Button("Allow battery queries") {
+            Button("Allow queries") {
                 policyStore.setLogicalPolicy(name: candidate.name, policy: .allow)
             }
-            Button("Keep passive") {
+            Button("Passive only") {
                 policyStore.setLogicalPolicy(name: candidate.name, policy: .observe)
             }
             Button("Ignore") {
                 policyStore.setLogicalPolicy(name: candidate.name, policy: .ignore)
             }
         } label: {
-            Text(suggested ? "Review" : "Set policy")
-                .frame(minWidth: 70, alignment: .trailing)
+            Text(suggested ? "Review" : "Battery access")
+                .frame(minWidth: 82, alignment: .trailing)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -786,6 +865,7 @@ struct DevicesView: View {
             HStack {
                 Text(shortIdentifier(candidate.identifier))
                     .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
                 Spacer()
                 Menu {
                     ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
@@ -805,27 +885,44 @@ struct DevicesView: View {
                     }
                 } label: {
                     Text(
-                        policyStore.exactPolicy(identifier: candidate.identifier)?.title ??
-                        logicalPolicy?.title ??
-                        "Default"
+                        "Identity override: " +
+                        (policyStore.exactPolicy(identifier: candidate.identifier)?.title ??
+                         "Uses device policy")
                     )
                     .font(.caption)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
             }
-            candidateDetails(candidate)
+            candidateTechnicalDetails(candidate)
         }
         .padding(.leading, 4)
     }
 
     @ViewBuilder
-    private func candidateDetails(_ candidate: BLEDiscoveryCandidate) -> some View {
+    private func candidateDetails(
+        _ candidate: BLEDiscoveryCandidate,
+        suggested: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            detailRow("Signal", signalLabel(candidate.displayRSSI))
+            detailRow("Last seen", relativeAge(candidate.lastSeen.timeIntervalSince1970))
+            if suggested {
+                detailRow("Why suggested", candidateSuggestionReason(candidate))
+            }
+            if let result = candidate.lastProbeResult {
+                detailRow("Last battery query", result)
+            }
+        }
+        .font(.caption)
+    }
+
+    @ViewBuilder
+    private func candidateTechnicalDetails(_ candidate: BLEDiscoveryCandidate) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             detailRow(
                 "Signal",
-                "\(signalLabel(candidate.displayRSSI)) · \(candidate.displayRSSI) dBm " +
-                "(raw \(candidate.rssi) dBm)"
+                "\(candidate.displayRSSI) dBm (raw \(candidate.rssi) dBm)"
             )
             detailRow("Seen", "\(candidate.seenCount) times")
             detailRow("Identifier", candidate.identifier)
@@ -837,11 +934,7 @@ struct DevicesView: View {
             } else if candidate.advertisesBatteryService {
                 detailRow("Advertisement", "Battery Service advertised")
             }
-            detailRow("Last seen", relativeAge(candidate.lastSeen.timeIntervalSince1970))
             detailRow("Connection", candidate.isConnectable ? "Connectable" : "Not connectable")
-            if let result = candidate.lastProbeResult {
-                detailRow("Last query", result)
-            }
         }
         .font(.caption)
         .foregroundColor(.secondary)
@@ -851,17 +944,28 @@ struct DevicesView: View {
     private func iDeviceDetails(_ candidate: IDeviceDiscoveryCandidate) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             detailRow(
-                "Connection",
-                sortedIDeviceSources(candidate.sources).map(\.rawValue).joined(separator: " + ")
+                "Available through",
+                sortedIDeviceSources(candidate.sources).map(\.rawValue).joined(separator: " · ")
             )
-            if let type = candidate.deviceType, !type.isEmpty {
-                detailRow("Type", type)
-            }
             if let model = candidate.model, !model.isEmpty {
                 detailRow("Model", model)
             }
-            detailRow("Identifier", candidate.identifier)
             detailRow("Last seen", relativeAge(candidate.lastSeen.timeIntervalSince1970))
+            detailRow(
+                "Battery",
+                candidate.batteryReadable ? "Readable" : "No battery reading yet"
+            )
+        }
+        .font(.caption)
+    }
+
+    @ViewBuilder
+    private func iDeviceTechnicalDetails(_ candidate: IDeviceDiscoveryCandidate) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let type = candidate.deviceType, !type.isEmpty {
+                detailRow("Type", type)
+            }
+            detailRow("Identifier", candidate.identifier)
             detailRow(
                 "Battery query",
                 candidate.batteryReadable ? "Battery data read successfully" : "No battery record yet"
@@ -873,10 +977,12 @@ struct DevicesView: View {
 
     @ViewBuilder
     private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
-                .frame(width: 82, alignment: .leading)
+                .foregroundColor(.secondary)
+                .frame(width: 102, alignment: .leading)
             Text(value)
+                .foregroundColor(.primary)
                 .textSelection(.enabled)
             Spacer()
         }
@@ -889,6 +995,29 @@ struct DevicesView: View {
                 .foregroundColor(.secondary)
             Spacer()
         }
+    }
+
+    private func batterySourceLabel(_ source: DeviceObservationSource) -> String {
+        switch source {
+        case .ble: return "Bluetooth"
+        case .libimobiledevice: return "Network / USB"
+        }
+    }
+
+    private func candidateSuggestionReason(_ candidate: BLEDiscoveryCandidate) -> String {
+        if candidate.hasPassiveBatteryData {
+            return "Battery data was advertised"
+        }
+        if candidate.advertisesBatteryService {
+            return "Battery service was advertised"
+        }
+        if candidate.matchesPairedName {
+            return "Matches a paired accessory"
+        }
+        if candidate.lastProbeResult != nil {
+            return "Previously queried"
+        }
+        return "Stable nearby device"
     }
 
     private func knownDeviceSummary(_ device: KnownDeviceSnapshot) -> String {
