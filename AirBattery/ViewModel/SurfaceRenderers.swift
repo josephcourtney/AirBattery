@@ -1191,6 +1191,234 @@ private struct IconRingCell: View {
 }
 
 
+enum WidgetOverviewFamily {
+    case small
+    case medium
+    case large
+}
+
+struct WidgetOverviewRingsSurfaceContent: View {
+    let devices: [Device]
+    let family: WidgetOverviewFamily
+    let showPercentages: Bool
+    let showLabels: Bool
+
+    private var items: [Device] {
+        let limit = family == .small ? 4 : 8
+        return Array(devices.filter(\.hasBattery).prefix(limit))
+    }
+
+    private var columns: Int {
+        family == .small ? 2 : 4
+    }
+
+    private var diameter: CGFloat {
+        family == .large ? 72 : 58
+    }
+
+    private var horizontalSpacing: CGFloat {
+        switch family {
+        case .small:
+            return 17
+        case .medium:
+            return 18
+        case .large:
+            return 12
+        }
+    }
+
+    private var verticalSpacing: CGFloat {
+        family == .large ? 18 : 14
+    }
+
+    var body: some View {
+        VStack(spacing: verticalSpacing) {
+            overviewRow(start: 0)
+            if items.count > columns || family != .medium {
+                overviewRow(start: columns)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func overviewRow(start: Int) -> some View {
+        HStack(spacing: horizontalSpacing) {
+            ForEach(0..<columns, id: \.self) { offset in
+                let index = start + offset
+                if items.indices.contains(index) {
+                    OverviewRingCell(
+                        item: items[index],
+                        diameter: diameter,
+                        showPercentage: showPercentages,
+                        showLabel: showLabels
+                    )
+                } else if family != .medium || start > 0 {
+                    OverviewRingPlaceholder(
+                        diameter: diameter,
+                        showPercentage: showPercentages,
+                        showLabel: showLabels
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct OverviewRingPlaceholder: View {
+    let diameter: CGFloat
+    let showPercentage: Bool
+    let showLabel: Bool
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Circle()
+                .stroke(lineWidth: diameter >= 70 ? 7 : 6)
+                .frame(width: diameter, height: diameter)
+                .opacity(0.15)
+
+            if showPercentage {
+                Text(" ")
+                    .font(.system(size: diameter >= 70 ? 12 : 10))
+            }
+
+            if showLabel {
+                Text(" ")
+                    .font(.system(size: diameter >= 70 ? 10 : 8))
+            }
+        }
+    }
+}
+
+private struct OverviewRingCell: View {
+    let item: Device
+    let diameter: CGFloat
+    let showPercentage: Bool
+    let showLabel: Bool
+
+    private var lineWidth: CGFloat {
+        diameter >= 70 ? 7 : 6
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            ZStack {
+                Circle()
+                    .stroke(lineWidth: lineWidth)
+                    .opacity(0.15)
+
+                Circle()
+                    .trim(
+                        from: 0,
+                        to: Double(item.batteryLevel) / 100
+                    )
+                    .stroke(
+                        Color(getPowerColor(item)),
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+                    .rotationEffect(.degrees(270))
+
+                Image(getDeviceIcon(item))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(
+                        width: diameter * 0.45,
+                        height: diameter * 0.45
+                    )
+
+                if item.isCharging != 0 {
+                    Image("batt_bolt_mask")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: diameter * 0.2)
+                        .blendMode(.destinationOut)
+                        .offset(y: -diameter * 0.51)
+
+                    Image("batt_bolt")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: diameter * 0.17)
+                        .foregroundColor(
+                            item.batteryLevel == 100
+                                ? .myGreen
+                                : .primary
+                        )
+                        .offset(y: -diameter * 0.51)
+                }
+            }
+            .frame(width: diameter, height: diameter)
+            .compositingGroup()
+
+            if showPercentage {
+                HStack(spacing: 2) {
+                    Text("\(item.batteryLevel)%")
+                        .monospacedDigit()
+                    if item.isCharging != 0 {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 7, weight: .bold))
+                    }
+                }
+                .font(
+                    .system(
+                        size: diameter >= 70 ? 12 : 10,
+                        weight: .medium
+                    )
+                )
+                .fixedSize()
+            }
+
+            if showLabel {
+                Text(shortLabel)
+                    .font(
+                        .system(
+                            size: diameter >= 70 ? 10 : 8
+                        )
+                    )
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(width: diameter + 12)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var shortLabel: String {
+        if item.deviceID == "@MacInternalBattery" {
+            return "Mac"
+        }
+
+        switch item.deviceType {
+        case "ap_case":
+            return "Case"
+        case "ap_pod_left":
+            return "L"
+        case "ap_pod_right":
+            return "R"
+        case "ap_pod_all":
+            return "Earbuds"
+        default:
+            return DevicePresentationNaming.compactName(
+                deviceType: item.deviceType,
+                displayName: item.deviceName
+            )
+        }
+    }
+
+    private var accessibilitySummary: String {
+        var values = [shortLabel, "\(item.batteryLevel) percent"]
+        if item.isCharging != 0 {
+            values.append("charging")
+        }
+        return values.joined(separator: ", ")
+    }
+}
+
+
 struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
     let deviceName: String
