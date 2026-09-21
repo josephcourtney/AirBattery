@@ -172,8 +172,8 @@ struct batteryWidget2: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Battery Rings")
-        .description("Displays up to eight labeled device batteries")
+        .configurationDisplayName("Battery Rings (Legacy)")
+        .description("Legacy labeled-rings widget. Use Battery Overview for new widgets.")
         .disableContentMarginsIfNeeded()
         .supportFamily()
     }
