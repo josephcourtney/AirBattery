@@ -1784,31 +1784,36 @@ private struct DisplaySurfacePreview: View {
 
             previewSection("Popover") {
                 VStack(spacing: 0) {
-                    ForEach(presentations.indices, id: \.self) { index in
-                        MenuDeviceRowContent(
-                            presentation: presentations[index]
-                        )
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 10)
+                    PopoverToolbarSurfaceContent(
+                        fromDock: false,
+                        nearcastEnabled: false,
+                        onHide: {},
+                        onAbout: {},
+                        onSettings: {},
+                        onQuit: {},
+                        onRefreshNearcast: {}
+                    )
 
-                        if index != presentations.count - 1 {
-                            Divider()
+                    VStack(spacing: 0) {
+                        ForEach(presentations.indices, id: \.self) { index in
+                            MenuDeviceRowContent(
+                                presentation: presentations[index]
+                            )
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 10)
+
+                            if index != presentations.count - 1 {
+                                Divider()
+                            }
                         }
                     }
+                    .padding(.horizontal, 6)
                 }
-                .padding(.horizontal, 6)
                 .frame(width: 352)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .strokeBorder(
-                            Color.secondary.opacity(0.23),
-                            lineWidth: 1
-                        )
-                        .padding(.horizontal, 5)
-                )
-                .liquidGlassPanel(
-                    cornerRadius: 5,
-                    tint: .primary.opacity(0.02)
+                .liquidGlassEffect(
+                    cornerRadius: 10,
+                    interactive: false,
+                    tint: .primary.opacity(0.04)
                 )
             }
 
