@@ -200,6 +200,23 @@ struct BlurView: NSViewRepresentable {
     }
 }
 
+private struct PopoverHostSurfaceModifier: ViewModifier {
+    let fromDock: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if fromDock {
+            content.liquidGlassEffect(
+                cornerRadius: 8,
+                interactive: true,
+                tint: .primary.opacity(0.04)
+            )
+        } else {
+            content
+        }
+    }
+}
+
 struct popover: View {
     var fromDock: Bool = false
     var allDevice: [Device]
@@ -542,9 +559,6 @@ struct popover: View {
                     },
                     onAbout: {
                         dockWindow.orderOut(nil)
-                        if !fromDock {
-                            dismissMenuBarWindow()
-                        }
                         statusBarItem.menu?.cancelTracking()
                         openAboutPanel()
                         DispatchQueue.main.asyncAfter(
@@ -555,9 +569,6 @@ struct popover: View {
                     },
                     onSettings: {
                         dockWindow.orderOut(nil)
-                        if !fromDock {
-                            dismissMenuBarWindow()
-                        }
                         statusBarItem.menu?.cancelTracking()
                         openSettingPanel()
                     },
@@ -796,10 +807,10 @@ struct popover: View {
             }
         }
         .frame(width: 352)
-        .liquidGlassEffect(cornerRadius: fromDock ? 8 : 10, interactive: true, tint: .primary.opacity(0.04))
+        .modifier(PopoverHostSurfaceModifier(fromDock: fromDock))
         .onAppear { allDevices = allDevice }
         .onReceive(mainTimer) { t in
-            if !fromDock && menuBarWindow?.isVisible == true {
+            if !fromDock && statusMenuIsOpen {
                 allDevices = AirBatteryModel.getAll()
                 hiddenDevices = AirBatteryModel.getBlackList()
                 hidden = [Int]()
