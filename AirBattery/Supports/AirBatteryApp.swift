@@ -21,9 +21,7 @@ var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery
 let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
 let systemUUID = getMacDeviceUUID()
 var dockWindow = AutoHideWindow()
-var menuBarWindow: NSPanel?
-var menuBarGlobalMouseMonitor: Any?
-var menuBarLocalMouseMonitor: Any?
+var statusMenuIsOpen = false
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var updateDelay = 1
@@ -55,29 +53,6 @@ struct AirBatteryApp: App {
     }
 }
 
-@MainActor
-func dismissMenuBarWindow() {
-    if #available(macOS 27.0, *),
-       statusBarItem != nil,
-       let session = statusBarItem.expandedInterfaceSession
-    {
-        session.cancel()
-        return
-    }
-
-    menuBarWindow?.orderOut(nil)
-    menuBarWindow = nil
-
-    if let monitor = menuBarGlobalMouseMonitor {
-        NSEvent.removeMonitor(monitor)
-        menuBarGlobalMouseMonitor = nil
-    }
-    if let monitor = menuBarLocalMouseMonitor {
-        NSEvent.removeMonitor(monitor)
-        menuBarLocalMouseMonitor = nil
-    }
-}
-
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     //static let shared = AppDelegate()
     @AppStorage("showOn") var showOn = "sbar"
@@ -102,8 +77,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     @AppStorage("alertLevel") var alertLevel = 10
     @AppStorage("fullyLevel") var fullyLevel = 100
     
-    //var statusMenu: NSMenu = NSMenu()
-    var menu: NSMenu = NSMenu()
+    var statusMenu = NSMenu()
+    var menu = NSMenu()
     var startTime = Date()
     let nc = NSWorkspace.shared.notificationCenter
     
@@ -289,27 +264,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             WidgetCenter.shared.reloadAllTimelines()
         }
         
-        //menu.delegate = self
-        //statusMenu.delegate = self
-        statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if #available(macOS 27.0, *) {
-            statusBarItem.expandedInterfaceDelegate = self
-        }
-        //statusBarItem.menu = statusMenu
+        statusMenu.delegate = self
+        statusMenu.autoenablesItems = false
+
+        statusBarItem = NSStatusBar.system.statusItem(
+            withLength: NSStatusItem.variableLength
+        )
         if let button = statusBarItem.button {
-            button.target = self
             let ib = getPowerState()
             let iconView = NSHostingView(rootView: mainBatteryView())
             if ib.hasBattery && intBattOnStatusBar {
-                iconView.frame = NSRect(x: 0, y: 0, width: 42, height: 21.5)
+                iconView.frame = NSRect(
+                    x: 0,
+                    y: 0,
+                    width: 42,
+                    height: 21.5
+                )
             } else {
-                iconView.frame = NSRect(x: 0, y: 0, width: 36, height: 21.5)
+                iconView.frame = NSRect(
+                    x: 0,
+                    y: 0,
+                    width: 36,
+                    height: 21.5
+                )
             }
             button.image = NSImage()
             button.addSubview(iconView)
             button.frame = iconView.frame
-            button.action = #selector(togglePopover(_ :))
         }
+
+        rebuildStatusMenu()
+        statusBarItem.menu = statusMenu
         statusBarItem.isVisible = !(showOn == "dock" || showOn == "none")
         NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
         NSApp.dockTile.display()
@@ -400,97 +385,59 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         }
     }
     
-    /*func menuWillOpen(_ menu: NSMenu) {
-        dockWindow.orderOut(nil)
-        var allDevices = AirBatteryModel.getAll()
-        let ibStatus = InternalBattery.status
-        if ibStatus.hasBattery { allDevices.insert(ib2ab(ibStatus), at: 0) }
-        let contentViewSwiftUI = popover(fromDock: false, allDevice: allDevices)
-        let contentView = NSHostingView(rootView: contentViewSwiftUI)
-        let hiddenRow = AirBatteryModel.getBlackList().count > 0 ? 1 : 0
-        let allNearcast = getFiles(withExtension: "json", in: ncFolder)
-        var ncCount = 0
-        var ncDeviceCount = 0
-        for jsonUrl in allNearcast {
-            let count = AirBatteryModel.ncGetAll(url: jsonUrl).count
-            if count != 0 {
-                ncCount += 7
-                ncDeviceCount += count
-            }
-        }
-        let localRowCount = max(AirBatteryModel.groupedDisplayRowCount(allDevices), 1)
-        contentView.frame = NSRect(
-            x: 0,
-            y: 0,
-            width: 352,
-            height: (max(localRowCount + ncDeviceCount, 1) + hiddenRow) * 33 + 20 + ncCount
-        )
-        let menuItem = NSMenuItem()
-        menuItem.view = contentView
-        statusMenu.removeAllItems()
-        statusMenu.addItem(menuItem)
-    }*/
-    
-    @MainActor
-    @objc func togglePopover(_ sender: Any?) {
-        if #available(macOS 27.0, *) {
-            // AppKit owns the expanded-interface lifecycle and invokes the
-            // delegate for the specific replicated status item that was used.
-            return
-        }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === statusMenu else { return }
+        rebuildStatusMenu()
+    }
 
-        // macOS 15 fallback: derive the clicked display from the current event.
-        if menuBarWindow?.isVisible == true {
-            dismissMenuBarWindow()
-            return
+    func menuWillOpen(_ menu: NSMenu) {
+        if menu === statusMenu {
+            statusMenuIsOpen = true
+            dockWindow.orderOut(nil)
         }
+    }
 
+    func menuDidClose(_ menu: NSMenu) {
+        if menu === statusMenu {
+            statusMenuIsOpen = false
+        }
+    }
+
+    private func rebuildStatusMenu() {
         var allDevices = AirBatteryModel.getAll()
         let ibStatus = InternalBattery.status
         if ibStatus.hasBattery {
             allDevices.insert(ib2ab(ibStatus), at: 0)
         }
 
-        let event = NSApp.currentEvent
-        let mouseLocation: NSPoint
-        let screen: NSScreen?
-
-        if let event,
-           let eventWindow = event.window,
-           let eventScreen = eventWindow.screen
-        {
-            mouseLocation =
-                eventWindow.convertPoint(toScreen: event.locationInWindow)
-            screen = eventScreen
-        } else {
-            let globalMouseLocation = NSEvent.mouseLocation
-            mouseLocation = globalMouseLocation
-            screen = NSScreen.screens.first(where: {
-                NSMouseInRect(globalMouseLocation, $0.frame, false)
-            }) ?? NSScreen.main
-        }
-
-        guard let screen else {
-            return
-        }
-
-        showMenuBarWindow(
-            at: mouseLocation,
-            on: screen,
-            allDevices: allDevices
+        let contentView = NSHostingView(
+            rootView: popover(fromDock: false, allDevice: allDevices)
         )
+        contentView.frame = NSRect(
+            origin: .zero,
+            size: NSSize(
+                width: 352,
+                height: statusMenuContentHeight(for: allDevices)
+            )
+        )
+
+        let menuItem = NSMenuItem()
+        menuItem.view = contentView
+
+        statusMenu.removeAllItems()
+        statusMenu.addItem(menuItem)
     }
 
-    @MainActor
-    private func showMenuBarWindow(
-        at screenPoint: NSPoint,
-        on screen: NSScreen,
-        allDevices: [Device]
-    ) {
-        dismissMenuBarWindow()
+    private func statusMenuContentHeight(
+        for allDevices: [Device]
+    ) -> CGFloat {
+        let hiddenRow =
+            AirBatteryModel.getBlackList().isEmpty ? 0 : 1
+        let nearcastFiles = getFiles(
+            withExtension: "json",
+            in: ncFolder
+        )
 
-        let hiddenRow = AirBatteryModel.getBlackList().isEmpty ? 0 : 1
-        let nearcastFiles = getFiles(withExtension: "json", in: ncFolder)
         var nearcastSectionHeight = 0
         var nearcastDeviceCount = 0
         for file in nearcastFiles {
@@ -508,93 +455,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         let airPodsRowCount =
             AirBatteryModel.groupedAirPodsRowCount(allDevices)
 
-        let width: CGFloat = 352
-        let height = CGFloat(
+        return CGFloat(
             (max(localRowCount + nearcastDeviceCount, 1) + hiddenRow) * 33 +
                 airPodsRowCount * 6 +
                 44 +
                 nearcastSectionHeight
         )
-
-        let visibleFrame = screen.visibleFrame
-        let x = min(
-            max(screenPoint.x - width / 2, visibleFrame.minX + 8),
-            visibleFrame.maxX - width - 8
-        )
-        let y = max(
-            visibleFrame.minY + 8,
-            visibleFrame.maxY - height - 2
-        )
-
-        let hostingView = NSHostingView(
-            rootView: popover(fromDock: false, allDevice: allDevices)
-        )
-        hostingView.frame = NSRect(
-            origin: .zero,
-            size: NSSize(width: width, height: height)
-        )
-
-        let panel = NSPanel(
-            contentRect: NSRect(
-                x: x,
-                y: y,
-                width: width,
-                height: height
-            ),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false,
-            screen: screen
-        )
-        panel.level = .statusBar
-        panel.contentView = hostingView
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [
-            .canJoinAllSpaces,
-            .fullScreenAuxiliary,
-            .stationary,
-            .ignoresCycle
-        ]
-
-        menuBarWindow = panel
-        panel.orderFrontRegardless()
-
-        if #unavailable(macOS 27.0) {
-            installMenuBarWindowDismissalMonitors(panel)
-        }
-    }
-
-    @MainActor
-    private func installMenuBarWindowDismissalMonitors(_ panel: NSPanel) {
-        menuBarGlobalMouseMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown]
-        ) { _ in
-            DispatchQueue.main.async {
-                dismissMenuBarWindow()
-            }
-        }
-
-        menuBarLocalMouseMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown]
-        ) { event in
-            if event.window === panel {
-                return event
-            }
-
-            // Let the status-item action itself handle a second click.
-            if event.window?.level == .statusBar {
-                return event
-            }
-
-            DispatchQueue.main.async {
-                dismissMenuBarWindow()
-            }
-            return event
-        }
     }
 
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
@@ -643,69 +509,6 @@ class AutoHideWindow: NSWindow {
     override func resignKey() {
         super.resignKey()
         self.orderOut(nil)
-    }
-}
-
-@available(macOS 27.0, *)
-@MainActor
-extension AppDelegate: NSStatusItemExpandedInterfaceDelegate {
-    func statusItem(
-        _ statusItem: NSStatusItem,
-        didBegin session: NSStatusItemExpandedInterfaceSession
-    ) {
-        var allDevices = AirBatteryModel.getAll()
-        let ibStatus = InternalBattery.status
-        if ibStatus.hasBattery {
-            allDevices.insert(ib2ab(ibStatus), at: 0)
-        }
-
-        let event = NSApp.currentEvent
-        let mouseLocation: NSPoint
-        let screen: NSScreen?
-
-        if let event,
-           let eventWindow = event.window,
-           let eventScreen = eventWindow.screen
-        {
-            mouseLocation =
-                eventWindow.convertPoint(toScreen: event.locationInWindow)
-            screen = eventScreen
-        } else if let button = statusItem.button,
-                  let buttonWindow = button.window,
-                  let buttonScreen = buttonWindow.screen
-        {
-            let buttonFrame = button.convert(button.bounds, to: nil)
-            let screenRect = buttonWindow.convertToScreen(buttonFrame)
-            mouseLocation = NSPoint(
-                x: screenRect.midX,
-                y: screenRect.minY
-            )
-            screen = buttonScreen
-        } else {
-            let globalMouseLocation = NSEvent.mouseLocation
-            mouseLocation = globalMouseLocation
-            screen = NSScreen.screens.first(where: {
-                NSMouseInRect(globalMouseLocation, $0.frame, false)
-            }) ?? NSScreen.main
-        }
-
-        guard let screen else {
-            session.cancel()
-            return
-        }
-
-        showMenuBarWindow(
-            at: mouseLocation,
-            on: screen,
-            allDevices: allDevices
-        )
-    }
-
-    func statusItemDidEndExpandedInterfaceSession(
-        _ statusItem: NSStatusItem,
-        animated: Bool
-    ) {
-        dismissMenuBarWindow()
     }
 }
 
