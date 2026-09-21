@@ -57,13 +57,14 @@ struct widgetBundle: WidgetBundle {
         if #available(macOS 14, *) {
             return WidgetBundleBuilder.buildBlock(
                 BatteryOverviewWidget(),
-                batteryWidget2New(),
+                batteryWidget2New()
+            )
+        } else {
+            return WidgetBundleBuilder.buildBlock(
                 batteryWidget(),
                 batteryWidget2(),
                 batteryWidget3()
             )
-        } else {
-            return WidgetBundleBuilder.buildBlock(batteryWidget(), batteryWidget2(), batteryWidget3())
         }
     }
 }
