@@ -170,6 +170,7 @@ class AirBatteryModel {
     static var Devices: [Device] = []
     static let machineType = ud.string(forKey: "machineType") ?? "Mac"
     static let key = "com.josephcourtney.AirBattery.widget"
+    static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
 
     private static let presenceLock = NSLock()
     private static var lastBLEPresence: [String: Double] = [:]
@@ -536,15 +537,105 @@ class AirBatteryModel {
     }
     
     
-    static func getJsonURL() -> URL {
-        var url: URL
-        let bundleIdentifier = Bundle.main.bundleIdentifier
-        if bundleIdentifier == key {
-            url = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("data.json")
-        } else {
-            url = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(key)/Data/Documents/data.json")
+    static func sharedDataDirectory() -> URL {
+        if let container = fd.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupIdentifier
+        ) {
+            let directory = container.appendingPathComponent(
+                "Documents",
+                isDirectory: true
+            )
+            try? fd.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            return directory
         }
+
+        // This fallback keeps development/ad-hoc tools useful if the App Group
+        // entitlement is unavailable. Production app/widget builds use the
+        // shared container above.
+        if Bundle.main.bundleIdentifier == key {
+            return fd.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            ).first!
+        }
+        return fd.urls(
+            for: .libraryDirectory,
+            in: .userDomainMask
+        ).first!.appendingPathComponent(
+            "Containers/\(key)/Data/Documents",
+            isDirectory: true
+        )
+    }
+
+    static func getJsonURL() -> URL {
+        sharedDataDirectory().appendingPathComponent("data.json")
+    }
+
+    static func getNearcastURL() -> URL {
+        let url = sharedDataDirectory().appendingPathComponent(
+            "NearcastData",
+            isDirectory: true
+        )
+        try? fd.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    static func getHeartbeatURL() -> URL {
+        sharedDataDirectory().appendingPathComponent("heartbeat")
+    }
+
+    static func snapshotIsFresh(
+        maxAge: TimeInterval = 120,
+        now: Date = Date()
+    ) -> Bool {
+        guard let attributes = try? fd.attributesOfItem(
+            atPath: getHeartbeatURL().path
+        ),
+        let modified = attributes[.modificationDate] as? Date
+        else {
+            return false
+        }
+        return now.timeIntervalSince(modified) <= maxAge
+    }
+
+    static func migrateLegacySharedStorageIfNeeded() {
+        guard fd.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupIdentifier
+        ) != nil else {
+            return
+        }
+
+        let destination = sharedDataDirectory()
+        let legacy = fd.urls(
+            for: .libraryDirectory,
+            in: .userDomainMask
+        ).first!.appendingPathComponent(
+            "Containers/\(key)/Data/Documents",
+            isDirectory: true
+        )
+
+        let oldData = legacy.appendingPathComponent("data.json")
+        let newData = destination.appendingPathComponent("data.json")
+        if !fd.fileExists(atPath: newData.path),
+           fd.fileExists(atPath: oldData.path) {
+            try? fd.copyItem(at: oldData, to: newData)
+        }
+
+        let oldNearcast = legacy.appendingPathComponent(
+            "NearcastData",
+            isDirectory: true
+        )
+        let newNearcast = destination.appendingPathComponent(
+            "NearcastData",
+            isDirectory: true
+        )
+        if !fd.fileExists(atPath: newNearcast.path),
+           fd.fileExists(atPath: oldNearcast.path) {
+            try? fd.copyItem(at: oldNearcast, to: newNearcast)
+        }
     }
     
     static func widgetStoredDevices(
@@ -571,7 +662,8 @@ class AirBatteryModel {
         )
         do {
             let jsonData = try JSONEncoder().encode(devices)
-            try jsonData.write(to: getJsonURL())
+            try jsonData.write(to: getJsonURL(), options: .atomic)
+            try Data().write(to: getHeartbeatURL(), options: .atomic)
         } catch {
             print("Write JSON error：\(error)")
         }
