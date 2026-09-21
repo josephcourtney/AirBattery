@@ -506,7 +506,9 @@ struct DevicesView: View {
             }
 
             if snapshot.sources.isEmpty {
-                if snapshot.devices.contains(where: { isAppleMobileDevice($0) }) {
+                if snapshot.devices.contains(where: { $0.batterySource == .ble }) {
+                    snapshot.sources.insert(.bluetooth)
+                } else if snapshot.devices.contains(where: { $0.batterySource == .libimobiledevice }) {
                     snapshot.sources.insert(.network)
                 } else if !snapshot.devices.isEmpty {
                     snapshot.sources.insert(.bluetooth)
@@ -585,7 +587,7 @@ struct DevicesView: View {
                             detailRow("Model", model)
                         }
                         detailRow(
-                            "Available through",
+                            "Known sources",
                             sortedSources(device.sources).map(\.rawValue).joined(separator: " · ")
                         )
                         if let source = representative.batterySource {
