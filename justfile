@@ -274,41 +274,73 @@ verify-signing configuration="Debug":
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$helper/Contents/Info.plist")" == "{{helper_bundle_id}}" ]] || { echo "Unexpected helper bundle identifier." >&2; exit 1; }; \
       printf '%s\n' "Signed app:    {{app_bundle_id}}" "Signed widget: {{widget_bundle_id}}" "Signed helper: {{helper_bundle_id}}"
 
-# Install a signed development build in ~/Applications by default.
-# Override AIRBATTERY_INSTALL_DIR to use another directory.
-install-local configuration="Debug":
-    just build-signed "{{configuration}}"
-    @src="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
-      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
-      dst="$install_dir/AirBattery.app"; \
-      mkdir -p "$install_dir"; \
-      rm -rf "$dst"; \
-      /usr/bin/ditto "$src" "$dst"; \
-      codesign --verify --deep --strict --verbose=2 "$dst"; \
-      printf '%s\n' "$dst"
-
-# Stop every locally running AirBattery app/helper process.
-# TERM first for a clean shutdown; force-kill anything that does not exit.
-stop:
+# Stop the containing app and login helper while leaving the WidgetKit extension
+# alone. During an install, killing the extension before the replacement bundle
+# exists can make WidgetKit immediately relaunch the old registered extension.
+stop-host:
     @/usr/bin/pkill -TERM -x AirBattery >/dev/null 2>&1 || true
     @/usr/bin/pkill -TERM -x AirBatteryHelper >/dev/null 2>&1 || true
-    @/usr/bin/pkill -TERM -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
     @for _ in 1 2 3 4 5 6 7 8 9 10; do \
       if ! /usr/bin/pgrep -x AirBattery >/dev/null 2>&1 && \
-         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1 && \
-         ! /usr/bin/pgrep -x AirBatteryWidgetExtension >/dev/null 2>&1; then \
+         ! /usr/bin/pgrep -x AirBatteryHelper >/dev/null 2>&1; then \
         exit 0; \
       fi; \
       /bin/sleep 0.1; \
     done; \
     /usr/bin/pkill -KILL -x AirBattery >/dev/null 2>&1 || true; \
-    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true; \
+    /usr/bin/pkill -KILL -x AirBatteryHelper >/dev/null 2>&1 || true
+
+# Stop every locally running AirBattery process. Use this for an explicit full
+# shutdown; install-local deliberately uses stop-host instead.
+stop: stop-host
+    @/usr/bin/pkill -TERM -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
+    @for _ in 1 2 3 4 5 6 7 8 9 10; do \
+      if ! /usr/bin/pgrep -x AirBatteryWidgetExtension >/dev/null 2>&1; then \
+        exit 0; \
+      fi; \
+      /bin/sleep 0.1; \
+    done; \
     /usr/bin/pkill -KILL -x AirBatteryWidgetExtension >/dev/null 2>&1 || true
 
-# Stop existing instances, install, and launch exactly one signed local build.
-# Launching the containing app allows macOS to register its WidgetKit extension.
+# Build and stage the complete signed app before touching the installed bundle.
+# The old widget extension remains runnable until the new bundle occupies the
+# registered path, preventing ExtensionFoundation from seeing a missing or
+# partially copied extension during long builds.
+install-local configuration="Debug":
+    just build-signed "{{configuration}}"
+    @src="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
+      install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
+      dst="$install_dir/AirBattery.app"; \
+      stage="$install_dir/.AirBattery.app.new.$"; \
+      backup="$install_dir/.AirBattery.app.old.$"; \
+      mkdir -p "$install_dir"; \
+      rm -rf "$stage" "$backup"; \
+      cleanup() { rm -rf "$stage" "$backup"; }; \
+      trap cleanup EXIT; \
+      /usr/bin/ditto "$src" "$stage"; \
+      /usr/bin/codesign --verify --deep --strict --verbose=2 "$stage"; \
+      just stop-host; \
+      if [[ -e "$dst" ]]; then /bin/mv "$dst" "$backup"; fi; \
+      if ! /bin/mv "$stage" "$dst"; then \
+        if [[ -e "$backup" && ! -e "$dst" ]]; then /bin/mv "$backup" "$dst"; fi; \
+        echo "Failed to install staged AirBattery bundle." >&2; \
+        exit 1; \
+      fi; \
+      /usr/bin/codesign --verify --deep --strict --verbose=2 "$dst" || { \
+        rm -rf "$dst"; \
+        if [[ -e "$backup" ]]; then /bin/mv "$backup" "$dst"; fi; \
+        echo "Installed AirBattery bundle failed signature verification; restored previous build." >&2; \
+        exit 1; \
+      }; \
+      rm -rf "$backup"; \
+      /usr/bin/pkill -TERM -x AirBatteryWidgetExtension >/dev/null 2>&1 || true; \
+      trap - EXIT; \
+      printf '%s\n' "$dst"
+
+# Build the replacement completely, perform the short staged handoff, then
+# launch exactly one signed local build. The containing app launch registers the
+# newly installed WidgetKit extension.
 run configuration="Debug":
-    just stop
     just install-local "{{configuration}}"
     @install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       /usr/bin/open "$install_dir/AirBattery.app"
