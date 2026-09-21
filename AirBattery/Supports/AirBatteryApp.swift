@@ -272,25 +272,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         )
         if let button = statusBarItem.button {
             let ib = getPowerState()
-            let iconView = NSHostingView(rootView: mainBatteryView())
-            if ib.hasBattery && intBattOnStatusBar {
-                iconView.frame = NSRect(
-                    x: 0,
-                    y: 0,
-                    width: 42,
-                    height: 21.5
-                )
-            } else {
-                iconView.frame = NSRect(
-                    x: 0,
-                    y: 0,
-                    width: 36,
-                    height: 21.5
-                )
-            }
+            let width: CGFloat =
+                ib.hasBattery && intBattOnStatusBar ? 42 : 36
+            statusBarItem.length = width
+
+            let iconView = StatusItemHostingView(
+                rootView: mainBatteryView()
+            )
+            iconView.frame = NSRect(
+                x: 0,
+                y: 0,
+                width: width,
+                height: 21.5
+            )
+            iconView.autoresizingMask = [.width]
+
             button.image = NSImage()
             button.addSubview(iconView)
-            button.frame = iconView.frame
         }
 
         rebuildStatusMenu()
