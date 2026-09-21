@@ -7,25 +7,7 @@
 import AppKit
 import SwiftUI
 import WidgetKit
-import Combine
 //import UserNotifications
-
-class AppearanceMonitor: ObservableObject {
-    @Published var isDarkMode: Bool = false
-    private var appearanceChangeCancellable: AnyCancellable?
-
-    init() {
-        updateAppearance()
-        appearanceChangeCancellable = NotificationCenter.default.publisher(for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification)
-            .sink { [weak self] _ in
-                self?.updateAppearance()
-            }
-    }
-    private func updateAppearance() {
-        let appearance = NSApp.effectiveAppearance
-        isDarkMode = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    }
-}
 
 struct MultiBatteryView: View {
     @AppStorage("showThisMac") var showThisMac = "icon"
@@ -41,10 +23,9 @@ struct MultiBatteryView: View {
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
     @AppStorage("twsMerge") private var twsMerge = 5
 
-    @StateObject private var appearanceMonitor = AppearanceMonitor()
+    @Environment(\.colorScheme) private var systemColorScheme
 
     @State private var rollCount = 1
-    @State private var darkMode = getDarkMode()
     @State private var lastTime = Double(Date().timeIntervalSince1970)
     @State private var presentationList: [LogicalDevicePresentation] = []
 
@@ -57,12 +38,10 @@ struct MultiBatteryView: View {
         .onAppear {
             refreshDockPresentations(now: Date().timeIntervalSince1970)
         }
-        .onChange(of: appearanceMonitor.isDarkMode) { newValue in
-            darkMode = newValue
+        .onChange(of: systemColorScheme) { _, _ in
             NSApp.dockTile.display()
         }
-        .onChange(of: appearance) { _ in
-            darkMode = getDarkMode()
+        .onChange(of: appearance) { _, _ in
             NSApp.dockTile.display()
         }
         .onChange(of: twsMergeEnabled) { _ in
@@ -95,6 +74,17 @@ struct MultiBatteryView: View {
             guard showOn == "both" || showOn == "dock" else { return }
             refreshDockPresentations(now: time.timeIntervalSince1970)
             NSApp.dockTile.display()
+        }
+    }
+
+    private var darkMode: Bool {
+        switch appearance {
+        case "true":
+            return true
+        case "false":
+            return false
+        default:
+            return systemColorScheme == .dark
         }
     }
 
