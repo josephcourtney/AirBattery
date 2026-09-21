@@ -106,18 +106,5 @@ struct mainBatteryView: View {
 }
 
 func setStatusBar(width: Double) {
-    let statusWidth = CGFloat(width)
-    statusBarItem.length = statusWidth
-
-    let iconView = StatusItemHostingView(rootView: mainBatteryView())
-    iconView.frame = NSRect(
-        x: 0,
-        y: 0,
-        width: statusWidth,
-        height: 21.5
-    )
-    iconView.autoresizingMask = [.width]
-
-    statusBarItem.button?.subviews.removeAll()
-    statusBarItem.button?.addSubview(iconView)
+    statusBarItem.length = CGFloat(width)
 }
