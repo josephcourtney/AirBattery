@@ -65,6 +65,7 @@
 		18F0B0312F80000100AB0001 /* MonitoringCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */; };
 		18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */; };
 		18F0B0372F80000100AB0001 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0362F80000100AB0001 /* StatusBarController.swift */; };
+		18F0B0392F80000100AB0001 /* DockPopoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0382F80000100AB0001 /* DockPopoverController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -163,6 +164,7 @@
 		18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitoringCoordinator.swift; sourceTree = "<group>"; };
 		18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInventoryModel.swift; sourceTree = "<group>"; };
 		18F0B0362F80000100AB0001 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		18F0B0382F80000100AB0001 /* DockPopoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPopoverController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -267,6 +269,7 @@
 				184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */,
 				18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */,
 				18F0B0362F80000100AB0001 /* StatusBarController.swift */,
+				18F0B0382F80000100AB0001 /* DockPopoverController.swift */,
 				184ADEF92DDB6C9F004791F0 /* logReader.sh */,
 				184ADEFA2DDB6C9F004791F0 /* Multipeer.swift */,
 				184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */,
@@ -541,6 +544,7 @@
 				18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */,
 				18F0B0312F80000100AB0001 /* MonitoringCoordinator.swift in Sources */,
 				18F0B0372F80000100AB0001 /* StatusBarController.swift in Sources */,
+				18F0B0392F80000100AB0001 /* DockPopoverController.swift in Sources */,
 				1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */,
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
 				18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */,
