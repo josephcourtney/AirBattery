@@ -104,7 +104,7 @@ struct airbattery: ParsableCommand {
         rows.insert("-------\t------\t-------",at:1)
         joined = rows.joined(separator: "\n") + "\n"
         let process = Process()
-        process.launchPath = "/usr/bin/env"
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["column", "-t", "-s", "\t"]
 
         let inputPipe = Pipe()
@@ -112,8 +112,11 @@ struct airbattery: ParsableCommand {
         process.standardInput = inputPipe
         process.standardOutput = outputPipe
 
-        process.launch()
-        inputPipe.fileHandleForWriting.write(joined.data(using: .utf8)!)
+        try process.run()
+        guard let input = joined.data(using: .utf8) else {
+            throw ValidationError("Unable to encode command output")
+        }
+        inputPipe.fileHandleForWriting.write(input)
         inputPipe.fileHandleForWriting.closeFile()
 
         let result = outputPipe.fileHandleForReading.readDataToEndOfFile()
