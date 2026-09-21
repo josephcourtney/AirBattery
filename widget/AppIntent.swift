@@ -8,7 +8,7 @@
 import WidgetKit
 import AppIntents
 
-struct ConfigurationAppIntent: WidgetConfigurationIntent {
+struct SingleBatteryConfigurationIntent: WidgetConfigurationIntent {
     nonisolated(unsafe) static var title: LocalizedStringResource = "Configuration"
     nonisolated(unsafe) static var description = IntentDescription("AirBattery battery usage widget")
     

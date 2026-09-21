@@ -8,7 +8,7 @@
 import WidgetKit
 import SwiftUI
 
-struct singleBatteryWidgetEntryView: View {
+struct SingleBatteryWidgetEntryView: View {
     let entry: SimpleEntry
 
     private var item: Device? {
@@ -35,16 +35,16 @@ struct singleBatteryWidgetEntryView: View {
     }
 }
 
-struct batteryWidget2New: Widget {
+struct SingleBatteryWidget: Widget {
     let kind: String = "widget.battery.part3"
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
-            intent: ConfigurationAppIntent.self,
-            provider: ViewSizeTimelineProviderNew()
+            intent: SingleBatteryConfigurationIntent.self,
+            provider: SingleBatteryTimelineProvider()
         ) { entry in
-            singleBatteryWidgetEntryView(entry: entry)
+            SingleBatteryWidgetEntryView(entry: entry)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()

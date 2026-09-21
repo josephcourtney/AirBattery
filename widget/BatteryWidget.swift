@@ -9,10 +9,9 @@ import WidgetKit
 import SwiftUI
 
 let fd = FileManager.default
-let ud = UserDefaults.standard
 let ncFolder = fd.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("NearcastData")
 
-struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
+struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(
             date: Date(),
@@ -23,14 +22,14 @@ struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
     }
 
     func snapshot(
-        for configuration: ConfigurationAppIntent,
+        for configuration: SingleBatteryConfigurationIntent,
         in context: Context
     ) async -> SimpleEntry {
         makeEntry(configuration: configuration)
     }
 
     func timeline(
-        for configuration: ConfigurationAppIntent,
+        for configuration: SingleBatteryConfigurationIntent,
         in context: Context
     ) async -> Timeline<SimpleEntry> {
         Timeline(
@@ -40,7 +39,7 @@ struct ViewSizeTimelineProviderNew: AppIntentTimelineProvider {
     }
 
     private func makeEntry(
-        configuration: ConfigurationAppIntent
+        configuration: SingleBatteryConfigurationIntent
     ) -> SimpleEntry {
         let mainApp = NSWorkspace.shared.runningApplications.contains {
             $0.bundleIdentifier == "com.josephcourtney.AirBattery"
@@ -66,7 +65,6 @@ struct SimpleEntry: TimelineEntry {
     let data: [Device]
     let mainApp: Bool
     let deviceName: String
-    //let configuration: Any?
 }
 
 struct BatteryOverviewEntry: TimelineEntry {

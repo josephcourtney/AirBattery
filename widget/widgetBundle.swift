@@ -11,6 +11,6 @@ import WidgetKit
 struct widgetBundle: WidgetBundle {
     var body: some Widget {
         BatteryOverviewWidget()
-        batteryWidget2New()
+        SingleBatteryWidget()
     }
 }

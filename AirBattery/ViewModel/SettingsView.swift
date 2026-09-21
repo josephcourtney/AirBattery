@@ -1620,10 +1620,6 @@ struct DisplayView: View {
                 }
             }
         }
-        .onAppear {
-        }
-        .onReceive(dockTimer) { _ in
-        }
     }
 
     private func applySurfaceSelection(_ newValue: String) {
