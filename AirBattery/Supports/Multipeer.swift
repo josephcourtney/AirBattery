@@ -10,11 +10,13 @@ import Foundation
 import MultipeerKit
 
 class MultipeerService: ObservableObject {
-    @AppStorage("ncGroupID") var ncGroupID = ""
+    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
+    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
     @AppStorage("deviceName") var deviceName = "Mac"
     let transceiver: MultipeerTransceiver
 
     init(serviceType: String) {
+        migrateLegacyNearcastCredentialsIfNeeded()
         let configuration = MultipeerConfiguration(
             serviceType: serviceType,
             peerName: getMacDeviceName(),
@@ -33,7 +35,7 @@ class MultipeerService: ObservableObject {
                     print("Failed to decode message")
                     return
                 }
-                if message.id != self.ncGroupID.prefix(15) { return }
+                if message.id != self.nearcastGroupID { return }
                 switch message.command {
                 case "resend":
                     var allDevices = AirBatteryModel.getAll()
@@ -41,8 +43,8 @@ class MultipeerService: ObservableObject {
                     do {
                         let jsonData = try JSONEncoder().encode(allDevices)
                         guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-                        guard let data = encryptString(jsonString, password: self.ncGroupID) else { return }
-                        let message = NCMessage(id: String(self.ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "", content: data)
+                        guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
+                        let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "", content: data)
                         netcastService.sendMessage(message, peerID: peer.id)
                     } catch {
                         print("Write JSON error：\(error)")
@@ -51,7 +53,7 @@ class MultipeerService: ObservableObject {
                 case "trans":
                     print("Device received.")
                     return
-                    /*if let jsonString = decryptString(message.content, password: self.ncGroupID) {
+                    /*if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
                         if let jsonData = jsonString.data(using: .utf8) {
                             if let device = try? JSONDecoder().decode(btdDevice.self, from: jsonData) {
                                 let ret = BTTool.connect(mac: device.mac)
@@ -70,7 +72,7 @@ class MultipeerService: ObservableObject {
                     }*/
                 case "notify":
                     print("Info received.")
-                    if let jsonString = decryptString(message.content, password: self.ncGroupID) {
+                    if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
                         if let jsonData = jsonString.data(using: .utf8) {
                             if let info = try? JSONDecoder().decode(NCNotification.self, from: jsonData) {
                                 switch info.type {
@@ -91,7 +93,7 @@ class MultipeerService: ObservableObject {
                     }
                 case "":
                     print("Data received.")
-                    if let jsonString = decryptString(message.content, password: self.ncGroupID) {
+                    if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
                         if let jsonData = jsonString.data(using: .utf8) {
                             let url = ncFolder.appendingPathComponent("\(message.sender).json")
                             try? jsonData.write(to: url)
@@ -109,7 +111,7 @@ class MultipeerService: ObservableObject {
             }
         }
         
-        print("⚙️ Nearcast Group ID: \(ncGroupID)")
+        print("⚙️ Nearcast Group ID: \(nearcastGroupID)")
     }
     
     func resume() {
@@ -137,7 +139,7 @@ class MultipeerService: ObservableObject {
     
     func refeshAll() {
         print("ℹ️ Pulling data...")
-        let message = NCMessage(id: String(ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "resend", content: "")
+        let message = NCMessage(id: String(nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "resend", content: "")
         self.sendMessage(message)
     }
     
@@ -146,8 +148,8 @@ class MultipeerService: ObservableObject {
             let btd = btdDevice(time: Date(), vid: "", pid: "", type: device.deviceType, mac: device.deviceID.replacingOccurrences(of: ":", with: "-").lowercased(), name: device.deviceName, level: device.batteryLevel)
             let jsonData = try JSONEncoder().encode(btd)
             guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-            guard let data = encryptString(jsonString, password: self.ncGroupID) else { return }
-            let message = NCMessage(id: String(self.ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "trans", content: data)
+            guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
+            let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "trans", content: data)
             for peer in transceiver.availablePeers.filter({ $0.name == name }) {
                 self.sendMessage(message, peerID: peer.id)
             }
@@ -161,8 +163,8 @@ class MultipeerService: ObservableObject {
             let error = NCNotification(type: 0, title: title, info: info, atta: atta)
             let jsonData = try JSONEncoder().encode(error)
             guard let jsonString = String(data: jsonData, encoding: .utf8) else { return nil }
-            guard let data = encryptString(jsonString, password: self.ncGroupID) else { return nil }
-            return NCMessage(id: String(self.ncGroupID.prefix(15)), sender: systemUUID ?? self.deviceName, command: "notify", content: data)
+            guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return nil }
+            return NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "notify", content: data)
         } catch {
             print("Write JSON error：\(error)")
         }
