@@ -205,7 +205,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         StatusBarController.shared.install()
 
-        applyAirBatterySurfaceSelection(
+        SurfaceController.shared.apply(
             showOn,
             settingsVisible: false
         )
