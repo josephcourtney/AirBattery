@@ -396,12 +396,21 @@ install-state configuration="Debug":
       expected="$(just install-fingerprint "$configuration")"; \
       recorded=''; \
       [[ -f "$state" ]] && recorded="$(/usr/bin/sed -n 's/^fingerprint=//p' "$state")"; \
+      disposable=0; \
+      products="$PWD/{{derived_data}}/Build/Products"; \
+      if [[ -d "$products" ]]; then \
+        shopt -s nullglob; \
+        for candidate in "$products"/*/AirBattery.app; do \
+          [[ -d "$candidate" ]] && disposable=$((disposable + 1)); \
+        done; \
+      fi; \
       printf '%s\n' \
         "Configuration: $configuration" \
         "Installed app: $app" \
         "State file:    $state" \
         "Expected:      $expected" \
-        "Recorded:      ${recorded:-<none>}"; \
+        "Recorded:      ${recorded:-<none>}" \
+        "Disposable build apps: $disposable"; \
       if just installed-current "$configuration" >/dev/null 2>&1; then \
         printf '%s\n' 'Status:        current'; \
       else \
@@ -491,6 +500,7 @@ run configuration="Debug":
     @configuration="{{configuration}}"; \
       if just installed-current "$configuration" >/dev/null 2>&1; then \
         printf '%s\n' "AirBattery $configuration install is current; skipping build and install."; \
+        just widget-registration-clean; \
       else \
         printf '%s\n' "AirBattery $configuration install is stale; rebuilding and installing."; \
         just install-local "$configuration"; \
