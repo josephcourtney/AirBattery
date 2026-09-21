@@ -326,6 +326,39 @@ private struct PopoverToolbarSurfaceButton: View {
     }
 }
 
+private struct PopoverDevicePanelSurfaceModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(
+                        Color.primary.opacity(
+                            colorScheme == .dark ? 0.055 : 0.025
+                        )
+                    )
+                    .padding(.vertical, -1)
+                    .padding(.horizontal, 5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(
+                        Color(nsColor: .separatorColor).opacity(0.5),
+                        lineWidth: 0.75
+                    )
+                    .padding(.vertical, -1)
+                    .padding(.horizontal, 5)
+            )
+    }
+}
+
+extension View {
+    func popoverDevicePanelSurface() -> some View {
+        modifier(PopoverDevicePanelSurfaceModifier())
+    }
+}
+
 struct MenuDeviceRowContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
@@ -521,25 +554,19 @@ struct DockLogicalDeviceCell: View {
 
     var body: some View {
         Group {
-            if presentation.components.count > 1 {
-                VStack(spacing: 2) {
-                    Image(getDeviceIcon(presentation.representative))
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundColor(.blackWhite)
-                        .frame(width: 13, height: 13)
-
-                    HStack(spacing: 1) {
-                        ForEach(presentation.components.prefix(3)) { component in
-                            DockComponentGauge(
-                                device: component.device,
-                                darkMode: darkMode,
-                                diameter:
-                                    presentation.components.count >= 3 ? 12 : 16,
-                                showPercentInsteadOfIcon: false
-                            )
-                        }
+            if presentation.components.count >= 3 {
+                VStack(spacing: 0) {
+                    componentGauge(at: 0, diameter: 19)
+                    HStack(spacing: 2) {
+                        componentGauge(at: 1, diameter: 16)
+                        componentGauge(at: 2, diameter: 16)
                     }
+                }
+                .frame(width: 42, height: 42)
+            } else if presentation.components.count == 2 {
+                HStack(spacing: 2) {
+                    componentGauge(at: 0, diameter: 18)
+                    componentGauge(at: 1, diameter: 18)
                 }
                 .frame(width: 42, height: 42)
             } else if let component = presentation.components.first {
@@ -555,6 +582,21 @@ struct DockLogicalDeviceCell: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
+    }
+
+    @ViewBuilder
+    private func componentGauge(
+        at index: Int,
+        diameter: CGFloat
+    ) -> some View {
+        if presentation.components.indices.contains(index) {
+            DockComponentGauge(
+                device: presentation.components[index].device,
+                darkMode: darkMode,
+                diameter: diameter,
+                showPercentInsteadOfIcon: false
+            )
+        }
     }
 
     private var accessibilitySummary: String {
@@ -651,7 +693,15 @@ struct WidgetOverviewRingsSurfaceContent: View {
     let showLabels: Bool
 
     private var items: [Device] {
-        let limit = family == .small ? 4 : 8
+        let limit: Int
+        switch family {
+        case .small:
+            limit = 4
+        case .medium:
+            limit = 8
+        case .large:
+            limit = 9
+        }
         return Array(devices.filter(\.hasBattery).prefix(limit))
     }
 
@@ -667,12 +717,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     private var rowCount: Int {
-        switch family {
-        case .small, .medium:
-            return 2
-        case .large:
-            return 3
-        }
+        guard !items.isEmpty else { return 0 }
+        return (items.count + columns - 1) / columns
     }
 
     private var diameter: CGFloat {
@@ -715,89 +761,35 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     var body: some View {
-        VStack(spacing: verticalSpacing) {
-            ForEach(0..<rowCount, id: \.self) { row in
-                overviewRow(start: row * columns)
+        Group {
+            if items.isEmpty {
+                Text("No battery devices")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(spacing: verticalSpacing) {
+                    ForEach(0..<rowCount, id: \.self) { row in
+                        overviewRow(start: row * columns)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
     private func overviewRow(start: Int) -> some View {
+        let end = min(start + columns, items.count)
         HStack(spacing: horizontalSpacing) {
-            ForEach(0..<columns, id: \.self) { offset in
-                let index = start + offset
-                if items.indices.contains(index) {
-                    OverviewRingCell(
-                        item: items[index],
-                        diameter: diameter,
-                        showPercentage: showPercentages,
-                        showLabel: showLabels
-                    )
-                } else {
-                    OverviewRingPlaceholder(
-                        diameter: diameter,
-                        showPercentage: showPercentages,
-                        showLabel: showLabels
-                    )
-                }
+            ForEach(start..<end, id: \.self) { index in
+                OverviewRingCell(
+                    item: items[index],
+                    diameter: diameter,
+                    showPercentage: showPercentages,
+                    showLabel: showLabels
+                )
             }
         }
-    }
-}
-
-private struct OverviewRingPlaceholder: View {
-    let diameter: CGFloat
-    let showPercentage: Bool
-    let showLabel: Bool
-
-    private var lineWidth: CGFloat {
-        diameter >= 64 ? 7 : 6
-    }
-
-    var body: some View {
-        VStack(spacing: annotationSpacing) {
-            Circle()
-                .trim(from: 0, to: showPercentage ? 0.78 : 1)
-                .stroke(
-                    style: StrokeStyle(
-                        lineWidth: lineWidth,
-                        lineCap: .round,
-                        lineJoin: .round
-                    )
-                )
-                .frame(width: diameter, height: diameter)
-                .rotationEffect(
-                    .degrees(showPercentage ? 129.6 : 270)
-                )
-                .opacity(0.15)
-
-            if showPercentage {
-                Text(" ")
-                    .font(percentageFont)
-            }
-
-            if showLabel {
-                Text(" ")
-                    .font(labelFont)
-            }
-        }
-    }
-
-    private var annotationSpacing: CGFloat {
-        showPercentage ? 0 : 2
-    }
-
-    private var percentageFont: Font {
-        .system(
-            size: diameter >= 64 ? 12 : (diameter <= 46 ? 8.5 : 10),
-            weight: .medium
-        )
-    }
-
-    private var labelFont: Font {
-        .system(size: diameter >= 64 ? 10 : (diameter <= 46 ? 7 : 8))
     }
 }
 
@@ -1037,7 +1029,7 @@ struct WidgetSingleBatterySurfaceContent: View {
             }
             .offset(y: item.isCharging != 0 ? 5 : 3.5)
         } else {
-            VStack(spacing: 10) {
+            VStack(spacing: 7) {
                 ZStack {
                     Circle()
                         .trim(from: 0, to: 0.8)
@@ -1048,27 +1040,39 @@ struct WidgetSingleBatterySurfaceContent: View {
                                 lineJoin: .round
                             )
                         )
-                        .frame(width: 110, height: 110)
+                        .frame(width: 98, height: 98)
                         .rotationEffect(.degrees(126))
                         .opacity(0.15)
 
-                    Text("     ")
-                        .font(.system(size: 17))
-                        .offset(x: 1, y: 47)
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundColor(.secondary.opacity(0.7))
                 }
 
                 Text(
                     deviceName.isEmpty
-                        ? warningText
+                        ? "Choose a device"
                         : "Searching: " + deviceName
                 )
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.secondary.opacity(0.6))
+                .font(.system(size: 11, weight: .semibold))
                 .frame(width: 150)
                 .lineLimit(1)
                 .truncationMode(.middle)
+
+                if deviceName.isEmpty {
+                    Text(warningText)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 150)
+                        .lineLimit(1)
+                }
             }
-            .offset(y: 3.5)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                deviceName.isEmpty
+                    ? "Choose a device. \(warningText)"
+                    : "Searching for \(deviceName)"
+            )
         }
     }
 }
