@@ -1508,7 +1508,7 @@ struct DisplayView: View {
                         Divider().opacity(0.5)
                         SPicker("Single-device widget", selection: $deviceOnWidget) {
                             Text("Not Set").tag("")
-                            if getMacDeviceType().lowercased().contains("book") {
+                            if InternalBattery.status.hasBattery {
                                 Text(deviceName).tag(deviceName)
                             }
                             ForEach(widgetDevices, id: \.self) { device in
