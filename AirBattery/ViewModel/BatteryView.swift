@@ -5,7 +5,14 @@
 //  Created by apple on 2024/2/23.
 //
 
+import AppKit
 import SwiftUI
+
+final class StatusItemHostingView<Content: View>: NSHostingView<Content> {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
 
 struct BatteryView: View {
     var item: Device
@@ -99,9 +106,18 @@ struct mainBatteryView: View {
 }
 
 func setStatusBar(width: Double) {
-    let iconView = NSHostingView(rootView: mainBatteryView())
-    iconView.frame = NSRect(x: 0, y: 0, width: width, height: 21.5)
+    let statusWidth = CGFloat(width)
+    statusBarItem.length = statusWidth
+
+    let iconView = StatusItemHostingView(rootView: mainBatteryView())
+    iconView.frame = NSRect(
+        x: 0,
+        y: 0,
+        width: statusWidth,
+        height: 21.5
+    )
+    iconView.autoresizingMask = [.width]
+
     statusBarItem.button?.subviews.removeAll()
     statusBarItem.button?.addSubview(iconView)
-    statusBarItem.button?.frame = iconView.frame
 }
