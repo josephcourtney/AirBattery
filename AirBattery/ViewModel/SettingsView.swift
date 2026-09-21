@@ -1700,6 +1700,8 @@ private struct DisplaySurfacePreview: View {
     let appearance: String
 
     @Environment(\.colorScheme) private var systemColorScheme
+    @State private var widgetPreviewPercentages = true
+    @State private var widgetPreviewLabels = true
 
     private var previewColorScheme: ColorScheme {
         switch appearance {
@@ -1729,12 +1731,6 @@ private struct DisplaySurfacePreview: View {
                 $0.deviceID == "@MacInternalBattery"
             },
             reverse: reverseWidgetOrder
-        )
-    }
-
-    private var widgetPresentations: [LogicalDevicePresentation] {
-        AirBatteryModel.widgetLogicalPresentations(
-            from: widgetStoredSampleDevices
         )
     }
 
@@ -1834,13 +1830,31 @@ private struct DisplaySurfacePreview: View {
                     .font(.headline)
 
                 Text(
-                    "Each preview below uses the exact production renderer " +
-                    "for that widget family. macOS may vary the final host " +
-                    "size, margins, and compositing."
+                    "Battery Overview replaces the historical Battery List " +
+                    "and Battery Rings variants for new widgets. Each placed " +
+                    "widget can independently show or hide percentages and labels."
                 )
                 .font(.footnote)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 18) {
+                    Toggle(
+                        "Percentages",
+                        isOn: $widgetPreviewPercentages
+                    )
+                    .toggleStyle(.switch)
+                    .fixedSize()
+
+                    Toggle(
+                        "Labels",
+                        isOn: $widgetPreviewLabels
+                    )
+                    .toggleStyle(.switch)
+                    .fixedSize()
+
+                    Spacer()
+                }
 
                 LazyVGrid(
                     columns: familyColumns,
@@ -1848,34 +1862,38 @@ private struct DisplaySurfacePreview: View {
                     spacing: 24
                 ) {
                     widgetFamilyPreview(
-                        "Battery List — Small",
+                        "Battery Overview — Small",
                         family: .small
                     ) {
-                        WidgetBatteryListRingsSurfaceContent(
+                        WidgetOverviewRingsSurfaceContent(
                             devices: widgetRingDevices,
-                            family: .small
+                            family: .small,
+                            showPercentages: widgetPreviewPercentages,
+                            showLabels: widgetPreviewLabels
                         )
                     }
 
                     widgetFamilyPreview(
-                        "Battery List — Medium",
+                        "Battery Overview — Medium",
                         family: .medium
                     ) {
-                        WidgetBatteryListRingsSurfaceContent(
+                        WidgetOverviewRingsSurfaceContent(
                             devices: widgetRingDevices,
-                            family: .medium
+                            family: .medium,
+                            showPercentages: widgetPreviewPercentages,
+                            showLabels: widgetPreviewLabels
                         )
                     }
 
                     widgetFamilyPreview(
-                        "Battery List — Large",
+                        "Battery Overview — Large",
                         family: .large
                     ) {
-                        WidgetListSurfaceContent(
-                            presentations: Array(
-                                widgetPresentations.prefix(8)
-                            ),
-                            rowHeight: 31
+                        WidgetOverviewRingsSurfaceContent(
+                            devices: widgetRingDevices,
+                            family: .large,
+                            showPercentages: widgetPreviewPercentages,
+                            showLabels: widgetPreviewLabels
                         )
                     }
 
@@ -1891,48 +1909,15 @@ private struct DisplaySurfacePreview: View {
                             warningText: "Right click to configure"
                         )
                     }
-
-                    widgetFamilyPreview(
-                        "Battery Rings — Medium",
-                        family: .medium
-                    ) {
-                        WidgetBatteryRingsSurfaceContent(
-                            devices: widgetRingDevices
-                        )
-                    }
-
-                    widgetFamilyPreview(
-                        "Battery Rings — Large",
-                        family: .large
-                    ) {
-                        WidgetListSurfaceContent(
-                            presentations: Array(
-                                widgetPresentations.prefix(11)
-                            ),
-                            rowHeight: 20
-                        )
-                    }
-
-                    widgetFamilyPreview(
-                        "Battery Rings — Icons — Small",
-                        family: .small
-                    ) {
-                        WidgetIconRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .small
-                        )
-                    }
-
-                    widgetFamilyPreview(
-                        "Battery Rings — Icons — Medium",
-                        family: .medium
-                    ) {
-                        WidgetIconRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .medium
-                        )
-                    }
                 }
+
+                Text(
+                    "Legacy Battery List and Battery Rings kinds remain " +
+                    "registered so existing placed widgets continue to work."
+                )
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
