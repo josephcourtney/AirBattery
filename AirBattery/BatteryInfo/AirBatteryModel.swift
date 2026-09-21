@@ -124,6 +124,43 @@ struct AirPodsBatteryGroup: Hashable {
     }
 }
 
+struct BatteryComponentPresentation: Identifiable, Hashable {
+    let role: BatteryComponentRole
+    let device: Device
+
+    var id: String {
+        role.rawValue + ":" + device.deviceID
+    }
+
+    var label: String {
+        DevicePresentationNaming.componentLabel(role)
+    }
+
+    var level: Int { device.batteryLevel }
+    var charging: Int { device.isCharging }
+}
+
+struct LogicalDevicePresentation: Identifiable, Hashable {
+    let id: String
+    let displayName: String
+    let compactName: String
+    let representative: Device
+    let components: [BatteryComponentPresentation]
+    let newestUpdate: Double
+
+    var latestBatterySource: DeviceObservationSource? {
+        components
+            .map(\.device)
+            .filter { $0.batterySource != nil }
+            .max(by: { $0.lastUpdate < $1.lastUpdate })?
+            .batterySource
+    }
+
+    var primaryLevel: Int {
+        components.first?.level ?? representative.batteryLevel
+    }
+}
+
 class AirBatteryModel {
     static var lock = false
     static var Devices: [Device] = []
@@ -226,6 +263,151 @@ class AirBatteryModel {
             return nil
         }
         return airPodsGroup(for: representative, in: devices)
+    }
+
+    private static func mergedAirPodsDevice(
+        _ group: AirPodsBatteryGroup,
+        level: Int,
+        charging: Int
+    ) -> Device {
+        let source = group.leftEarbud ?? group.rightEarbud ?? group.caseDevice ?? group.legacyMergedEarbuds!
+        return Device(
+            deviceID: source.deviceID,
+            deviceType: "ap_pod_all",
+            deviceName: group.name,
+            deviceModel: source.deviceModel,
+            batteryLevel: level,
+            isCharging: charging,
+            parentName: group.name,
+            lastUpdate: source.lastUpdate,
+            mobileDeviceID: source.mobileDeviceID,
+            bleDeviceID: source.bleDeviceID,
+            batterySource: source.batterySource
+        )
+    }
+
+    static func logicalPresentations(
+        from devices: [Device],
+        mergeEarbuds: Bool,
+        mergeThreshold: Int
+    ) -> [LogicalDevicePresentation] {
+        var result: [LogicalDevicePresentation] = []
+        var consumedAirPods = Set<String>()
+
+        for device in devices {
+            if let baseName = airPodsBaseName(for: device),
+               let group = airPodsGroup(for: device, in: devices) {
+                let key = normalizedObservationName(baseName)
+                guard consumedAirPods.insert(key).inserted else { continue }
+
+                var components: [BatteryComponentPresentation] = []
+                if let caseDevice = group.caseDevice {
+                    components.append(
+                        BatteryComponentPresentation(role: .caseBattery, device: caseDevice)
+                    )
+                }
+
+                if let merged = group.mergedEarbudLevel(
+                    enabled: mergeEarbuds,
+                    threshold: mergeThreshold
+                ) {
+                    let charging = group.mergedEarbudCharging(
+                        enabled: mergeEarbuds,
+                        threshold: mergeThreshold
+                    ) ?? 0
+                    components.append(
+                        BatteryComponentPresentation(
+                            role: .earbuds,
+                            device: mergedAirPodsDevice(
+                                group,
+                                level: merged,
+                                charging: charging
+                            )
+                        )
+                    )
+                } else {
+                    if let left = group.leftEarbud {
+                        components.append(
+                            BatteryComponentPresentation(role: .leftEarbud, device: left)
+                        )
+                    }
+                    if let right = group.rightEarbud {
+                        components.append(
+                            BatteryComponentPresentation(role: .rightEarbud, device: right)
+                        )
+                    }
+                    if group.leftEarbud == nil,
+                       group.rightEarbud == nil,
+                       let legacy = group.legacyMergedEarbuds {
+                        components.append(
+                            BatteryComponentPresentation(role: .earbuds, device: legacy)
+                        )
+                    }
+                }
+
+                guard let representative =
+                    group.caseDevice ??
+                    group.leftEarbud ??
+                    group.rightEarbud ??
+                    group.legacyMergedEarbuds
+                else {
+                    continue
+                }
+
+                result.append(
+                    LogicalDevicePresentation(
+                        id: "airpods:" + key,
+                        displayName: group.name,
+                        compactName: DevicePresentationNaming.compactName(
+                            deviceType: representative.deviceType,
+                            displayName: group.name
+                        ),
+                        representative: representative,
+                        components: components,
+                        newestUpdate: group.components.map(\.lastUpdate).max() ??
+                            representative.lastUpdate
+                    )
+                )
+                continue
+            }
+
+            result.append(
+                LogicalDevicePresentation(
+                    id: "device:" + device.deviceID + ":" + device.deviceName,
+                    displayName: device.deviceName,
+                    compactName: DevicePresentationNaming.compactName(
+                        deviceType: device.deviceType,
+                        displayName: device.deviceName
+                    ),
+                    representative: device,
+                    components: [
+                        BatteryComponentPresentation(role: .primary, device: device)
+                    ],
+                    newestUpdate: device.lastUpdate
+                )
+            )
+        }
+
+        return result
+    }
+
+    static func presentation(
+        for device: Device,
+        in devices: [Device],
+        mergeEarbuds: Bool,
+        mergeThreshold: Int
+    ) -> LogicalDevicePresentation? {
+        logicalPresentations(
+            from: devices,
+            mergeEarbuds: mergeEarbuds,
+            mergeThreshold: mergeThreshold
+        ).first {
+            $0.components.contains(where: {
+                $0.device.deviceID == device.deviceID &&
+                $0.device.deviceType == device.deviceType
+            }) ||
+            $0.representative.deviceID == device.deviceID
+        }
     }
 
     static func isAirPodsSecondaryRow(_ device: Device, in devices: [Device]) -> Bool {
