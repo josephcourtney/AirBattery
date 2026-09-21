@@ -168,7 +168,6 @@ struct LogicalDevicePresentation: Identifiable, Hashable {
 class AirBatteryModel {
     private static let devicesLock = NSLock()
     private static var devices: [Device] = []
-    static let machineType = ud.string(forKey: "machineType") ?? "Mac"
     static let key = "com.josephcourtney.AirBattery.widget"
     static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
 
