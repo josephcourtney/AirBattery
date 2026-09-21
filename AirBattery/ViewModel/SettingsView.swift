@@ -1350,9 +1350,11 @@ struct NearcastView: View {
             .frame(width: 330)
             .disabled(nearCast)
 
-            Button(copyLabel) {
+            Button {
                 guard !value.wrappedValue.isEmpty else { return }
                 copyToClipboard(value.wrappedValue)
+            } label: {
+                Text(copyLabel)
             }
             .disabled(value.wrappedValue.isEmpty)
             .help(copyLabel)
