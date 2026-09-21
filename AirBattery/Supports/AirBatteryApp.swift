@@ -191,7 +191,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             dockWindow.contentView?.wantsLayer = true
             dockWindow.contentView?.layer?.cornerRadius = 7
             dockWindow.contentView?.layer?.masksToBounds = true
-            if #available(macOS 27.0, *) {
+            if #available(macOS 26.0, *) {
                 dockWindow.backgroundColor = .clear
                 dockWindow.isOpaque = false
             }
