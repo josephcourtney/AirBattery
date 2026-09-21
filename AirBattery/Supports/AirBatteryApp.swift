@@ -21,8 +21,9 @@ var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery
 let ncFolder = fd.urls(for: .libraryDirectory, in: .userDomainMask).first!.appendingPathComponent("Containers/\(AirBatteryModel.key)/Data/Documents/NearcastData")
 let systemUUID = getMacDeviceUUID()
 var dockWindow = AutoHideWindow()
-var menuPopover = NSPopover()
-var menuPopoverAnchorPanel: NSPanel?
+var menuBarWindow: NSPanel?
+var menuBarGlobalMouseMonitor: Any?
+var menuBarLocalMouseMonitor: Any?
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var updateDelay = 1
@@ -54,7 +55,22 @@ struct AirBatteryApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDelegate, UNUserNotificationCenterDelegate {
+@MainActor
+func dismissMenuBarWindow() {
+    menuBarWindow?.orderOut(nil)
+    menuBarWindow = nil
+
+    if let monitor = menuBarGlobalMouseMonitor {
+        NSEvent.removeMonitor(monitor)
+        menuBarGlobalMouseMonitor = nil
+    }
+    if let monitor = menuBarLocalMouseMonitor {
+        NSEvent.removeMonitor(monitor)
+        menuBarLocalMouseMonitor = nil
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     //static let shared = AppDelegate()
     @AppStorage("showOn") var showOn = "sbar"
     @AppStorage("machineType") var machineType = "mac"
@@ -196,7 +212,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         )
         
         updateDelay = updateInterval
-        menuPopover.delegate = self
         machineType = getMacDeviceType()
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
@@ -406,8 +421,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     }*/
     
     @objc func togglePopover(_ sender: Any?) {
-        guard !menuPopover.isShown else {
-            menuPopover.performClose(nil)
+        if menuBarWindow?.isVisible == true {
+            dismissMenuBarWindow()
             return
         }
 
@@ -417,58 +432,78 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
             allDevices.insert(ib2ab(ibStatus), at: 0)
         }
 
-        let contentView = NSHostingController(
-            rootView: popover(fromDock: false, allDevice: allDevices)
-        )
-        menuPopover.setValue(true, forKeyPath: "shouldHideAnchor")
-        menuPopover.contentViewController = contentView
-        menuPopover.behavior = .transient
-
         let mouseLocation = NSEvent.mouseLocation
-        if let screen = NSScreen.screens.first(where: {
+        guard let screen = NSScreen.screens.first(where: {
             NSMouseInRect(mouseLocation, $0.frame, false)
-        }) {
-            showMenuPopover(
-                at: mouseLocation,
-                on: screen
-            )
-        } else if let button = statusBarItem.button {
-            menuPopover.show(
-                relativeTo: button.bounds,
-                of: button,
-                preferredEdge: .minY
-            )
+        }) ?? NSScreen.main else {
+            return
         }
 
-        if #available(macOS 26.0, *) {
-            menuPopover.contentViewController?.view.window?.isOpaque = false
-            menuPopover.contentViewController?.view.window?.backgroundColor = .clear
-        }
+        showMenuBarWindow(
+            at: mouseLocation,
+            on: screen,
+            allDevices: allDevices
+        )
     }
 
-    private func showMenuPopover(
+    private func showMenuBarWindow(
         at screenPoint: NSPoint,
-        on screen: NSScreen
+        on screen: NSScreen,
+        allDevices: [Device]
     ) {
-        menuPopoverAnchorPanel?.orderOut(nil)
-        menuPopoverAnchorPanel = nil
+        dismissMenuBarWindow()
 
-        let anchorSize = NSSize(width: 2, height: 2)
-        let x = min(
-            max(screenPoint.x - anchorSize.width / 2, screen.frame.minX + 2),
-            screen.frame.maxX - anchorSize.width - 2
+        let hiddenRow = AirBatteryModel.getBlackList().isEmpty ? 0 : 1
+        let nearcastFiles = getFiles(withExtension: "json", in: ncFolder)
+        var nearcastSectionHeight = 0
+        var nearcastDeviceCount = 0
+        for file in nearcastFiles {
+            let count = AirBatteryModel.ncGetAll(url: file).count
+            if count > 0 {
+                nearcastSectionHeight += 7
+                nearcastDeviceCount += count
+            }
+        }
+
+        let localRowCount = max(
+            AirBatteryModel.groupedDisplayRowCount(allDevices),
+            1
         )
-        let y = min(
-            max(screenPoint.y - anchorSize.height / 2, screen.frame.minY + 2),
-            screen.frame.maxY - anchorSize.height - 2
+        let airPodsRowCount =
+            AirBatteryModel.groupedAirPodsRowCount(allDevices)
+
+        let width: CGFloat = 352
+        let height = CGFloat(
+            (max(localRowCount + nearcastDeviceCount, 1) + hiddenRow) * 33 +
+                airPodsRowCount * 6 +
+                44 +
+                nearcastSectionHeight
+        )
+
+        let visibleFrame = screen.visibleFrame
+        let x = min(
+            max(screenPoint.x - width / 2, visibleFrame.minX + 8),
+            visibleFrame.maxX - width - 8
+        )
+        let y = max(
+            visibleFrame.minY + 8,
+            visibleFrame.maxY - height - 2
+        )
+
+        let hostingView = NSHostingView(
+            rootView: popover(fromDock: false, allDevice: allDevices)
+        )
+        hostingView.frame = NSRect(
+            origin: .zero,
+            size: NSSize(width: width, height: height)
         )
 
         let panel = NSPanel(
             contentRect: NSRect(
                 x: x,
                 y: y,
-                width: anchorSize.width,
-                height: anchorSize.height
+                width: width,
+                height: height
             ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -476,34 +511,50 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
             screen: screen
         )
         panel.level = .statusBar
+        panel.contentView = hostingView
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = true
+        panel.hasShadow = true
+        panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [
             .canJoinAllSpaces,
             .fullScreenAuxiliary,
-            .stationary
+            .stationary,
+            .ignoresCycle
         ]
 
-        let anchorView = NSView(
-            frame: NSRect(origin: .zero, size: anchorSize)
-        )
-        panel.contentView = anchorView
+        menuBarWindow = panel
         panel.orderFrontRegardless()
-        menuPopoverAnchorPanel = panel
-
-        menuPopover.show(
-            relativeTo: anchorView.bounds,
-            of: anchorView,
-            preferredEdge: .minY
-        )
+        installMenuBarWindowDismissalMonitors(panel)
     }
 
-    func popoverDidClose(_ notification: Notification) {
-        menuPopoverAnchorPanel?.orderOut(nil)
-        menuPopoverAnchorPanel = nil
+    private func installMenuBarWindowDismissalMonitors(_ panel: NSPanel) {
+        menuBarGlobalMouseMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { _ in
+            DispatchQueue.main.async {
+                dismissMenuBarWindow()
+            }
+        }
+
+        menuBarLocalMouseMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { event in
+            if event.window === panel {
+                return event
+            }
+
+            // Let the status-item action itself handle a second click.
+            if event.window?.level == .statusBar {
+                return event
+            }
+
+            DispatchQueue.main.async {
+                dismissMenuBarWindow()
+            }
+            return event
+        }
     }
 
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
