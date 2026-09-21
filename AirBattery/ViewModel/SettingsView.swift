@@ -1151,7 +1151,7 @@ struct DevicesView: View {
         } else if candidate.matchesPairedName {
             parts.append("Name matches paired device")
         }
-        parts.append("\(signalLabel(candidate.displayRSSI)) (\(candidate.displayRSSI) dBm)")
+        parts.append(signalLabel(candidate.displayRSSI) + " signal")
         return parts.joined(separator: " · ")
     }
 
