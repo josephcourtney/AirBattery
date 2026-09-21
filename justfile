@@ -311,8 +311,9 @@ install-local configuration="Debug":
     @src="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       dst="$install_dir/AirBattery.app"; \
-      stage="$install_dir/.AirBattery.app.new.$"; \
-      backup="$install_dir/.AirBattery.app.old.$"; \
+      token="$(/usr/bin/uuidgen)"; \
+      stage="$install_dir/.AirBattery.app.new.$token"; \
+      backup="$install_dir/.AirBattery.app.old.$token"; \
       mkdir -p "$install_dir"; \
       rm -rf "$stage" "$backup"; \
       cleanup() { rm -rf "$stage" "$backup"; }; \
