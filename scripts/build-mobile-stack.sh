@@ -8,7 +8,7 @@ PREFIX="$BUILD_ROOT/prefix"
 STAMP_ROOT="$BUILD_ROOT/stamps"
 STAGE="$ROOT/AirBattery/libimobiledevice"
 ARCH="${AIRBATTERY_VENDOR_ARCH:-$(uname -m)}"
-MACOS_MIN="${AIRBATTERY_VENDOR_MACOS_MIN:-15.0}"
+MACOS_MIN="${AIRBATTERY_VENDOR_MACOS_MIN:-26.0}"
 JOBS="${AIRBATTERY_VENDOR_JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 SUBMODULES=(
