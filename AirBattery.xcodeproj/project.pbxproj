@@ -17,6 +17,12 @@
 		1841D4782AA8DEF20022A1BE /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 1841D47A2AA8DEF20022A1BE /* Localizable.strings */; };
 		1841D47D2AAA20F80022A1BE /* InternalBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D47C2AAA20F80022A1BE /* InternalBattery.swift */; };
 		1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D4802AAA28880022A1BE /* SettingsView.swift */; };
+				18F0B0412F80000100AB0001 /* GeneralSettingsView.swift in Sources */,
+				18F0B0432F80000100AB0001 /* DiscoverySettingsView.swift in Sources */,
+				18F0B0452F80000100AB0001 /* DevicesSettingsView.swift in Sources */,
+				18F0B0472F80000100AB0001 /* NearcastSettingsView.swift in Sources */,
+				18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */,
+				18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */,
 		184ADEDA2DDB2C8A004791F0 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = 184ADED92DDB2C8A004791F0 /* ArgumentParser */; };
 		184ADEE52DDB49C2004791F0 /* AirBatteryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F615F82B76439300873AA4 /* AirBatteryModel.swift */; };
 		184ADEE62DDB49C7004791F0 /* InternalBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D47C2AAA20F80022A1BE /* InternalBattery.swift */; };
@@ -66,6 +72,12 @@
 		18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */; };
 		18F0B0372F80000100AB0001 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0362F80000100AB0001 /* StatusBarController.swift */; };
 		18F0B0392F80000100AB0001 /* DockPopoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0382F80000100AB0001 /* DockPopoverController.swift */; };
+		18F0B0412F80000100AB0001 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0402F80000100AB0001 /* GeneralSettingsView.swift */; };
+		18F0B0432F80000100AB0001 /* DiscoverySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0422F80000100AB0001 /* DiscoverySettingsView.swift */; };
+		18F0B0452F80000100AB0001 /* DevicesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0442F80000100AB0001 /* DevicesSettingsView.swift */; };
+		18F0B0472F80000100AB0001 /* NearcastSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0462F80000100AB0001 /* NearcastSettingsView.swift */; };
+		18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0482F80000100AB0001 /* DisplaySettingsView.swift */; };
+		18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -165,6 +177,12 @@
 		18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInventoryModel.swift; sourceTree = "<group>"; };
 		18F0B0362F80000100AB0001 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		18F0B0382F80000100AB0001 /* DockPopoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockPopoverController.swift; sourceTree = "<group>"; };
+		18F0B0402F80000100AB0001 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		18F0B0422F80000100AB0001 /* DiscoverySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverySettingsView.swift; sourceTree = "<group>"; };
+		18F0B0442F80000100AB0001 /* DevicesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesSettingsView.swift; sourceTree = "<group>"; };
+		18F0B0462F80000100AB0001 /* NearcastSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearcastSettingsView.swift; sourceTree = "<group>"; };
+		18F0B0482F80000100AB0001 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaySettingsView.swift; sourceTree = "<group>"; };
+		18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -324,6 +342,12 @@
 				18347DCD2B88417500A78DF6 /* BatteryView.swift */,
 				1819E94B2CC2A8C2007B95E9 /* BatteryAlertView.swift */,
 				1841D4802AAA28880022A1BE /* SettingsView.swift */,
+				18F0B0402F80000100AB0001 /* GeneralSettingsView.swift */,
+				18F0B0422F80000100AB0001 /* DiscoverySettingsView.swift */,
+				18F0B0442F80000100AB0001 /* DevicesSettingsView.swift */,
+				18F0B0462F80000100AB0001 /* NearcastSettingsView.swift */,
+				18F0B0482F80000100AB0001 /* DisplaySettingsView.swift */,
+				18F0B04A2F80000100AB0001 /* DebugSettingsView.swift */,
 			);
 			path = ViewModel;
 			sourceTree = "<group>";
