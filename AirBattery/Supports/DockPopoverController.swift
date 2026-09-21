@@ -38,7 +38,7 @@ final class DockPopoverController {
         contentView.layoutSubtreeIfNeeded()
         let menuHeight = ceil(max(contentView.fittingSize.height, 1))
 
-        var origin = popupOrigin(
+        let origin = popupOrigin(
             size: NSSize(width: 352, height: menuHeight),
             mouse: NSEvent.mouseLocation
         )
