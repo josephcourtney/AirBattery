@@ -209,8 +209,8 @@ class AlertWindowController {
 }
 
 func batteryAlert() {
-    @AppStorage("nearCast") var nearCast = false
-    
+    let nearCast = AppPreferences.nearCast
+
     let now = Date()
     lowPowerNoteDelay = lowPowerNoteDelay.filter { $0.value >= now.timeIntervalSince1970 }
     
