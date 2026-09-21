@@ -9,39 +9,43 @@ import AppKit
 import SwiftUI
 
 @MainActor
-func syncAirBatteryActivationPolicy(
-    surfaceSelection: String,
-    settingsVisible: Bool
-) {
-    let policy: NSApplication.ActivationPolicy
-    if settingsVisible {
-        policy = .regular
-    } else {
-        policy =
-            surfaceSelection == "dock" || surfaceSelection == "both"
-                ? .regular
-                : .accessory
+final class SurfaceController {
+    static let shared = SurfaceController()
+
+    private init() {}
+
+    func apply(
+        _ surfaceSelection: String,
+        settingsVisible: Bool
+    ) {
+        let showsMenuBar =
+            surfaceSelection == "sbar" || surfaceSelection == "both"
+
+        StatusBarController.shared.setMenuBarVisible(showsMenuBar)
+        syncActivation(
+            surfaceSelection: surfaceSelection,
+            settingsVisible: settingsVisible
+        )
     }
 
-    if NSApp.activationPolicy() != policy {
-        NSApp.setActivationPolicy(policy)
+    func syncActivation(
+        surfaceSelection: String,
+        settingsVisible: Bool
+    ) {
+        let policy: NSApplication.ActivationPolicy
+        if settingsVisible {
+            policy = .regular
+        } else {
+            policy =
+                surfaceSelection == "dock" || surfaceSelection == "both"
+                    ? .regular
+                    : .accessory
+        }
+
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+        }
     }
-}
-
-@MainActor
-func applyAirBatterySurfaceSelection(
-    _ surfaceSelection: String,
-    settingsVisible: Bool
-) {
-    let showsMenuBar =
-        surfaceSelection == "sbar" || surfaceSelection == "both"
-
-    StatusBarController.shared.setMenuBarVisible(showsMenuBar)
-
-    syncAirBatteryActivationPolicy(
-        surfaceSelection: surfaceSelection,
-        settingsVisible: settingsVisible
-    )
 }
 
 @MainActor
@@ -77,7 +81,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        syncAirBatteryActivationPolicy(
+        SurfaceController.shared.syncActivation(
             surfaceSelection:
                 UserDefaults.standard.string(forKey: "showOn") ?? "sbar",
             settingsVisible: false
@@ -104,7 +108,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         )
         window.standardWindowButton(.zoomButton)?.isEnabled = true
 
-        syncAirBatteryActivationPolicy(
+        SurfaceController.shared.syncActivation(
             surfaceSelection:
                 UserDefaults.standard.string(forKey: "showOn") ?? "sbar",
             settingsVisible: true
