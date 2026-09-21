@@ -1817,9 +1817,9 @@ private struct DisplaySurfacePreview: View {
                     .font(.headline)
 
                 Text(
-                    "Each preview below is the production renderer at its " +
-                    "supported widget-family size. WidgetKit may still add " +
-                    "system host margins or compositing."
+                    "Each preview below uses the exact production renderer " +
+                    "for that widget family. macOS may vary the final host " +
+                    "size, margins, and compositing."
                 )
                 .font(.footnote)
                 .foregroundColor(.secondary)
@@ -1942,14 +1942,9 @@ private struct DisplaySurfacePreview: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 7) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                Text(family.dimensionLabel)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
 
             content()
                 .frame(
@@ -2050,9 +2045,6 @@ private enum WidgetPreviewFamily {
         }
     }
 
-    var dimensionLabel: String {
-        "\(Int(size.width))×\(Int(size.height))"
-    }
 }
 
 struct NameRulesEditor: View {
