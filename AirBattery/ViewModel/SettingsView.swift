@@ -41,7 +41,7 @@ struct SettingsView: View {
             idealHeight: 720,
             maxHeight: .infinity
         )
-        .onChange(of: showDebug) { enabled in
+        .onChange(of: showDebug) { _, enabled in
             if !enabled && selectedItem == "Debug" {
                 selectedItem = "General"
             }
@@ -145,7 +145,7 @@ struct GeneralView: View {
         SForm {
             SGroupBox(label: "Startup") {
                 SToggle("Launch at Login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { newValue in
+                    .onChange(of: launchAtLogin) { _, newValue in
                         if !ensureLoginItem(enabled: newValue) {
                             DispatchQueue.main.async { launchAtLogin.toggle() }
                         }
@@ -1293,7 +1293,7 @@ struct NearcastView: View {
                     Divider().opacity(0.5)
 
                     SToggle("Enable Nearcast", isOn: $nearCast)
-                        .onChange(of: nearCast) { enabled in
+                        .onChange(of: nearCast) { _, enabled in
                             if enabled {
                                 guard isNearcastCredentialValid(
                                     groupID: nearcastGroupID,
@@ -1506,7 +1506,7 @@ struct DisplayView: View {
                         Text("Both").tag("both")
                         Text("None").tag("none")
                     }
-                    .onChange(of: showOn) { newValue in
+                    .onChange(of: showOn) { _, newValue in
                         applySurfaceSelection(newValue)
                     }
 
@@ -2189,7 +2189,7 @@ struct NameRulesEditor: View {
                 $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
             }
         }
-        .onChange(of: names) { value in
+        .onChange(of: names) { _, value in
             ud.setValue(value, forKey: "blockedDevices")
         }
     }
