@@ -689,10 +689,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     
     //电量信息
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        //guard let name = peripheral.name else { return }
         //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        //if blockedItems.contains(name) && !whitelistMode { return }
-        //if !blockedItems.contains(name) && whitelistMode { return }
         
         if characteristic.uuid == CBUUID(string: "2A19"){
             if error != nil {
@@ -763,17 +760,17 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 if let data = characteristic.value, let vendor = data.ascii() { bleDevicesVendor[deviceName] = vendor }
             }
         }
-        //self.centralManager.cancelPeripheralConnection(peripheral)
     }
     
     func getLevel(_ name: String, _ side: String) -> UInt8{
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return 255 }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any],
         let device_connected = SPBluetoothDataType["device_connected"] as? [Any] {
             for device in device_connected{
-                let d = device as! [String: Any]
+                guard let d = device as? [String: Any] else {
+                    continue
+                }
                 if let n = d.keys.first,n == name,let info = d[n] as? [String: Any] {
                     if let level = info["device_batteryLevel"+side] as? String {
                         return UInt8(level.replacingOccurrences(of: "%", with: "")) ?? 255
@@ -785,13 +782,14 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func getType(_ name: String) -> String{
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return "general_bt" }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any],
         let device_connected = SPBluetoothDataType["device_connected"] as? [Any] {
             for device in device_connected{
-                let d = device as! [String: Any]
+                guard let d = device as? [String: Any] else {
+                    continue
+                }
                 if let n = d.keys.first,n == name,let info = d[n] as? [String: Any] {
                     if let type = info["device_minorType"] as? String {
                         return type
@@ -882,26 +880,27 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                     AirBatteryModel.updateDevice(Device(deviceID: deviceID, deviceType: "ap_case", deviceName: deviceName, deviceModel: model, batteryLevel: Int(max(rightLevel, leftLevel)), isCharging: rightCharging + leftCharging > 0 ? 1 : 0, lastUpdate: now))
                 }
             }
-            //print("Type: \(messageType), C:\(caseLevel), L:\(leftLevel), R:\(rightLevel), Flip:\(messageType == "open" ? "\(flip)" : "none")")
-            //print("Raw Data: \(data.hexEncodedString())")
         }
     }
     
     func getPaired() -> [String]{
         var paired:[String] = []
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return paired }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                    continue
+                }
                     if let key = d.keys.first { paired.append(key) }
                 }
             }
             if let device_connected = SPBluetoothDataType["device_not_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                    continue
+                }
                     if let key = d.keys.first { paired.append(key) }
                 }
             }
