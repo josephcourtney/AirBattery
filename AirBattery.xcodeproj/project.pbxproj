@@ -28,7 +28,7 @@
 		184ADF062DDB6C9F004791F0 /* Multipeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFA2DDB6C9F004791F0 /* Multipeer.swift */; };
 		184ADF072DDB6C9F004791F0 /* Sparkle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */; };
 		184ADF082DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
-		184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */; };
+		184ADF092DDB6C9F004791F0 /* SurfaceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFE2DDB6C9F004791F0 /* SurfaceController.swift */; };
 		184ADF0A2DDB6C9F004791F0 /* logReader.sh in Resources */ = {isa = PBXBuildFile; fileRef = 184ADEF92DDB6C9F004791F0 /* logReader.sh */; };
 		184ADF0B2DDB6C9F004791F0 /* Scriptable.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */; };
 		184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
@@ -84,6 +84,7 @@
 		18F0B05E2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
 		18F0B05F2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
 		18F0B0612F80000100AB0001 /* LogReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0602F80000100AB0001 /* LogReader.swift */; };
+		18F0B0632F80000100AB0001 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0622F80000100AB0001 /* SettingsWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -154,7 +155,7 @@
 		184ADEFB2DDB6C9F004791F0 /* Scriptable.sdef */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Scriptable.sdef; sourceTree = "<group>"; };
 		184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sparkle.swift; sourceTree = "<group>"; };
 		184ADEFD2DDB6C9F004791F0 /* Supports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supports.swift; sourceTree = "<group>"; };
-		184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
+		184ADEFE2DDB6C9F004791F0 /* SurfaceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceController.swift; sourceTree = "<group>"; };
 		184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassCompat.swift; sourceTree = "<group>"; };
 		185E382C2C2733B9005578EC /* BTDBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BTDBattery.swift; sourceTree = "<group>"; };
 		186671CC2B791CF700D4D27B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -196,6 +197,7 @@
 		18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSurfaces.swift; sourceTree = "<group>"; };
 		18F0B05C2F80000100AB0001 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		18F0B0602F80000100AB0001 /* LogReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReader.swift; sourceTree = "<group>"; };
+		18F0B0622F80000100AB0001 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -308,7 +310,8 @@
 				184ADEFD2DDB6C9F004791F0 /* Supports.swift */,
 				18F0B05C2F80000100AB0001 /* AppPreferences.swift */,
 				18F0B0602F80000100AB0001 /* LogReader.swift */,
-				184ADEFE2DDB6C9F004791F0 /* WindowAccessor.swift */,
+				184ADEFE2DDB6C9F004791F0 /* SurfaceController.swift */,
+				18F0B0622F80000100AB0001 /* SettingsWindowController.swift */,
 			);
 			path = Supports;
 			sourceTree = "<group>";
@@ -614,7 +617,8 @@
 				184ADF082DDB6C9F004791F0 /* Supports.swift in Sources */,
 				18F0B05D2F80000100AB0001 /* AppPreferences.swift in Sources */,
 				18F0B0612F80000100AB0001 /* LogReader.swift in Sources */,
-				184ADF092DDB6C9F004791F0 /* WindowAccessor.swift in Sources */,
+				184ADF092DDB6C9F004791F0 /* SurfaceController.swift in Sources */,
+				18F0B0632F80000100AB0001 /* SettingsWindowController.swift in Sources */,
 				184ADF102DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
 				185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */,
