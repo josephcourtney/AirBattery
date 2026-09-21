@@ -24,29 +24,23 @@ class SPBluetoothDataModel {
 class MagicBattery {
     static var shared: MagicBattery = MagicBattery()
     
-    //var scanTimer: Timer?
     var readBTDevice: Bool { AppPreferences.readBTDevice }
     var updateInterval: Int { AppPreferences.updateInterval }
     var deviceName: String { AppPreferences.deviceName }
     
     func startScan() {
-        //let interval = TimeInterval(59.0 * updateInterval)
-        //scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
         print("ℹ️ Start scanning Magic devices...")
         scanDevices()
     }
-    
-    @objc func scanDevices() {
-        //Thread.detachNewThread {
-            if self.readBTDevice {
-                self.getIOBTBattery()
-                self.getOtherBTBattery()
-                self.getMagicBattery()
-                self.getOldMagicKeyboard()
-                self.getOldMagicTrackpad()
-                self.getOldMagicMouse()
-            }
-        //}
+
+    func scanDevices() {
+        guard readBTDevice else { return }
+        getIOBTBattery()
+        getOtherBTBattery()
+        getMagicBattery()
+        getOldMagicKeyboard()
+        getOldMagicTrackpad()
+        getOldMagicMouse()
     }
     
     func findParentKey(forValue value: Any, in json: [String: Any]) -> String? {
@@ -71,7 +65,6 @@ class MagicBattery {
     }
     
     func getDeviceName(_ mac: String, _ def: String) -> String {
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return def }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any] {
             if let parent = findParentKey(forValue: mac, in: json) {
                 return parent
