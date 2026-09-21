@@ -689,8 +689,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     
     //电量信息
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        //let blockedItems = (ud.object(forKey: "blockedDevices") as? [String]) ?? [String]()
-        
         if characteristic.uuid == CBUUID(string: "2A19"){
             if error != nil {
                 rejectGenericProbe(peripheral, reason: "battery level read failed")
@@ -704,10 +702,8 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                     return
                 }
                 var charging = 0
-                //if let lastLevel = bleDevicesLevel[deviceName], cStatusOfBLE {
                 if let lastLevel = bleDevicesLevel[deviceName] {
                     if level > lastLevel { charging = 1 }
-                    //if level < lastLevel { charging = 0 }
                 }
                 bleDevicesLevel[deviceName] = data[0]
                 finishGenericProbe(peripheral)
@@ -716,7 +712,7 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                     device.batteryLevel = level
                     device.lastUpdate = now
                     device.batterySource = .ble
-                    if charging != -1 { device.isCharging = charging }
+                    device.isCharging = charging
                     AirBatteryModel.updateDevice(device)
                 } else {
                     let device = Device(
