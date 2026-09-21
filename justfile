@@ -286,7 +286,7 @@ install-fingerprint configuration="Debug":
       install_dir="${AIRBATTERY_INSTALL_DIR:-$HOME/Applications}"; \
       identity="$(just signing-identity)"; \
       vendor_arch="${AIRBATTERY_VENDOR_ARCH:-$(uname -m)}"; \
-      vendor_min="${AIRBATTERY_VENDOR_MACOS_MIN:-15.0}"; \
+      vendor_min="${AIRBATTERY_VENDOR_MACOS_MIN:-26.0}"; \
       { \
         printf '%s\n' \
           'schema=2' \
