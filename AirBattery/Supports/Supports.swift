@@ -551,6 +551,140 @@ func decryptString(_ string: String, password: String) -> String? {
     }
 }
 
+private let nearcastV2GroupPrefix = "ncg-"
+private let nearcastV2KeyPrefix = "nck2-"
+private let nearcastSetupPrefix = "airbattery-nearcast"
+
+func generateNearcastCredentials() -> (groupID: String, sharingKey: String) {
+    let groupID = nearcastV2GroupPrefix + randomString(length: 16)
+    let key = SymmetricKey(size: .bits256)
+    let keyData = key.withUnsafeBytes { Data($0) }
+    return (
+        groupID,
+        nearcastV2KeyPrefix + keyData.base64EncodedString()
+    )
+}
+
+func migrateLegacyNearcastCredentialsIfNeeded() {
+    let groupKey = "nearcastGroupID"
+    let sharingKeyKey = "nearcastSharingKey"
+    let currentGroupID = ud.string(forKey: groupKey) ?? ""
+    let currentSharingKey = ud.string(forKey: sharingKeyKey) ?? ""
+    guard currentGroupID.isEmpty || currentSharingKey.isEmpty else { return }
+
+    let legacy = ud.string(forKey: "ncGroupID") ?? ""
+    guard isGroudIDValid(id: legacy) else { return }
+
+    ud.set(String(legacy.prefix(15)), forKey: groupKey)
+    ud.set(legacy, forKey: sharingKeyKey)
+}
+
+func isNearcastCredentialValid(groupID: String, sharingKey: String) -> Bool {
+    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
+        guard groupID.hasPrefix(nearcastV2GroupPrefix),
+              groupID.count == nearcastV2GroupPrefix.count + 16
+        else {
+            return false
+        }
+        let raw = String(sharingKey.dropFirst(nearcastV2KeyPrefix.count))
+        return Data(base64Encoded: raw)?.count == 32
+    }
+
+    return isGroudIDValid(id: sharingKey) &&
+        groupID == String(sharingKey.prefix(15))
+}
+
+func nearcastSetupCode(groupID: String, sharingKey: String) -> String? {
+    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
+        return nil
+    }
+    return "\(nearcastSetupPrefix):\(groupID):\(sharingKey)"
+}
+
+func parseNearcastSetupCode(_ code: String) -> (groupID: String, sharingKey: String)? {
+    let parts = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        .split(separator: ":", omittingEmptySubsequences: false)
+    guard parts.count == 3,
+          parts[0] == Substring(nearcastSetupPrefix)
+    else {
+        return nil
+    }
+
+    let groupID = String(parts[1])
+    let sharingKey = String(parts[2])
+    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
+        return nil
+    }
+    return (groupID, sharingKey)
+}
+
+private func nearcastV2SymmetricKey(groupID: String, sharingKey: String) -> SymmetricKey? {
+    guard sharingKey.hasPrefix(nearcastV2KeyPrefix) else { return nil }
+    let encoded = String(sharingKey.dropFirst(nearcastV2KeyPrefix.count))
+    guard let material = Data(base64Encoded: encoded) else { return nil }
+
+    return HKDF<SHA256>.deriveKey(
+        inputKeyMaterial: SymmetricKey(data: material),
+        salt: Data(groupID.utf8),
+        info: Data("AirBattery Nearcast v2".utf8),
+        outputByteCount: 32
+    )
+}
+
+func encryptNearcastString(
+    _ string: String,
+    groupID: String,
+    sharingKey: String
+) -> String? {
+    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
+        return nil
+    }
+
+    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
+        guard let key = nearcastV2SymmetricKey(groupID: groupID, sharingKey: sharingKey) else {
+            return nil
+        }
+        do {
+            return try AES.GCM.seal(Data(string.utf8), using: key)
+                .combined?
+                .base64EncodedString()
+        } catch {
+            print("Nearcast encryption error: \(error)")
+            return nil
+        }
+    }
+
+    return encryptString(string, password: sharingKey)
+}
+
+func decryptNearcastString(
+    _ string: String,
+    groupID: String,
+    sharingKey: String
+) -> String? {
+    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
+        return nil
+    }
+
+    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
+        guard let key = nearcastV2SymmetricKey(groupID: groupID, sharingKey: sharingKey),
+              let data = Data(base64Encoded: string)
+        else {
+            return nil
+        }
+        do {
+            let sealedBox = try AES.GCM.SealedBox(combined: data)
+            let plaintext = try AES.GCM.open(sealedBox, using: key)
+            return String(data: plaintext, encoding: .utf8)
+        } catch {
+            print("Nearcast decryption error: \(error)")
+            return nil
+        }
+    }
+
+    return decryptString(string, password: sharingKey)
+}
+
 func substring(from string: String, start: Int, length: Int) -> String? {
     guard start >= 0, length > 0, start + length <= string.count else {
         return nil
