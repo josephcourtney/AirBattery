@@ -201,7 +201,7 @@ class AlertWindowController {
 
         // 显示窗口
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         // 保存窗口引用，避免窗口被销毁
         self.window = window
