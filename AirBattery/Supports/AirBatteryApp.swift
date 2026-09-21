@@ -15,13 +15,10 @@ import Sparkle
 let fd = FileManager.default
 let ud = UserDefaults.standard
 var updaterController: SPUStandardUpdaterController!
-var statusBarItem: NSStatusItem!
-var pinnedItems = [NSStatusItem]()
 var netcastService: MultipeerService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = AirBatteryModel.getNearcastURL()
 let systemUUID = getMacDeviceUUID()
 var dockWindow = AutoHideWindow()
-var statusMenuIsOpen = false
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 var keepAliveActivity: NSObjectProtocol? = nil
@@ -52,8 +49,7 @@ struct AirBatteryApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
-    //static let shared = AppDelegate()
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var showOn: String {
         get { AppPreferences.showOn }
         set { AppPreferences.showOn = newValue }
@@ -95,7 +91,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
     var alertLevel: Int { AppPreferences.alertLevel }
     var fullyLevel: Int { AppPreferences.fullyLevel }
     
-    var statusMenu = NSMenu()
     var menu = NSMenu()
     var startTime = Date()
     let nc = NSWorkspace.shared.notificationCenter
@@ -259,35 +254,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
             WidgetCenter.shared.reloadAllTimelines()
         }
         
-        statusMenu.delegate = self
-        statusMenu.autoenablesItems = false
+        StatusBarController.shared.install()
 
-        statusBarItem = NSStatusBar.system.statusItem(
-            withLength: NSStatusItem.variableLength
-        )
-        if let button = statusBarItem.button {
-            let ib = getPowerState()
-            let width: CGFloat =
-                ib.hasBattery && intBattOnStatusBar ? 42 : 36
-            statusBarItem.length = width
-
-            let iconView = StatusItemHostingView(
-                rootView: mainBatteryView()
-            )
-            iconView.frame = NSRect(
-                x: 0,
-                y: 0,
-                width: width,
-                height: 21.5
-            )
-            iconView.autoresizingMask = [.width]
-
-            button.image = NSImage()
-            button.addSubview(iconView)
-        }
-
-        rebuildStatusMenu()
-        statusBarItem.menu = statusMenu
         applyAirBatterySurfaceSelection(
             showOn,
             settingsVisible: false
@@ -384,47 +352,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         }
     }
     
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu === statusMenu else { return }
-        rebuildStatusMenu()
-    }
-
-    func menuWillOpen(_ menu: NSMenu) {
-        if menu === statusMenu {
-            statusMenuIsOpen = true
-            dockWindow.orderOut(nil)
-        }
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        if menu === statusMenu {
-            statusMenuIsOpen = false
-        }
-    }
-
-    private func rebuildStatusMenu() {
-        var allDevices = AirBatteryModel.getAll()
-        let ibStatus = InternalBattery.status
-        if ibStatus.hasBattery {
-            allDevices.insert(ib2ab(ibStatus), at: 0)
-        }
-
-        let contentView = NSHostingView(
-            rootView: popover(fromDock: false, allDevice: allDevices)
-        )
-        contentView.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
-        contentView.layoutSubtreeIfNeeded()
-        contentView.frame.size.height = ceil(
-            max(contentView.fittingSize.height, 1)
-        )
-
-        let menuItem = NSMenuItem()
-        menuItem.view = contentView
-
-        statusMenu.removeAllItems()
-        statusMenu.addItem(menuItem)
-    }
-
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
         if let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
            let url = URL(string: urlString) {
@@ -508,37 +435,6 @@ public extension UserDefaults {
 
         return try? JSONDecoder().decode(objectType, from: result)
     }
-}
-
-func refeshPinnedBar(unpin: String? = nil) {
-    var pinnedList = AppPreferences.pinnedNames
-    if pinnedList.isEmpty { return }
-    if let unpin = unpin { pinnedList.removeAll(where: { $0 == unpin }) }
-    var allDevices = AirBatteryModel.getAll()
-    let ncFiles = getFiles(withExtension: "json", in: ncFolder)
-    for ncFile in ncFiles { allDevices += AirBatteryModel.ncGetAll(url: ncFile) }
-    let pinnedDevices = allDevices.filter({ pinnedList.contains($0.deviceName) })
-    let deviceNames = pinnedDevices.map({ $0.deviceName })
-    for device in pinnedDevices {
-        if let index = pinnedItems.firstIndex(where: { $0.button?.toolTip == device.deviceName }) {
-            pinnedItems[index].button?.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
-        } else {
-            let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            if let button = statusItem.button {
-                let icon = getDeviceIcon(device)
-                let image = NSImage(named: icon)!.resized(to: NSSize(width: 17, height: 17))
-                image.isTemplate = true
-                button.image = image
-                button.title = "\(device.batteryLevel)\(device.isCharging != 0  ? "⚡︎" : "%")"
-                button.toolTip = device.deviceName
-            }
-            pinnedItems.append(statusItem)
-        }
-    }
-    let expItems = pinnedItems.filter({ !pinnedList.contains($0.button?.toolTip ?? "") || !deviceNames.contains($0.button?.toolTip ?? "") })
-    let expNames = expItems.map({ $0.button?.toolTip ?? "" })
-    DispatchQueue.main.async { for e in expItems { NSStatusBar.system.removeStatusItem(e) } }
-    pinnedItems.removeAll{ expNames.contains($0.button?.toolTip ?? "") }
 }
 
 @discardableResult
