@@ -168,7 +168,7 @@ struct popover: View {
     @State private var hidden = [Int]()
     @State private var hidden2 = [Int]()
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
-    @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+    @State private var pinnedList = AppPreferences.pinnedNames
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
 
     private func hasFollowingVisibleRow(after index: Int) -> Bool {
@@ -218,7 +218,7 @@ struct popover: View {
     }
 
     private func togglePin(for device: Device) {
-        pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+        pinnedList = AppPreferences.pinnedNames
         if pinnedList.contains(device.deviceName) {
             pinnedList.removeAll { $0 == device.deviceName }
             refeshPinnedBar(unpin: device.deviceName)
@@ -226,16 +226,16 @@ struct popover: View {
             pinnedList.append(device.deviceName)
             refeshPinnedBar()
         }
-        ud.set(pinnedList, forKey: "pinnedList")
+        AppPreferences.pinnedNames = pinnedList
     }
 
     private func hideAirPodsGroup(_ group: AirPodsBatteryGroup) {
-        var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+        var blackList = AppPreferences.blockedNames
         let devices = group.components
         for device in devices where !blackList.contains(device.deviceName) {
             blackList.append(device.deviceName)
         }
-        ud.set(blackList, forKey: "blackList")
+        AppPreferences.blockedNames = blackList
         hiddenDevices = AirBatteryModel.getBlackList()
         allDevices.removeAll { device in
             devices.contains(where: { $0.deviceName == device.deviceName })
@@ -444,11 +444,11 @@ struct popover: View {
                 Button {
                     hidden.append(index)
                     var blackList =
-                        (ud.object(forKey: "blackList") ?? []) as! [String]
+                        AppPreferences.blockedNames
                     if !blackList.contains(device.deviceName) {
                         blackList.append(device.deviceName)
                     }
-                    ud.set(blackList, forKey: "blackList")
+                    AppPreferences.blockedNames = blackList
                     if pinnedList.contains(device.deviceName) {
                         refeshPinnedBar()
                     }
@@ -677,10 +677,10 @@ struct popover: View {
                                 if !hidden2.contains(index){
                                     Button(action: {
                                         hidden2.append(index)
-                                        var blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+                                        var blackList = AppPreferences.blockedNames
                                         blackList.removeAll { $0 == hiddenDevices[index].deviceName }
-                                        ud.set(blackList, forKey: "blackList")
-                                        let pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+                                        AppPreferences.blockedNames = blackList
+                                        let pinnedList = AppPreferences.pinnedNames
                                         if pinnedList.contains(hiddenDevices[index].deviceName){
                                             refeshPinnedBar()
                                         }
@@ -763,7 +763,7 @@ struct nearcastView: View {
     @State private var overAlertButton = false
     @State private var overPinButton = false
     @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
-    @State private var pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+    @State private var pinnedList = AppPreferences.pinnedNames
     
     var body: some View {
         Spacer().frame(height: 8)
@@ -844,9 +844,9 @@ struct nearcastView: View {
                                     }
                                     if !pinnedList.contains(devices[index].deviceName) {
                                         Button(action: {
-                                            pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+                                            pinnedList = AppPreferences.pinnedNames
                                             pinnedList.append(devices[index].deviceName)
-                                            ud.set(pinnedList, forKey: "pinnedList")
+                                            AppPreferences.pinnedNames = pinnedList
                                             refeshPinnedBar()
                                         }, label: {
                                             Image("pin.circle")
@@ -858,9 +858,9 @@ struct nearcastView: View {
                                         .onHover{ hovering in overPinButton = hovering }
                                     } else {
                                         Button(action: {
-                                            pinnedList = (ud.object(forKey: "pinnedList") ?? []) as! [String]
+                                            pinnedList = AppPreferences.pinnedNames
                                             pinnedList.removeAll { $0 == devices[index].deviceName }
-                                            ud.set(pinnedList, forKey: "pinnedList")
+                                            AppPreferences.pinnedNames = pinnedList
                                             refeshPinnedBar()
                                         }, label: {
                                             Image("pin.circle.fill")
