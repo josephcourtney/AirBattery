@@ -501,7 +501,7 @@ class AirBatteryModel {
     static func getAll(reverse: Bool = false, noFilter: Bool = false) -> [Device] {
         let thisMac = AppPreferences.deviceName
         let disappearTime = AppPreferences.disappearTime
-        let blackList = (ud.object(forKey: "blackList") ?? []) as! [String]
+        let blackList = AppPreferences.hiddenDeviceNames
         let now = Double(Date().timeIntervalSince1970)
         var list = (reverse ? Array(Devices.reversed()) : Devices).filter {
             now - $0.lastUpdate < Double(disappearTime * 60) ||
