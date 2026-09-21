@@ -352,188 +352,79 @@ struct popover: View {
         }
     }
 
-    @ViewBuilder
-    private func airPodsLevel(
-        iconDevice: Device,
-        level: Int,
-        charging: Int,
-        help: String
-    ) -> some View {
-        HStack(spacing: 3) {
-            Image(getDeviceIcon(iconDevice))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundColor(.blackWhite)
-                .frame(width: 11, height: 11)
-            Text("\(level)%")
-                .font(.system(size: 10.5, weight: .medium))
-                .monospacedDigit()
-                .foregroundColor(level <= 10 ? .darkMyRed : .primary)
-            if charging != 0 {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundColor(.secondary)
-            }
-        }
-        .fixedSize()
-        .help(help)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(help), \(level) percent" + (charging != 0 ? ", charging" : "")
-        )
+    private func airPodsPresentation(
+        _ group: AirPodsBatteryGroup
+    ) -> LogicalDevicePresentation? {
+        AirBatteryModel.logicalPresentations(
+            from: group.components,
+            mergeEarbuds: twsMergeEnabled,
+            mergeThreshold: twsMerge
+        ).first
     }
 
-    private func mergedAirPodsIconDevice(
+    @ViewBuilder
+    private func airPodsMenuRow(
         _ group: AirPodsBatteryGroup,
-        level: Int,
-        charging: Int
-    ) -> Device {
-        let source = group.leftEarbud ?? group.rightEarbud ?? group.caseDevice
-        return Device(
-            deviceID: source?.deviceID ?? "@AirPodsMerged",
-            deviceType: "ap_pod_all",
-            deviceName: group.name,
-            deviceModel: source?.deviceModel,
-            batteryLevel: level,
-            isCharging: charging,
-            lastUpdate: source?.lastUpdate ?? Date().timeIntervalSince1970
-        )
-    }
-
-    @ViewBuilder
-    private func airPodsMenuRow(_ group: AirPodsBatteryGroup, index: Int) -> some View {
-        let newestUpdate = group.components.map(\.lastUpdate).max() ??
-            group.legacyMergedEarbuds?.lastUpdate ??
-            0
-        HStack(spacing: 8) {
-            if let iconDevice =
-                group.caseDevice ??
-                group.leftEarbud ??
-                group.rightEarbud ??
-                group.legacyMergedEarbuds {
-                Image(getDeviceIcon(iconDevice))
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundColor(.blackWhite)
-                    .frame(width: 22, height: 22)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(
-                    "\((Date().timeIntervalSince1970 - newestUpdate) / 60 > 10 ? "⚠︎ " : "")" +
-                    (fromDock ? "AirPods" : group.name)
-                )
-                    .font(.system(size: 12))
-                    .foregroundColor(.blackWhite)
-                    .lineLimit(1)
-
-                HStack(spacing: 10) {
-                    if let caseDevice = group.caseDevice {
-                        airPodsLevel(
-                            iconDevice: caseDevice,
-                            level: caseDevice.batteryLevel,
-                            charging: caseDevice.isCharging,
-                            help: "Case"
-                        )
-                    }
-
-                    if let merged = group.mergedEarbudLevel(
-                        enabled: twsMergeEnabled,
-                        threshold: twsMerge
-                    ) {
-                        let charging = group.mergedEarbudCharging(
-                            enabled: twsMergeEnabled,
-                            threshold: twsMerge
-                        ) ?? 0
-                        airPodsLevel(
-                            iconDevice: mergedAirPodsIconDevice(
-                                group,
-                                level: merged,
-                                charging: charging
-                            ),
-                            level: merged,
-                            charging: charging,
-                            help: "Earbuds"
-                        )
-                    } else {
-                        if let left = group.leftEarbud {
-                            airPodsLevel(
-                                iconDevice: left,
-                                level: left.batteryLevel,
-                                charging: left.isCharging,
-                                help: "Left earbud"
-                            )
-                        }
-                        if let right = group.rightEarbud {
-                            airPodsLevel(
-                                iconDevice: right,
-                                level: right.batteryLevel,
-                                charging: right.isCharging,
-                                help: "Right earbud"
-                            )
-                        }
-                        if group.leftEarbud == nil,
-                           group.rightEarbud == nil,
-                           let legacy = group.legacyMergedEarbuds {
-                            airPodsLevel(
-                                iconDevice: legacy,
-                                level: legacy.batteryLevel,
-                                charging: legacy.isCharging,
-                                help: "Earbuds"
-                            )
-                        }
-                    }
+        index: Int
+    ) -> some View {
+        if let presentation = airPodsPresentation(group) {
+            MenuDeviceRowContent(
+                presentation: presentation,
+                compactName: fromDock
+            )
+            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .background(
+                overStack == index
+                    ? Color.blackWhite.opacity(0.15)
+                    : .clear
+            )
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .contain)
+            .onHover { hovering in
+                overStack2 = -1
+                overStackNC = -1
+                if hovering {
+                    overStack = index
                 }
             }
-
-            Spacer(minLength: 4)
-        }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 10)
-        .background(overStack == index ? Color.blackWhite.opacity(0.15) : .clear)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .contain)
-        .onHover { hovering in
-            overStack2 = -1
-            overStackNC = -1
-            if hovering {
-                overStack = index
-            }
-        }
-        .contextMenu {
-            let components = group.components
-            if !components.isEmpty {
-                Menu("Battery Alerts") {
-                    ForEach(components, id: \.deviceID) { component in
-                        Button(
-                            alertList.contains(where: { $0.name == component.deviceName })
-                                ? "Edit \(airPodsPartLabel(component))"
-                                : "Add \(airPodsPartLabel(component))"
-                        ) {
-                            configureBatteryAlert(for: component)
+            .contextMenu {
+                let components = group.components
+                if !components.isEmpty {
+                    Menu("Battery Alerts") {
+                        ForEach(components, id: \.deviceID) { component in
+                            Button(
+                                alertList.contains(
+                                    where: { $0.name == component.deviceName }
+                                )
+                                    ? "Edit \(airPodsPartLabel(component))"
+                                    : "Add \(airPodsPartLabel(component))"
+                            ) {
+                                configureBatteryAlert(for: component)
+                            }
                         }
                     }
-                }
 
-                Menu("Menu Bar Pins") {
-                    ForEach(components, id: \.deviceID) { component in
-                        Button(
-                            pinnedList.contains(component.deviceName)
-                                ? "Unpin \(airPodsPartLabel(component))"
-                                : "Pin \(airPodsPartLabel(component))"
-                        ) {
-                            togglePin(for: component)
+                    Menu("Menu Bar Pins") {
+                        ForEach(components, id: \.deviceID) { component in
+                            Button(
+                                pinnedList.contains(component.deviceName)
+                                    ? "Unpin \(airPodsPartLabel(component))"
+                                    : "Pin \(airPodsPartLabel(component))"
+                            ) {
+                                togglePin(for: component)
+                            }
                         }
                     }
+                    Divider()
                 }
-                Divider()
-            }
 
-            Button("Copy Device Name") {
-                copyToClipboard(group.name)
-            }
-            Button("Hide AirPods Group") {
-                hideAirPodsGroup(group)
+                Button("Copy Device Name") {
+                    copyToClipboard(group.name)
+                }
+                Button("Hide AirPods Group") {
+                    hideAirPodsGroup(group)
+                }
             }
         }
     }
