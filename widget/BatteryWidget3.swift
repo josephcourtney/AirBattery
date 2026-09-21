@@ -81,8 +81,8 @@ struct batteryWidget3: Widget {
                 .ignoresSafeArea()
                 .liquidGlassWidgetBackground()
         }
-        .configurationDisplayName("Battery Rings — Icons")
-        .description("Displays device batteries as icon-only rings")
+        .configurationDisplayName("Battery Rings — Icons (Legacy)")
+        .description("Legacy icon-rings widget. Use Battery Overview for new widgets.")
         .disableContentMarginsIfNeeded()
         .supportedFamilies([.systemMedium, .systemSmall])
     }
