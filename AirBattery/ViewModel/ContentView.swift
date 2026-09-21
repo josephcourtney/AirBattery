@@ -10,27 +10,6 @@ import WidgetKit
 import Combine
 //import UserNotifications
 
-/*let test_data: [CGFloat] = [99,80,80,73,70,60,59,51,30,30,25,25,19,18,17,15,12,10,10,9] // 示例数据
-struct BarChartView: View {
-    let data: [CGFloat] // 电量数据，取值范围 0 到 1
-    let barSpacing: CGFloat // 柱子之间的间距
-    let barWidth: CGFloat // 柱子宽度
-
-    var body: some View {
-        GeometryReader { geometry in
-            HStack(alignment: .bottom, spacing: barSpacing) { // 设置底部对齐
-                ForEach(0..<data.count, id: \.self) { index in
-                    let height = (data[index] * geometry.size.height)/100
-                    Capsule()
-                        .fill(Color(getPowerColor(Int(data[index]))))
-                        .frame(width: barWidth, height: height)
-                        .padding(.bottom, -barWidth / 2) // 设置底部平坦
-                }
-            }
-        }
-    }
-}*/
-
 class AppearanceMonitor: ObservableObject {
     @Published var isDarkMode: Bool = false
     private var appearanceChangeCancellable: AnyCancellable?
@@ -1013,19 +992,3 @@ func openSettingPanel() {
     }
 }
 
-func findNSSplitVIew(view: NSView?) -> NSSplitView? {
-    var queue = [NSView]()
-    if let root = view {
-        queue.append(root)
-    }
-    while !queue.isEmpty {
-        let current = queue.removeFirst()
-        if current is NSSplitView {
-            return current as? NSSplitView
-        }
-        for subview in current.subviews {
-            queue.append(subview)
-        }
-    }
-    return nil
-}

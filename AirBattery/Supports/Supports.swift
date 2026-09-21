@@ -106,13 +106,6 @@ class LogReader {
     }
 }
 
-struct dayAndWeek {
-    var day: String
-    var week: String
-    var time: String
-    var locale: String
-}
-
 extension View {
     func roundedCorners(radius: CGFloat, corners: RectCorner) -> some View {
         clipShape( RoundedCornersShape(radius: radius, corners: corners) )
@@ -419,30 +412,10 @@ func getDarkMode() -> Bool {
     return (appearance == "auto") ? NSApp.effectiveAppearance == NSAppearance(named: .darkAqua) : appearance.boolValue
 }
 
-func getMonoNum(_ num: Int, count: Int = 3, bold: Bool = false) -> String {
-    let chars = bold ? ["𝟬","𝟭","𝟮","𝟯","𝟰","𝟱","𝟲","𝟳","𝟴","𝟵"] : ["𝟢","𝟣","𝟤","𝟥","𝟦","𝟧","𝟨","𝟩","𝟪","𝟫"]
-    var output: [String] = []
-    for i in String(num) { if let n = Int(String(i)) { output.append(chars[n]) } }
-    return String(repeating: "  ", count: (count - output.count)) + output.joined()
-}
-
 func ib2ab(_ ib: iBattery) -> Device {
     @AppStorage("machineType") var machineType = "mac"
     @AppStorage("deviceName") var deviceName = "Mac"
     return Device(hasBattery: ib.hasBattery, deviceID: "@MacInternalBattery", deviceType: machineType, deviceName: deviceName, deviceModel: macID, batteryLevel: ib.batteryLevel, isCharging: ib.isCharging ? 1 : 0, isCharged: ib.isCharged, acPowered: ib.acPowered, lowPower: ib.lowPower, lastUpdate: Double(Date().timeIntervalSince1970))
-}
-
-func sliceList(data: [Device], length: Int, count: Int) -> [Device] {
-    let totalLength = length * count
-    if totalLength <= data.count { return Array(data[totalLength-length..<totalLength]) }
-    var list: [Device]
-    if totalLength - length > data.count {
-        list = []
-    } else {
-        list = Array(data[totalLength-length..<data.count])
-    }
-    if list != [] { while list.count < length { list.append(Device(hasBattery: false, deviceID: "", deviceType: "blank", deviceName: "", batteryLevel: 0, isCharging: 0, lastUpdate: 0)) } }
-    return list
 }
 
 func copyToClipboard(_ text: String) {

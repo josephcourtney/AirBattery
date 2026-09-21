@@ -554,6 +554,3 @@ func ensureLoginItem(enabled: Bool) -> Bool {
     }
 }
 
-func registerDefaults() {
-    UserDefaults.standard.register(defaults: ["LaunchAtLogin": false])
-}

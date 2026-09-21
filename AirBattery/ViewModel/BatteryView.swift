@@ -98,14 +98,6 @@ struct mainBatteryView: View {
     }
 }
 
-struct BatteryLevelView: View {
-    var item: iBattery
-
-    var body: some View {
-        StatusBarBatteryLevelContent(item: item)
-    }
-}
-
 func setStatusBar(width: Double) {
     let iconView = NSHostingView(rootView: mainBatteryView())
     iconView.frame = NSRect(x: 0, y: 0, width: width, height: 21.5)
