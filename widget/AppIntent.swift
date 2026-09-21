@@ -24,3 +24,35 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
         self.deviceName = ""
     }
 }
+
+
+@available(macOS 14.0, *)
+struct BatteryOverviewConfigurationIntent: WidgetConfigurationIntent {
+    nonisolated(unsafe) static var title: LocalizedStringResource =
+        "Battery Overview"
+    nonisolated(unsafe) static var description = IntentDescription(
+        "Choose whether the widget shows percentages and device labels."
+    )
+
+    @Parameter(
+        title: LocalizedStringResource("Show Percentages"),
+        default: true
+    )
+    var showPercentages: Bool
+
+    @Parameter(
+        title: LocalizedStringResource("Show Labels"),
+        default: true
+    )
+    var showLabels: Bool
+
+    init(showPercentages: Bool, showLabels: Bool) {
+        self.showPercentages = showPercentages
+        self.showLabels = showLabels
+    }
+
+    init() {
+        self.showPercentages = true
+        self.showLabels = true
+    }
+}
