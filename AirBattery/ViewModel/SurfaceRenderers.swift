@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct StatusBarBatteryContent: View {
@@ -904,13 +905,13 @@ private struct OverviewRingCell: View {
 
     private var percentageFont: Font {
         .system(
-            size: diameter >= 64 ? 12 : (diameter <= 46 ? 8.5 : 10),
+            size: diameter >= 64 ? 12 : (diameter <= 46 ? 9 : 10),
             weight: .medium
         )
     }
 
     private var labelFont: Font {
-        .system(size: diameter >= 64 ? 10 : (diameter <= 46 ? 7 : 8))
+        .system(size: diameter >= 64 ? 10 : (diameter <= 46 ? 8 : 8.5))
     }
 
     private var shortLabel: String {
