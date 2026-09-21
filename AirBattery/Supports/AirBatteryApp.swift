@@ -178,10 +178,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
-        syncAirBatteryActivationPolicy(
-            surfaceSelection: showOn,
-            settingsVisible: false
-        )
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withTimeZone]
         menu.addItem(withTitle:"Settings...".local, action: #selector(openSetting), keyEquivalent: "")
         menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
@@ -273,7 +269,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
 
         rebuildStatusMenu()
         statusBarItem.menu = statusMenu
-        statusBarItem.isVisible = !(showOn == "dock" || showOn == "none")
+        applyAirBatterySurfaceSelection(
+            showOn,
+            settingsVisible: false
+        )
         NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
         NSApp.dockTile.display()
         if nearCast {
