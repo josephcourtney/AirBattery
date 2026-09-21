@@ -25,9 +25,12 @@ Current coverage includes:
 - USB/network discovery candidate merging;
 - stable iOS identity across BLE and libimobiledevice observations;
 - mobile-UDID preference, BLE-ID retention, and BLE identifier rotation;
-- sticky battery-readability state;
-- scan serialization;
-- AirPods left/right merge thresholds and charging-state requirements.
+- shared full/compact presentation naming for Mac, iPhone, Watch, and AirPods;
+- AirPods left/right merge thresholds and charging-state requirements;
+- Nearcast v2 Group ID / Sharing Key validation and setup-code round trips;
+- legacy Nearcast credential compatibility for migration;
+- sticky battery-readability state; and
+- scan serialization.
 
 ## Native runtime tests
 
@@ -142,8 +145,21 @@ battery presentation, or the native mobile stack, exercise at least:
 - battery and charging-state changes while AirBattery remains running;
 - sleep/wake recovery;
 - an iPhone paired with an Apple Watch, when available;
-- AirPods case/left/right presentation with merging both off and on;
-- Settings and menu opening while background refreshes occur; and
+- logical-device consistency across the popover, Dock, widgets, and Devices;
+- intentional compact names in constrained surfaces (`Mac`, `iPhone`, `Watch`, `AirPods`);
+- AirPods with case + L/R, L/R without the case currently visible, merge off,
+  merge within threshold, and charging-state mismatch;
+- Devices progressive disclosure, confirming identifiers/raw RSSI/query state
+  remain under Technical Details rather than the primary device view;
+- BLE battery-access policy inheritance and an identity-specific override;
+- Display previews while changing light/dark mode, menu-bar battery style,
+  earbud merging, Dock visibility, and widget ordering;
+- Nearcast migration from an existing legacy credential, plus a newly generated
+  Group ID / Sharing Key exchanged between two Macs when available;
+- Settings and popover opening while background refreshes occur;
+- keyboard navigation and VoiceOver labels for popover/settings controls;
+- Increase Contrast and Reduce Transparency, confirming panels remain legible;
+- non-default accent colors and common color-vision simulations; and
 - an extended idle run, since mobile companion polling is background-driven.
 
 No hosted CI is required for these checks; the supported verification path is
