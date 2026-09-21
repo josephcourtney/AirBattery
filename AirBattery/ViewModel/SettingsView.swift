@@ -10,20 +10,24 @@ import WidgetKit
 import AppKit
 
 struct SettingsView: View {
-    @State private var selectedItem = "General"
+    @State private var selectedItem: String? = "General"
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     var body: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView {
             sidebar
-                .frame(width: 190)
-
-            Divider()
-
+                .navigationSplitViewColumnWidth(
+                    min: 170,
+                    ideal: 190,
+                    max: 220
+                )
+        } detail: {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
         }
+        .navigationSplitViewStyle(.balanced)
         .frame(
             minWidth: 760,
             idealWidth: 960,
@@ -32,8 +36,6 @@ struct SettingsView: View {
             idealHeight: 720,
             maxHeight: .infinity
         )
-        .background(Color(nsColor: .windowBackgroundColor))
-        .navigationTitle("AirBattery Settings")
         .onChange(of: showDebug) { enabled in
             if !enabled && selectedItem == "Debug" {
                 selectedItem = "General"
@@ -42,46 +44,43 @@ struct SettingsView: View {
     }
 
     private var sidebar: some View {
-        VStack(spacing: 4) {
-            settingsSidebarButton(
+        List(selection: $selectedItem) {
+            settingsSidebarRow(
                 "General",
                 systemImage: "gearshape",
                 tag: "General"
             )
-            settingsSidebarButton(
+            settingsSidebarRow(
                 "Display",
                 systemImage: "rectangle.3.group",
                 tag: "Display"
             )
-            settingsSidebarButton(
+            settingsSidebarRow(
                 "Devices",
                 systemImage: "rectangle.stack",
                 tag: "Devices",
                 badge: discoveryPolicy.reviewCount
             )
-            settingsSidebarButton(
+            settingsSidebarRow(
                 "Discovery",
                 systemImage: "antenna.radiowaves.left.and.right",
                 tag: "Discovery"
             )
-            settingsSidebarButton(
+            settingsSidebarRow(
                 "Nearcast",
                 systemImage: "network",
                 tag: "Nearcast"
             )
             if showDebug {
-                settingsSidebarButton(
+                settingsSidebarRow(
                     "Debug",
                     systemImage: "ladybug",
                     tag: "Debug"
                 )
             }
-            Spacer()
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .listStyle(.sidebar)
+        .accessibilityLabel("Settings sections")
     }
 
     @ViewBuilder
@@ -97,7 +96,7 @@ struct SettingsView: View {
             NearcastView()
         case "Debug":
             if showDebug {
-                DebugView(selectedItem: debugSelectionBinding)
+                DebugView(selectedItem: $selectedItem)
             } else {
                 GeneralView()
             }
@@ -107,56 +106,27 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func settingsSidebarButton(
+    private func settingsSidebarRow(
         _ title: String,
         systemImage: String,
         tag: String,
         badge: Int = 0
     ) -> some View {
-        Button {
-            selectedItem = tag
-        } label: {
-            HStack(spacing: 8) {
-                Label(title, systemImage: systemImage)
-                Spacer()
-                if badge > 0 {
-                    Text("\(badge)")
-                        .font(.caption2)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule().fill(Color.secondary.opacity(0.18))
-                        )
-                        .accessibilityLabel("\(badge) devices need review")
-                }
+        HStack(spacing: 8) {
+            Label(title, systemImage: systemImage)
+            Spacer()
+            if badge > 0 {
+                Text("\(badge)")
+                    .font(.caption2)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule().fill(Color.secondary.opacity(0.18))
+                    )
+                    .accessibilityLabel("\(badge) devices need review")
             }
-            .contentShape(Rectangle())
-            .padding(.vertical, 3)
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(
-                    selectedItem == tag
-                        ? Color.accentColor.opacity(0.22)
-                        : Color.clear
-                )
-        )
-        .foregroundColor(selectedItem == tag ? .primary : .primary)
-        .accessibilityAddTraits(
-            selectedItem == tag ? .isSelected : []
-        )
-    }
-
-    private var debugSelectionBinding: Binding<String?> {
-        Binding(
-            get: { selectedItem },
-            set: { newValue in
-                selectedItem = newValue ?? "General"
-            }
-        )
+        .tag(tag)
     }
 }
 
