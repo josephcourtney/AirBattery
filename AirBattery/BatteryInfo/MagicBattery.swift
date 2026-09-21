@@ -78,7 +78,9 @@ class MagicBattery {
            let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let id = info["device_address"] as? String,
                            let type = info["device_minorType"] as? String{
@@ -97,7 +99,9 @@ class MagicBattery {
            let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let id = info["device_productID"] as? String,
                            let type = info["device_minorType"] as? String{
@@ -117,19 +121,41 @@ class MagicBattery {
         var percent = 0
         var productName = ""
         let lastUpdate = Date().timeIntervalSince1970
-        if let productProperty = IORegistryEntryCreateCFProperty(object, "DeviceAddress" as CFString, kCFAllocatorDefault, 0) {
-            mac = productProperty.takeRetainedValue() as! String
-            mac = mac.replacingOccurrences(of:"-", with:":").uppercased()
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "DeviceAddress" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? String {
+            mac = value.replacingOccurrences(of: "-", with: ":").uppercased()
         }
-        if let percentProperty = IORegistryEntryCreateCFProperty(object, "BatteryStatusFlags" as CFString, kCFAllocatorDefault, 0) {
-            status = percentProperty.takeRetainedValue() as! Int
-            if status == 4 { status = 0 }
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "BatteryStatusFlags" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? Int {
+            status = value == 4 ? 0 : value
         }
-        if let percentProperty = IORegistryEntryCreateCFProperty(object, "BatteryPercent" as CFString, kCFAllocatorDefault, 0) {
-            percent = percentProperty.takeRetainedValue() as! Int
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "BatteryPercent" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? Int {
+            percent = value
         }
-        if let productProperty = IORegistryEntryCreateCFProperty(object, "Product" as CFString, kCFAllocatorDefault, 0) {
-            productName = productProperty.takeRetainedValue() as! String
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "Product" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? String {
+            productName = value
             if productName.contains("Trackpad") { type = "Trackpad" }
             if productName.contains("Keyboard") { type = "Keyboard" }
             if productName.contains("Mouse") { type = "MMouse" }
@@ -214,13 +240,14 @@ class MagicBattery {
     
     func getAirpods() {
         let now = Date().timeIntervalSince1970
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         var productID = "200e"
                         var mainDevice: Device?
@@ -295,13 +322,20 @@ class MagicBattery {
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
             if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
                 for device in device_connected{
-                    let d = device as! [String: Any]
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
                     if let n = d.keys.first, let info = d[n] as? [String: Any] {
                         if let level = info["device_batteryLevelMain"] as? String,
                            let id = info["device_address"] as? String,
                            let type = info["device_minorType"] as? String,
                            (info["device_vendorID"] as? String) != "0x004C" {
-                            guard let batLevel = Int(level.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "%", with: "")) else { return }
+                            guard let batLevel = Int(
+                                level.replacingOccurrences(of: " ", with: "")
+                                    .replacingOccurrences(of: "%", with: "")
+                            ) else {
+                                continue
+                            }
                             AirBatteryModel.updateDevice(Device(deviceID: id, deviceType: type, deviceName: n, batteryLevel: batLevel, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
                         }
                     }
@@ -316,16 +350,12 @@ class MagicBattery {
                 let name = device.name
                 let address = device.addressString
                 let connected = device.isConnected()
-                //let usb = device.getValue(forKey: "isPluggedOverUSB") as! Bool ?? false
                 
                 if connected && !device.isAppleDevice {
                     if let battery = device.getValue(forKey: "batteryPercentSingle") as? Int, let name = name, let address = address, battery != 0 {
                         let type = getDeviceType(address.replacingOccurrences(of: "-", with: ":").uppercased(),"")
                         AirBatteryModel.updateDevice(Device(deviceID: address, deviceType: type, deviceName: name, batteryLevel: battery, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
                     }
-                    //let left = device.getValue(forKey: "batteryPercentLeft") as? Int
-                    //let right = device.getValue(forKey: "batteryPercentRight") as? Int
-                    //let _case = device.getValue(forKey: "batteryPercentCase") as? Int
                 }
             }
         }
