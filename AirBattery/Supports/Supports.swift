@@ -605,7 +605,7 @@ func parseNearcastSetupCode(_ code: String) -> (groupID: String, sharingKey: Str
     let parts = code.trimmingCharacters(in: .whitespacesAndNewlines)
         .split(separator: ":", omittingEmptySubsequences: false)
     guard parts.count == 3,
-          parts[0] == Substring(nearcastSetupPrefix)
+          String(parts[0]) == nearcastSetupPrefix
     else {
         return nil
     }
