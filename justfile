@@ -376,7 +376,7 @@ install-state-write configuration="Debug":
       cdhash="$(/usr/bin/codesign -dvvv "$app" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -n 1)"; \
       [[ -n "$cdhash" ]] || { echo "Unable to determine installed app CDHash." >&2; exit 1; }; \
       mkdir -p "$state_dir"; \
-      tmp="$state.tmp.${BASHPID}.${RANDOM}"; \
+      tmp="$state.tmp.$$.${RANDOM}"; \
       trap 'rm -f "$tmp"' EXIT; \
       printf '%s\n' \
         'schema=2' \
