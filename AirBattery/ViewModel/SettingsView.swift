@@ -1728,7 +1728,7 @@ private struct DisplaySurfacePreview: View {
         let fill = colorfulBattery
             ? Color(getPowerColor(device))
             : (device.batteryLevel <= 10 ? Color.red : Color.primary)
-        let fraction = max(0.05, min(1, Double(device.batteryLevel) / 100))
+        let fraction = CGFloat(max(0.05, min(1, Double(device.batteryLevel) / 100)))
 
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: iosBatteryStyle ? 3 : 2)
@@ -1737,7 +1737,7 @@ private struct DisplaySurfacePreview: View {
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(fill)
                 .frame(
-                    width: (iosBatteryStyle ? 23 : 19) * fraction,
+                    width: CGFloat(iosBatteryStyle ? 23 : 19) * fraction,
                     height: iosBatteryStyle ? 8 : 6
                 )
                 .padding(.leading, 2)
