@@ -1163,11 +1163,6 @@ struct DevicesView: View {
         sources.sorted { $0.rawValue < $1.rawValue }
     }
 
-    private func isAppleMobileDevice(_ device: Device) -> Bool {
-        ["iPhone", "iPad", "iPod", "Watch", "ApplePencil", "Pencil"]
-            .contains(device.deviceType)
-    }
-
     private func inventoryKey(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
@@ -1351,7 +1346,7 @@ struct NearcastView: View {
             .frame(width: 330)
             .disabled(nearCast)
 
-            Button("Copy") {
+            Button(copyLabel) {
                 guard !value.wrappedValue.isEmpty else { return }
                 copyToClipboard(value.wrappedValue)
             }
