@@ -115,9 +115,8 @@ struct DiscoveryView: View {
                             tips: "Read the battery status of a connected Apple Pencil through your iPad. Initial discovery may take 10 minutes or longer and may increase iPad battery use."
                         )
                         Toggle("", isOn: $readPencil)
+                            .labelsHidden()
                             .toggleStyle(.switch)
-                            .scaleEffect(0.7)
-                            .frame(width: 32)
                             .accessibilityLabel("Apple Pencil from iPad")
                     }
                     .frame(minHeight: 28)
