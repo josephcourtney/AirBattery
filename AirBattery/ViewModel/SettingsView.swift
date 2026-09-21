@@ -10,47 +10,19 @@ import WidgetKit
 import AppKit
 
 struct SettingsView: View {
-    @State private var selectedItem: String? = "General"
+    @State private var selectedItem = "General"
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     var body: some View {
-        NavigationView {
-            List(selection: $selectedItem) {
-                NavigationLink(destination: GeneralView(), tag: "General", selection: $selectedItem) {
-                    Label("General", systemImage: "gearshape")
-                }
-                NavigationLink(destination: DisplayView(), tag: "Display", selection: $selectedItem) {
-                    Label("Display", systemImage: "rectangle.3.group")
-                }
-                NavigationLink(destination: DevicesView(), tag: "Devices", selection: $selectedItem) {
-                    HStack {
-                        Label("Devices", systemImage: "rectangle.stack")
-                        Spacer()
-                        if discoveryPolicy.reviewCount > 0 {
-                            Text("\(discoveryPolicy.reviewCount)")
-                                .font(.caption2)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Capsule().fill(Color.secondary.opacity(0.18)))
-                                .accessibilityLabel("\(discoveryPolicy.reviewCount) devices need review")
-                        }
-                    }
-                }
-                NavigationLink(destination: DiscoveryView(), tag: "Discovery", selection: $selectedItem) {
-                    Label("Discovery", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                NavigationLink(destination: NearcastView(), tag: "Nearcast", selection: $selectedItem) {
-                    Label("Nearcast", systemImage: "network")
-                }
-                if showDebug {
-                    NavigationLink(destination: DebugView(selectedItem: $selectedItem), tag: "Debug", selection: $selectedItem) {
-                        Label("Debug", systemImage: "ladybug")
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            .padding(.top, 9)
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 190)
+
+            Divider()
+
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
             minWidth: 760,
@@ -62,6 +34,123 @@ struct SettingsView: View {
         )
         .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("AirBattery Settings")
+        .onChange(of: showDebug) { enabled in
+            if !enabled && selectedItem == "Debug" {
+                selectedItem = "General"
+            }
+        }
+    }
+
+    private var sidebar: some View {
+        List {
+            settingsSidebarButton(
+                "General",
+                systemImage: "gearshape",
+                tag: "General"
+            )
+            settingsSidebarButton(
+                "Display",
+                systemImage: "rectangle.3.group",
+                tag: "Display"
+            )
+            settingsSidebarButton(
+                "Devices",
+                systemImage: "rectangle.stack",
+                tag: "Devices",
+                badge: discoveryPolicy.reviewCount
+            )
+            settingsSidebarButton(
+                "Discovery",
+                systemImage: "antenna.radiowaves.left.and.right",
+                tag: "Discovery"
+            )
+            settingsSidebarButton(
+                "Nearcast",
+                systemImage: "network",
+                tag: "Nearcast"
+            )
+            if showDebug {
+                settingsSidebarButton(
+                    "Debug",
+                    systemImage: "ladybug",
+                    tag: "Debug"
+                )
+            }
+        }
+        .listStyle(.sidebar)
+        .padding(.top, 9)
+    }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch selectedItem {
+        case "Display":
+            DisplayView()
+        case "Devices":
+            DevicesView()
+        case "Discovery":
+            DiscoveryView()
+        case "Nearcast":
+            NearcastView()
+        case "Debug":
+            if showDebug {
+                DebugView(selectedItem: debugSelectionBinding)
+            } else {
+                GeneralView()
+            }
+        default:
+            GeneralView()
+        }
+    }
+
+    @ViewBuilder
+    private func settingsSidebarButton(
+        _ title: String,
+        systemImage: String,
+        tag: String,
+        badge: Int = 0
+    ) -> some View {
+        Button {
+            selectedItem = tag
+        } label: {
+            HStack(spacing: 8) {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.caption2)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(
+                            Capsule().fill(Color.secondary.opacity(0.18))
+                        )
+                        .accessibilityLabel("\(badge) devices need review")
+                }
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 3)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(
+                    selectedItem == tag
+                        ? Color.accentColor.opacity(0.18)
+                        : Color.clear
+                )
+        )
+        .accessibilityAddTraits(
+            selectedItem == tag ? .isSelected : []
+        )
+    }
+
+    private var debugSelectionBinding: Binding<String?> {
+        Binding(
+            get: { selectedItem },
+            set: { newValue in
+                selectedItem = newValue ?? "General"
+            }
+        )
     }
 }
 
@@ -1316,9 +1405,6 @@ struct NearcastView: View {
                         .textSelection(.enabled)
                 }
             }
-        }
-        .onAppear {
-            migrateLegacyNearcastCredentialsIfNeeded()
         }
     }
 
