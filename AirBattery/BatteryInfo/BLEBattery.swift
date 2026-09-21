@@ -442,7 +442,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var otherAppleDevices: [String] = []
     var bleDevicesLevel: [String:UInt8] = [:]
     var bleDevicesVendor: [String:String] = [:]
-    var scanTimer: Timer?
     private let discoveryPolicy = BLEDiscoveryPolicyStore.shared
     private var pairedDeviceNames: Set<String> = []
 
@@ -452,8 +451,6 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private var genericProbePeripheralIDs: Set<UUID> = []
     private var genericProbeInFlight: Set<UUID> = []
     private var genericProbeRejected: Set<UUID> = []
-    //var a = 1
-    //var mfgData: Data!
     
     override init() {
         super.init()
@@ -488,15 +485,11 @@ class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func startScan() {
-        // 每隔一段时间启动一次扫描
-        let interval = TimeInterval(29 * updateInterval)
-        scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scan), userInfo: nil, repeats: true)
         print("ℹ️ Start scanning BLE devices...")
-        // 立即启动一次扫描
         scan(longScan: true)
     }
 
-    @objc func scan(longScan: Bool = false) {
+    func scan(longScan: Bool = false) {
         if centralManager.state == .poweredOn && !centralManager.isScanning {
             pairedDeviceNames = Set(getPaired())
             centralManager.scanForPeripherals(withServices: nil, options: nil)
