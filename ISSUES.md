@@ -6,25 +6,25 @@ The goal is to simplify AirBattery without materially changing its user-visible 
 
 ## P0 — Architecture and ownership
 
-### [ ] 1. Periodic application work is owned by SwiftUI views
+### [x] 1. Periodic application work is owned by SwiftUI views
 
 `MultiBatteryView` currently drives battery alerts, widget refreshes, iDevice scans, snapshot writes, Nearcast broadcasts, and Dock refreshes through global Combine timer publishers. A rendering view should not be responsible for application scheduling.
 
 **Fix:** Introduce a single application-owned monitoring/scheduling coordinator. Views render observable state; the coordinator owns periodic work and can restart interval-dependent schedules when settings change.
 
-### [ ] 2. Settings persistence is scattered across UI and service code
+### [x] 2. Settings persistence is scattered across UI and service code
 
 `@AppStorage` is used directly in views, `AppDelegate`, Bluetooth scanners, Nearcast, log reading, and free functions. This couples otherwise non-UI code to SwiftUI and hides dependencies. Several arrays are also read from `UserDefaults` with force casts.
 
 **Fix:** Introduce typed settings/defaults access. Keep `@AppStorage` only where a direct SwiftUI binding is useful; services and functions should use the typed settings/defaults API. Remove force-cast defaults reads.
 
-### [ ] 3. Application lifecycle code has too many responsibilities
+### [x] 3. Application lifecycle code has too many responsibilities
 
 `AirBatteryApp.swift` currently owns application lifecycle, status-item setup, status-menu rebuilding, Dock-window geometry, URL handling, notification handling, login-item behavior, pinned status items, and several global services.
 
 **Fix:** Extract coherent controllers/services, especially status-bar and Dock-surface management. Keep `AppDelegate` as a thin lifecycle adapter.
 
-### [ ] 4. Surface selection side effects are duplicated
+### [x] 4. Surface selection side effects are duplicated
 
 Startup and `DisplayView.applySurfaceSelection` separately manipulate the status item, pinned items, Dock activation policy, and user notifications.
 
@@ -32,43 +32,43 @@ Startup and `DisplayView.applySurfaceSelection` separately manipulate the status
 
 ## P1 — macOS GUI modernization
 
-### [ ] 5. The main status item repeatedly recreates its hosting view
+### [x] 5. The main status item repeatedly recreates its hosting view
 
 `setStatusBar(width:)` removes all status-button subviews and creates a fresh `NSHostingView<mainBatteryView>` whenever the width changes. The SwiftUI view itself also polls every second.
 
 **Fix:** Create the status-item host once. Drive it from observable state and change only `NSStatusItem.length` when layout requires a different width.
 
-### [ ] 6. Menu and Dock-popover heights are manually reconstructed
+### [x] 6. Menu and Dock-popover heights are manually reconstructed
 
 Status-menu and Dock-popover sizing duplicate row-count logic and use several magic constants for local rows, AirPods rows, hidden rows, toolbar height, and Nearcast sections.
 
 **Fix:** Let the hosted SwiftUI hierarchy report/fits its size and use that measurement instead of reconstructing the layout externally.
 
-### [ ] 7. Settings controls reimplement native macOS form behavior
+### [x] 7. Settings controls reimplement native macOS form behavior
 
 `GroupForm.swift` defines `SForm`, `SGroupBox`, `SButton`, `SField`, `SPicker`, `SToggle`, and `SSteper`. Several wrappers manually scale and position native controls.
 
 **Fix:** Prefer native `Form`, `Section`, `LabeledContent`, `Toggle`, `Picker`, `TextField`, and `Stepper`. Retain only genuinely useful small helpers such as an information button.
 
-### [ ] 8. Settings window ownership is duplicated
+### [ ] 8. Settings window ownership is duplicated — deferred for macOS 15 compatibility
 
 The app declares a native SwiftUI `Settings` scene but then overrides the Settings command and presents a separately constructed `NSWindow` through `SettingsWindowController`.
 
-**Fix:** Prefer the native Settings scene with explicit default/minimum sizing and resizability. Keep a small AppKit bridge only if opening the native settings scene from the status-menu host cannot be made reliable on macOS 15/26/27.
+**Resolution:** Keep the small `SettingsWindowController` bridge for now. AirBattery must open Settings from AppKit/Dock callbacks as well as SwiftUI, and the fully native imperative settings-opening API is not available across the supported macOS 15/26/27 range. The bridge now has a single responsibility and uses the same `SettingsView` as the SwiftUI scene. Revisit when macOS 15 support is dropped.
 
-### [ ] 9. Local-device and Nearcast rows duplicate interaction logic
+### [x] 9. Local-device and Nearcast rows duplicate interaction logic
 
 Alert editing, pin/unpin, copy actions, hover state, battery rendering, and row chrome are separately implemented for local and Nearcast devices.
 
 **Fix:** Reuse a common logical-device row/action component and parameterize the few source-specific differences.
 
-### [ ] 10. `DevicesView` performs inventory aggregation inside the SwiftUI view
+### [x] 10. `DevicesView` performs inventory aggregation inside the SwiftUI view
 
 The view repeatedly merges built-in, BLE, iDevice, Nearcast, and current-device data in a large computed property. It mutates a dummy refresh date from a global timer to trigger recomputation.
 
 **Fix:** Move inventory aggregation into an observable inventory model/service. The view should consume ready-to-render snapshots.
 
-### [ ] 11. Large source files obscure boundaries
+### [x] 11. Large source files obscure boundaries
 
 `SettingsView.swift`, `ContentView.swift`, `SurfaceRenderers.swift`, `AirBatteryApp.swift`, and `Supports.swift` each combine several unrelated responsibilities.
 
@@ -76,25 +76,25 @@ The view repeatedly merges built-in, BLE, iDevice, Nearcast, and current-device 
 
 ## P1 — Platform integration
 
-### [ ] 12. Launch at login retains a legacy helper application
+### [x] 12. Launch at login retains a legacy helper application
 
 `AirBatteryHelper.app` exists only to relaunch the containing application. The main application already uses ServiceManagement.
 
 **Fix:** Use `SMAppService.mainApp` as the login item and remove the helper target, helper sources/entitlements, copy phase, helper-process status detection, and helper-specific signing/install logic.
 
-### [ ] 13. App/widget data sharing relies on another target's sandbox path
+### [x] 13. App/widget data sharing relies on another target's sandbox path
 
 The main app and command-line tool construct paths under `~/Library/Containers/<widget-bundle-id>/Data/Documents` directly.
 
 **Fix:** Use an App Group shared container for widget snapshots and Nearcast files, with a one-time migration/fallback for existing data.
 
-### [ ] 14. Widget rendering depends on whether the host process is currently running
+### [x] 14. Widget rendering depends on whether the host process is currently running
 
 Widget providers inspect `NSWorkspace.shared.runningApplications` and refuse normal rendering when AirBattery is not currently running.
 
 **Fix:** Treat stored snapshots as the widget's data contract. If stale/running state remains useful, persist an explicit heartbeat/update timestamp rather than inspecting processes.
 
-### [ ] 15. Appearance monitoring observes the wrong notification
+### [x] 15. Appearance monitoring observes the wrong notification
 
 `AppearanceMonitor` listens for `NSWorkspace.accessibilityDisplayOptionsDidChangeNotification`, which is about accessibility display settings rather than normal light/dark appearance changes.
 
@@ -102,35 +102,39 @@ Widget providers inspect `NSWorkspace.shared.runningApplications` and refuse nor
 
 ## P2 — API and implementation cleanup
 
-### [ ] 16. Deprecated AppKit/SwiftUI/Foundation APIs remain
+### [x] 16. Deprecated AppKit/SwiftUI/Foundation APIs remain
 
 The code contains deprecated `NSApplication.activate(ignoringOtherApps:)`, one-argument `onChange(of:perform:)`, `Process.launchPath`, and `Process.launch()` usage.
 
 **Fix:** Use current APIs without changing semantics.
 
-### [ ] 17. Background work uses a mixture of legacy concurrency mechanisms
+### [x] 17. Background work uses a mixture of legacy concurrency mechanisms
 
 `Thread.detachNewThread`, selector-based timers, `DispatchQueue`, locks, and Swift tasks coexist.
 
 **Fix:** After ownership is clear, use structured concurrency/actors where it materially simplifies the implementation. Do not perform a broad concurrency rewrite solely for style.
 
-### [ ] 18. Project language mode is still Swift 5
+### [ ] 18. Project language mode is still Swift 5 — separate hardening task
 
 The Xcode project declares `SWIFT_VERSION = 5.0` for its Swift targets.
 
-**Fix:** Treat Swift 6 language-mode migration as a separate hardening step after state/concurrency ownership is simplified. It is not required for the GUI simplification itself.
+**Resolution:** Intentionally left as a separate hardening task. This refactor removes the principal timer/thread ownership problems first; changing language mode at the same time would turn a behavior-preserving GUI simplification into a concurrency migration.
 
-### [ ] 19. Small redundant compatibility/dead-code fragments remain
+### [x] 19. Small redundant compatibility/dead-code fragments remain
 
 Examples include a macOS 26 branch that repeats the already-applied transparent-window settings and commented-out legacy implementation fragments.
 
 **Fix:** Remove redundant branches and obsolete commented code when touched.
 
-### [ ] 20. Several global singletons and mutable globals are implicit dependencies
+### [x] 20. Several global singletons and mutable globals are implicit dependencies
 
 Examples include `statusBarItem`, `pinnedItems`, `dockWindow`, `netcastService`, scan services, timers, `ud`, and `fd`.
 
 **Fix:** Reduce mutable globals by making ownership explicit in application-level controllers/services. Stable immutable process-wide utilities may remain global where doing so is simpler.
+
+## Implementation status
+
+The checked items have been implemented on `simplify-modern-macos-ui`. Items 8 and 18 remain intentionally open because completing them now would either reduce supported-platform reliability (8) or materially broaden the scope into a Swift 6 concurrency migration (18).
 
 ## Explicit non-issues / design decisions to retain
 
