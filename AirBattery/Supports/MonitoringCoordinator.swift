@@ -34,6 +34,9 @@ final class MonitoringCoordinator: ObservableObject {
                 refeshPinnedBar()
                 self?.fiveSecondTick = Date()
             },
+            makeTimer(every: 30) {
+                AirBatteryModel.touchHeartbeat()
+            },
             makeTimer(every: 300) {
                 batteryAlert()
             },
