@@ -9,19 +9,16 @@ import Foundation
 import IOBluetooth
 
 class BTDBattery {
-    var scanTimer: Timer?
     static var allDevices = [String]()
     var readBTHID: Bool { AppPreferences.readBTHID }
     
     func startScan() {
-        let interval = TimeInterval(59 * updateInterval)
-        scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
         print("ℹ️ Start scanning Bluetooth HID devices...")
         scanDevices(longScan: true)
     }
-    
-    @objc func scanDevices(longScan: Bool = false) {
-        Thread.detachNewThread {
+
+    func scanDevices(longScan: Bool = false) {
+        DispatchQueue.global(qos: .utility).async {
             if self.readBTHID {
                 if longScan { BTDBattery.getOtherDevice(last: "2h", timeout: 25) }
                 let connects = BTDBattery.getConnected()
@@ -47,7 +44,7 @@ class BTDBattery {
     }
     
     static func getOtherDevice(last: String = "10m", timeout: Int = 0) {
-        let parent = ud.string(forKey: "deviceName") ?? "Mac"
+        let parent = AppPreferences.deviceName
         guard let result = process(path: "/bin/bash", arguments: ["\(Bundle.main.resourcePath!)/logReader.sh", "mac", last], timeout: timeout) else { return }
         let connected = getConnected(mac: true)
         var list = [[String : Any]]()
