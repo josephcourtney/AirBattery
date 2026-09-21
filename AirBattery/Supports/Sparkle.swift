@@ -51,13 +51,13 @@ struct UpdaterSettingsView: View {
     
     var body: some View {
         SToggle("Automatically check for updates", isOn: $automaticallyChecksForUpdates)
-            .onChange(of: automaticallyChecksForUpdates) { newValue in
+            .onChange(of: automaticallyChecksForUpdates) { _, newValue in
                 updater.automaticallyChecksForUpdates = newValue
             }
         Divider().opacity(0.5)
         SToggle("Automatically download updates", isOn: $automaticallyDownloadsUpdates)
             .disabled(!automaticallyChecksForUpdates)
-            .onChange(of: automaticallyDownloadsUpdates) { newValue in
+            .onChange(of: automaticallyDownloadsUpdates) { _, newValue in
                 updater.automaticallyDownloadsUpdates = newValue
             }
     }
