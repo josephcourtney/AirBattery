@@ -318,6 +318,8 @@ struct DevicesView: View {
     @ObservedObject private var iDeviceBattery = IDeviceBattery.shared
     @State private var expandedKnown: Set<String> = []
     @State private var expandedNearby: Set<String> = []
+    @State private var technicalExpandedKnown: Set<String> = []
+    @State private var technicalExpandedNearby: Set<String> = []
     @State private var showOtherNearby = false
     @State private var refreshDate = Date()
     @AppStorage("twsMergeEnabled") private var twsMergeEnabled = true
@@ -469,7 +471,7 @@ struct DevicesView: View {
             guard var snapshot = inventory[key] else { continue }
 
             let idCandidates = iDeviceBattery.discoveryCandidates.filter { candidate in
-                snapshot.devices.contains(where: { $0.deviceID == candidate.identifier }) ||
+                snapshot.devices.contains(where: { $0.matchesIdentifier(candidate.identifier) }) ||
                 candidate.name.map { inventoryKey($0) == inventoryKey(snapshot.name) } == true ||
                 snapshot.devices.contains(where: { device in
                     !device.parentName.isEmpty &&
@@ -523,7 +525,12 @@ struct DevicesView: View {
     private func nearbyIDeviceCandidates(
         known: [KnownDeviceSnapshot]
     ) -> [IDeviceDiscoveryCandidate] {
-        let knownIDs = Set(known.flatMap(\.devices).map(\.deviceID))
+        let knownIDs = Set(
+            known.flatMap(\.devices).flatMap { device in
+                [device.deviceID, device.mobileDeviceID, device.bleDeviceID]
+                    .compactMap { $0 }
+            }
+        )
         let knownNames = Set(known.map { inventoryKey($0.name) })
         return iDeviceBattery.discoveryCandidates
             .filter {
