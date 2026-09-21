@@ -92,20 +92,20 @@ enum BLEDiscoveryMode: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .passive: return "Observe unless allowed"
-        case .review: return "Suggest before probing"
-        case .automatic: return "Automatically probe"
+        case .passive: return "Observe only"
+        case .review: return "Ask before querying"
+        case .automatic: return "Query automatically"
         }
     }
 
     var detail: String {
         switch self {
         case .passive:
-            return "Unknown devices remain passive. Only devices explicitly set to Allow may be queried."
+            return "AirBattery observes unknown devices without connecting. Only devices explicitly allowed for battery queries may be contacted."
         case .review:
-            return "Unknown devices remain passive. AirBattery highlights stable candidates for you to review and allow."
+            return "AirBattery observes unknown devices and suggests likely battery devices in Devices. It connects only after you allow battery queries."
         case .automatic:
-            return "AirBattery may connect to newly discovered BLE devices automatically. Failed probes are not retried this launch."
+            return "AirBattery may connect to promising newly discovered BLE devices automatically when a battery query is needed."
         }
     }
 }
@@ -117,8 +117,8 @@ enum BLEDevicePolicy: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .allow: return "Allow"
-        case .observe: return "Observe only"
+        case .allow: return "Allow queries"
+        case .observe: return "Passive only"
         case .ignore: return "Ignore"
         }
     }
