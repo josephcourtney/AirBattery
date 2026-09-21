@@ -1213,22 +1213,42 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     private var diameter: CGFloat {
-        family == .large ? 72 : 58
+        switch family {
+        case .small:
+            if showPercentages && showLabels { return 46 }
+            if showPercentages || showLabels { return 52 }
+            return 58
+        case .medium:
+            if showPercentages && showLabels { return 44 }
+            if showPercentages || showLabels { return 50 }
+            return 58
+        case .large:
+            if showPercentages && showLabels { return 58 }
+            if showPercentages || showLabels { return 64 }
+            return 72
+        }
     }
 
     private var horizontalSpacing: CGFloat {
         switch family {
         case .small:
-            return 17
+            return showPercentages || showLabels ? 13 : 17
         case .medium:
-            return 18
+            return showPercentages || showLabels ? 14 : 18
         case .large:
-            return 12
+            return showPercentages || showLabels ? 10 : 12
         }
     }
 
     private var verticalSpacing: CGFloat {
-        family == .large ? 18 : 14
+        switch family {
+        case .small:
+            return showPercentages && showLabels ? 5 : 9
+        case .medium:
+            return showPercentages && showLabels ? 5 : 9
+        case .large:
+            return showPercentages && showLabels ? 14 : 18
+        }
     }
 
     var body: some View {
@@ -1238,6 +1258,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
                 overviewRow(start: columns)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -1269,23 +1290,56 @@ private struct OverviewRingPlaceholder: View {
     let showPercentage: Bool
     let showLabel: Bool
 
+    private var lineWidth: CGFloat {
+        diameter >= 64 ? 7 : 6
+    }
+
     var body: some View {
-        VStack(spacing: 2) {
-            Circle()
-                .stroke(lineWidth: diameter >= 70 ? 7 : 6)
-                .frame(width: diameter, height: diameter)
-                .opacity(0.15)
+        VStack(spacing: annotationSpacing) {
+            Group {
+                if showPercentage {
+                    Circle()
+                        .trim(from: 0, to: 0.78)
+                        .rotationEffect(.degrees(129.6))
+                } else {
+                    Circle()
+                }
+            }
+            .stroke(
+                style: StrokeStyle(
+                    lineWidth: lineWidth,
+                    lineCap: .round,
+                    lineJoin: .round
+                )
+            )
+            .frame(width: diameter, height: diameter)
+            .opacity(0.15)
 
             if showPercentage {
                 Text(" ")
-                    .font(.system(size: diameter >= 70 ? 12 : 10))
+                    .font(percentageFont)
             }
 
             if showLabel {
                 Text(" ")
-                    .font(.system(size: diameter >= 70 ? 10 : 8))
+                    .font(labelFont)
             }
         }
+    }
+
+    private var annotationSpacing: CGFloat {
+        showPercentage ? 0 : 2
+    }
+
+    private var percentageFont: Font {
+        .system(
+            size: diameter >= 64 ? 12 : (diameter <= 46 ? 8.5 : 10),
+            weight: .medium
+        )
+    }
+
+    private var labelFont: Font {
+        .system(size: diameter >= 64 ? 10 : (diameter <= 46 ? 7 : 8))
     }
 }
 
@@ -1296,20 +1350,36 @@ private struct OverviewRingCell: View {
     let showLabel: Bool
 
     private var lineWidth: CGFloat {
-        diameter >= 70 ? 7 : 6
+        diameter >= 64 ? 7 : 6
+    }
+
+    private var ringFraction: Double {
+        showPercentage ? 0.78 : 1
+    }
+
+    private var ringRotation: Double {
+        showPercentage ? 129.6 : 270
     }
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: annotationSpacing) {
             ZStack {
                 Circle()
-                    .stroke(lineWidth: lineWidth)
+                    .trim(from: 0, to: ringFraction)
+                    .stroke(
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
                     .opacity(0.15)
+                    .rotationEffect(.degrees(ringRotation))
 
                 Circle()
                     .trim(
                         from: 0,
-                        to: Double(item.batteryLevel) / 100
+                        to: Double(item.batteryLevel) / 100 * ringFraction
                     )
                     .stroke(
                         Color(getPowerColor(item)),
@@ -1319,7 +1389,7 @@ private struct OverviewRingCell: View {
                             lineJoin: .round
                         )
                     )
-                    .rotationEffect(.degrees(270))
+                    .rotationEffect(.degrees(ringRotation))
 
                 Image(getDeviceIcon(item))
                     .resizable()
@@ -1361,22 +1431,13 @@ private struct OverviewRingCell: View {
                             .font(.system(size: 7, weight: .bold))
                     }
                 }
-                .font(
-                    .system(
-                        size: diameter >= 70 ? 12 : 10,
-                        weight: .medium
-                    )
-                )
+                .font(percentageFont)
                 .fixedSize()
             }
 
             if showLabel {
                 Text(shortLabel)
-                    .font(
-                        .system(
-                            size: diameter >= 70 ? 10 : 8
-                        )
-                    )
+                    .font(labelFont)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -1385,6 +1446,21 @@ private struct OverviewRingCell: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var annotationSpacing: CGFloat {
+        showPercentage ? 0 : 2
+    }
+
+    private var percentageFont: Font {
+        .system(
+            size: diameter >= 64 ? 12 : (diameter <= 46 ? 8.5 : 10),
+            weight: .medium
+        )
+    }
+
+    private var labelFont: Font {
+        .system(size: diameter >= 64 ? 10 : (diameter <= 46 ? 7 : 8))
     }
 
     private var shortLabel: String {
