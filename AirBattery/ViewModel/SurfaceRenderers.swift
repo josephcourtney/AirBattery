@@ -791,14 +791,14 @@ struct WidgetBatteryRingsSurfaceContent: View {
 }
 
 
-enum WidgetRingPreviewFamily {
+enum WidgetRingFamily {
     case small
     case medium
 }
 
 struct WidgetBatteryListRingsSurfaceContent: View {
     let devices: [Device]
-    let family: WidgetRingPreviewFamily
+    let family: WidgetRingFamily
 
     private var items: [Device] {
         Array(devices.filter(\.hasBattery).prefix(family == .small ? 4 : 4))
@@ -839,7 +839,7 @@ struct WidgetBatteryListRingsSurfaceContent: View {
 }
 
 private struct BatteryListRingPlaceholder: View {
-    let family: WidgetRingPreviewFamily
+    let family: WidgetRingFamily
 
     var body: some View {
         VStack(spacing: family == .medium ? 17 : 0) {
@@ -874,7 +874,7 @@ private struct BatteryListRingPlaceholder: View {
 
 private struct BatteryListRingCell: View {
     let item: Device
-    let family: WidgetRingPreviewFamily
+    let family: WidgetRingFamily
 
     private let lineWidth = 6.0
 
@@ -981,7 +981,7 @@ private struct BatteryListRingCell: View {
 
 struct WidgetIconRingsSurfaceContent: View {
     let devices: [Device]
-    let family: WidgetRingPreviewFamily
+    let family: WidgetRingFamily
 
     private var items: [Device] {
         Array(devices.filter(\.hasBattery).prefix(family == .small ? 4 : 8))
