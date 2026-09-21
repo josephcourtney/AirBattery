@@ -546,10 +546,10 @@ struct popover: View {
                     fromDock: fromDock,
                     nearcastEnabled: nearCast,
                     onHide: {
-                        dockWindow.orderOut(nil)
+                        DockPopoverController.shared.hide()
                     },
                     onAbout: {
-                        dockWindow.orderOut(nil)
+                        DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
                         openAboutPanel()
                         DispatchQueue.main.asyncAfter(
@@ -559,7 +559,7 @@ struct popover: View {
                         }
                     },
                     onSettings: {
-                        dockWindow.orderOut(nil)
+                        DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
                         openSettingPanel()
                     },
@@ -579,7 +579,7 @@ struct popover: View {
                     onRefreshNearcast: {
                         netcastService.refeshAll()
                         if fromDock {
-                            dockWindow.orderOut(nil)
+                            DockPopoverController.shared.hide()
                         } else {
                             DispatchQueue.main.asyncAfter(
                                 deadline: .now() + 0.5
@@ -958,7 +958,7 @@ func openAboutPanel() {
 }
 
 func openSettingPanel() {
-    dockWindow.orderOut(nil)
+    DockPopoverController.shared.hide()
     Task { @MainActor in
         SettingsWindowController.shared.present()
     }
