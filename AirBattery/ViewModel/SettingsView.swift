@@ -1891,6 +1891,116 @@ private struct DisplaySurfacePreview: View {
     }
 }
 
+struct NameRulesEditor: View {
+    @AppStorage("whitelistMode") private var whitelistMode = false
+    @State private var names: [String] = []
+    @State private var newName = ""
+    @State private var showAddSheet = false
+    @State private var expanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 9) {
+                Picker("Devices matching these names", selection: $whitelistMode) {
+                    Text("Ignore").tag(false)
+                    Text("Allow only these").tag(true)
+                }
+                .pickerStyle(.segmented)
+
+                Text(
+                    whitelistMode
+                        ? "Only devices with one of these names pass the broad name filter."
+                        : "Devices with one of these names are excluded from discovery and display."
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                if names.isEmpty {
+                    Text("No name rules.")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(names, id: \.self) { name in
+                        HStack {
+                            Text(name)
+                            Spacer()
+                            Button {
+                                names.removeAll(where: { $0 == name })
+                            } label: {
+                                Image(systemName: "minus.circle")
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove name rule")
+                            .accessibilityLabel("Remove name rule \(name)")
+                        }
+                    }
+                }
+
+                Button {
+                    showAddSheet = true
+                } label: {
+                    Label("Add name rule", systemImage: "plus")
+                        .frame(minHeight: 28)
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showAddSheet) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Add Name Rule")
+                            .font(.headline)
+                        TextField("Device name", text: $newName)
+                            .frame(width: 320)
+                        HStack {
+                            Spacer()
+                            Button("Cancel") {
+                                newName = ""
+                                showAddSheet = false
+                            }
+                            Button("Add") {
+                                let trimmed = newName.trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                )
+                                guard !trimmed.isEmpty else { return }
+                                if !names.contains(trimmed) {
+                                    names.append(trimmed)
+                                }
+                                names.sort {
+                                    $0.localizedCaseInsensitiveCompare($1) ==
+                                        .orderedAscending
+                                }
+                                newName = ""
+                                showAddSheet = false
+                            }
+                            .keyboardShortcut(.defaultAction)
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .padding(.top, 7)
+        } label: {
+            HStack {
+                Text("Name rules")
+                Spacer()
+                Text("\(names.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(minHeight: 28)
+        }
+        .onAppear {
+            names = (ud.object(forKey: "blockedDevices") as? [String]) ?? []
+            names.sort {
+                $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+            }
+        }
+        .onChange(of: names) { value in
+            ud.setValue(value, forKey: "blockedDevices")
+        }
+    }
+}
+
 struct DebugView: View {
     @AppStorage("test_debug") var test_debug = false
     @AppStorage("test_hasib") var test_hasib = false
