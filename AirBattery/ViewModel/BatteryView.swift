@@ -102,6 +102,7 @@ struct mainBatteryView: View {
     }
 }
 
+@MainActor
 func setStatusBar(width: Double) {
     StatusBarController.shared.setLength(CGFloat(width))
 }
