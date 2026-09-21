@@ -63,6 +63,7 @@
 		18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */; };
 		18F0B0222F70000100AB0001 /* SurfaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */; };
 		18F0B0312F80000100AB0001 /* MonitoringCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */; };
+		18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -159,6 +160,7 @@
 		18F0B0032F6F000100AB0001 /* CoreLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLogicTests.swift; sourceTree = "<group>"; };
 		18F0B0062F6F000100AB0001 /* AirBatteryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AirBatteryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitoringCoordinator.swift; sourceTree = "<group>"; };
+		18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInventoryModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -311,6 +313,7 @@
 			isa = PBXGroup;
 			children = (
 				1841D4502AA6071C0022A1BE /* ContentView.swift */,
+				18F0B0332F80000100AB0001 /* DeviceInventoryModel.swift */,
 				18F0B0202F70000100AB0001 /* SurfaceRenderers.swift */,
 				18347DCD2B88417500A78DF6 /* BatteryView.swift */,
 				1819E94B2CC2A8C2007B95E9 /* BatteryAlertView.swift */,
@@ -532,6 +535,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				18F0B0022F6F000100AB0001 /* CoreLogic.swift in Sources */,
+				18F0B0342F80000100AB0001 /* DeviceInventoryModel.swift in Sources */,
 				18F0B0312F80000100AB0001 /* MonitoringCoordinator.swift in Sources */,
 				1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */,
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
