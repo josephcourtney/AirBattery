@@ -324,10 +324,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
      
+    @MainActor
     @objc func openAbout() {
         openAboutPanel()
     }
     
+    @MainActor
     @objc func openSetting() {
         openSettingPanel()
     }
