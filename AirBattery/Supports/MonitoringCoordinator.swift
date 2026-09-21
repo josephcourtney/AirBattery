@@ -91,7 +91,7 @@ final class MonitoringCoordinator: ObservableObject {
                 self?.sendNearcastSnapshotIfNeeded()
             },
             makeTimer(every: TimeInterval(60 * interval)) {
-                if UserDefaults.standard.integer(forKey: "widgetInterval") != -1 {
+                if AppPreferences.widgetInterval != -1 {
                     WidgetCenter.shared.reloadAllTimelines()
                 }
             },
