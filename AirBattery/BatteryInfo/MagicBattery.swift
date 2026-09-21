@@ -25,7 +25,6 @@ class MagicBattery {
     static var shared: MagicBattery = MagicBattery()
     
     var readBTDevice: Bool { AppPreferences.readBTDevice }
-    var updateInterval: Int { AppPreferences.updateInterval }
     var deviceName: String { AppPreferences.deviceName }
     
     func startScan() {
