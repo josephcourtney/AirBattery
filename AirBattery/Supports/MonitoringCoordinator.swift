@@ -63,6 +63,12 @@ final class MonitoringCoordinator: ObservableObject {
         let nearcastJitter = Int.random(in: -9...9)
 
         configuredTimers = [
+            makeTimer(every: TimeInterval(29 * interval)) {
+                bleBattery.scan()
+            },
+            makeTimer(every: TimeInterval(59 * interval)) {
+                btdBattery.scanDevices()
+            },
             makeTimer(every: TimeInterval(24 * interval)) {
                 SPBluetoothDataModel.shared.refeshData(
                     completion: { _ in
