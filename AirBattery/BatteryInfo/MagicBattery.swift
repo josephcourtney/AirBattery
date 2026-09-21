@@ -316,7 +316,6 @@ class MagicBattery {
     }
     
     func getOtherBTBattery() {
-        //guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) else { return }
         if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
         let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
         let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
