@@ -542,6 +542,9 @@ struct popover: View {
                     },
                     onAbout: {
                         dockWindow.orderOut(nil)
+                        if !fromDock {
+                            dismissMenuBarWindow()
+                        }
                         statusBarItem.menu?.cancelTracking()
                         openAboutPanel()
                         DispatchQueue.main.asyncAfter(
@@ -552,6 +555,9 @@ struct popover: View {
                     },
                     onSettings: {
                         dockWindow.orderOut(nil)
+                        if !fromDock {
+                            dismissMenuBarWindow()
+                        }
                         statusBarItem.menu?.cancelTracking()
                         openSettingPanel()
                     },
@@ -793,7 +799,7 @@ struct popover: View {
         .liquidGlassEffect(cornerRadius: fromDock ? 8 : 10, interactive: true, tint: .primary.opacity(0.04))
         .onAppear { allDevices = allDevice }
         .onReceive(mainTimer) { t in
-            if !fromDock && menuPopover.isShown {
+            if !fromDock && menuBarWindow?.isVisible == true {
                 allDevices = AirBatteryModel.getAll()
                 hiddenDevices = AirBatteryModel.getBlackList()
                 hidden = [Int]()
