@@ -10,7 +10,6 @@ import Foundation
 class IDeviceBattery: ObservableObject {
     static var shared: IDeviceBattery = IDeviceBattery()
     
-    //var scanTimer: Timer?
     var readPencil: Bool { AppPreferences.readPencil }
     var readIDevice: Bool { AppPreferences.readIDevice }
     var updateInterval: Int { AppPreferences.updateInterval }
@@ -62,16 +61,14 @@ class IDeviceBattery: ObservableObject {
     }
 
     func startScan() {
-        //let interval = TimeInterval(5.0)
-        //scanTimer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(scanDevices), userInfo: nil, repeats: true)
         print("ℹ️ Start scanning iDevice devices...")
         scanDevices()
     }
-    
-    @objc func scanDevices() {
+
+    func scanDevices() {
         guard scanGate.tryBegin() else { return }
 
-        Thread.detachNewThread {
+        DispatchQueue.global(qos: .utility).async {
             defer { self.scanGate.end() }
 
             if !self.readIDevice { return }
@@ -81,7 +78,7 @@ class IDeviceBattery: ObservableObject {
     
     func getPencil(d: Device, type: String = "") {
         if d.deviceType == "iPad" && readPencil {
-            Thread.detachNewThread {
+            DispatchQueue.global(qos: .utility).async {
                 if let result = process(path: "/bin/bash", arguments: ["\(Bundle.main.resourcePath!)/logReader.sh", "\(Bundle.main.resourcePath!)/libimobiledevice/bin/idevicesyslog", type, d.deviceID], timeout: 11 * self.updateInterval) {
                     if let json = try? JSONSerialization.jsonObject(with: Data(result.utf8), options: []) as? [String: Any] {
                         if let level = json["level"] as? Int, let model = json["model"] as? String, let vendor = json["vendor"] as? String {
