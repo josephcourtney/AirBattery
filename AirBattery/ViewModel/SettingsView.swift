@@ -134,56 +134,83 @@ struct DiscoveryView: View {
     var body: some View {
         ScrollView {
             SForm(noSpacer: true) {
-                SGroupBox(label: "Device Sources") {
-                    sourceHeading("Apple mobile devices")
-                    SToggle(
-                        "Network discovery",
-                        isOn: $readIDevice,
-                        tips: "Find trusted iPhone, iPad, Apple Watch, Vision Pro, and other Apple devices over the local network."
+                SGroupBox(label: "Apple Devices") {
+                    sourceIntro(
+                        "Network & USB",
+                        detail: "Reads trusted iPhone and iPad battery information through Apple’s device connection services. This path is also required to read a paired Apple Watch through an iPhone."
                     )
-                    Divider().opacity(0.5)
                     SToggle(
-                        "Bluetooth discovery",
-                        isOn: $ideviceOverBLE,
-                        tips: "Find supported iPhone and cellular iPad devices over Bluetooth. Active connections follow the policy below."
+                        "Use Network & USB",
+                        isOn: $readIDevice,
+                        tips: "Discover trusted Apple mobile devices through libimobiledevice over Wi-Fi or USB. Apple Watch companion data requires a live iPhone connection through this source."
                     )
 
-                    Divider().padding(.vertical, 3)
-                    sourceHeading("Bluetooth accessories")
-                    SToggle(
-                        "Paired and system-known devices",
-                        isOn: $readBTDevice,
-                        tips: "Read battery information exposed by macOS and passive Apple/Beats Bluetooth advertisements."
-                    )
                     Divider().opacity(0.5)
-                    SToggle(
-                        "Additional macOS Bluetooth devices",
-                        isOn: $readBTHID,
-                        tips: "Use macOS Bluetooth system information and logs to find additional third-party devices. Updates commonly occur after reconnect or wake."
+
+                    sourceIntro(
+                        "Bluetooth",
+                        detail: "Finds supported nearby iPhone and cellular iPad devices. Bluetooth can provide the mobile device battery, but it cannot retrieve a paired Apple Watch."
                     )
-                    Divider().opacity(0.5)
                     SToggle(
-                        "Nearby BLE advertisements",
-                        isOn: $readBLEDevice,
-                        tips: "Observe nearby BLE advertisements. Observation is passive; active battery queries follow the connection policy below."
+                        "Use Bluetooth",
+                        isOn: $ideviceOverBLE,
+                        tips: "Discover supported iPhone and cellular iPad devices over Bluetooth. Any active battery query follows the policy in Battery Queries below."
                     )
                 }
 
-                SGroupBox(label: "Active Connections") {
+                SGroupBox(label: "Bluetooth Accessories") {
+                    sourceIntro(
+                        "Paired accessories",
+                        detail: "Reads battery information already exposed by macOS and passive Apple/Beats battery broadcasts."
+                    )
+                    SToggle(
+                        "Paired accessories",
+                        isOn: $readBTDevice,
+                        tips: "Read battery information exposed by macOS and passive Apple/Beats Bluetooth advertisements."
+                    )
+
+                    Divider().opacity(0.5)
+
+                    sourceIntro(
+                        "Extended macOS discovery",
+                        detail: "Looks for additional accessories reported by macOS, especially after connect, reconnect, or wake."
+                    )
+                    SToggle(
+                        "Extended macOS discovery",
+                        isOn: $readBTHID,
+                        tips: "Use macOS Bluetooth system information and logs to find additional third-party devices. Updates commonly occur after reconnect or wake."
+                    )
+
+                    Divider().opacity(0.5)
+
+                    sourceIntro(
+                        "Nearby BLE devices",
+                        detail: "Passively observes nearby Bluetooth Low Energy devices that may provide battery information."
+                    )
+                    SToggle(
+                        "Nearby BLE devices",
+                        isOn: $readBLEDevice,
+                        tips: "Observe nearby BLE advertisements. AirBattery connects only when the Battery Queries policy permits it."
+                    )
+                }
+
+                SGroupBox(label: "Battery Queries") {
                     SPicker(
                         "New BLE devices",
                         selection: $bleDiscoveryMode,
-                        tips: "Controls whether AirBattery may actively connect to a newly observed BLE device. Passive battery advertisements do not require a connection."
+                        tips: "Controls whether AirBattery may connect to a newly observed BLE device when it needs to read battery information."
                     ) {
                         ForEach(BLEDiscoveryMode.allCases, id: \.rawValue) { mode in
                             Text(mode.title).tag(mode.rawValue)
                         }
                     }
                     .disabled(!readBLEDevice && !ideviceOverBLE)
+
                     HStack {
                         Text(discoveryMode.detail)
                             .font(.footnote)
                             .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer()
                     }
                 }
@@ -198,13 +225,16 @@ struct DiscoveryView: View {
                             .padding(.vertical, 2)
                             .background(Capsule().fill(Color.secondary.opacity(0.12)))
                         Spacer()
-                        SInfoButton(tips: "Read the battery status of a connected Apple Pencil through your iPad. Initial discovery may take 10 minutes or longer and may increase iPad battery use.")
+                        SInfoButton(
+                            tips: "Read the battery status of a connected Apple Pencil through your iPad. Initial discovery may take 10 minutes or longer and may increase iPad battery use."
+                        )
                         Toggle("", isOn: $readPencil)
                             .toggleStyle(.switch)
                             .scaleEffect(0.7)
                             .frame(width: 32)
+                            .accessibilityLabel("Apple Pencil from iPad")
                     }
-                    .frame(height: 18)
+                    .frame(minHeight: 28)
                 }
 
                 SGroupBox(label: "Refresh & Retention") {
@@ -240,14 +270,18 @@ struct DiscoveryView: View {
     }
 
     @ViewBuilder
-    private func sourceHeading(_ title: String) -> some View {
-        HStack {
+    private func sourceIntro(_ title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption)
                 .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            Text(detail)
+                .font(.footnote)
                 .foregroundColor(.secondary)
-            Spacer()
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
