@@ -1639,6 +1639,8 @@ private struct DisplaySurfacePreview: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @State private var widgetPreviewPercentages = true
     @State private var widgetPreviewLabels = true
+    @State private var livePreviewDevices = [Device]()
+    @State private var livePreviewInternalBattery = InternalBattery.status
 
     private var previewColorScheme: ColorScheme {
         switch appearance {
@@ -1651,20 +1653,32 @@ private struct DisplaySurfacePreview: View {
         }
     }
 
+    private var previewDevices: [Device] {
+        livePreviewDevices.contains(where: \.hasBattery)
+            ? livePreviewDevices
+            : sampleDevices
+    }
+
+    private var previewInternalBattery: iBattery {
+        livePreviewInternalBattery.hasBattery
+            ? livePreviewInternalBattery
+            : sampleInternalBattery
+    }
+
     private var presentations: [LogicalDevicePresentation] {
         AirBatteryModel.logicalPresentations(
-            from: sampleDevices,
+            from: previewDevices,
             mergeEarbuds: mergeEarbuds,
             mergeThreshold: mergeThreshold
         )
     }
 
-    private var widgetStoredSampleDevices: [Device] {
+    private var widgetStoredPreviewDevices: [Device] {
         AirBatteryModel.widgetStoredDevices(
-            from: sampleDevices.filter {
+            from: previewDevices.filter {
                 $0.deviceID != "@MacInternalBattery"
             },
-            internalBattery: sampleDevices.first {
+            internalBattery: previewDevices.first {
                 $0.deviceID == "@MacInternalBattery"
             },
             reverse: reverseWidgetOrder
@@ -1684,8 +1698,14 @@ private struct DisplaySurfacePreview: View {
 
     private var widgetRingDevices: [Device] {
         AirBatteryModel.widgetPresentationOrder(
-            from: widgetStoredSampleDevices
+            from: widgetStoredPreviewDevices
         )
+    }
+
+    private var singleBatteryPreviewDevice: Device? {
+        widgetRingDevices.first {
+            $0.deviceID != "@MacInternalBattery"
+        } ?? widgetRingDevices.first
     }
 
     private let familyColumns = [
@@ -1701,7 +1721,7 @@ private struct DisplaySurfacePreview: View {
             previewSection("Menu Bar") {
                 HStack {
                     StatusBarBatteryContent(
-                        item: sampleInternalBattery,
+                        item: previewInternalBattery,
                         showMacBattery: menuBarShowsMac,
                         colorfulBattery: colorfulBattery,
                         iosBatteryStyle: iosBatteryStyle,
@@ -1717,6 +1737,8 @@ private struct DisplaySurfacePreview: View {
 
             previewSection("Popover") {
                 VStack(spacing: 0) {
+                    Color.clear.frame(height: 8.5)
+
                     PopoverToolbarSurfaceContent(
                         fromDock: false,
                         nearcastEnabled: false,
@@ -1741,6 +1763,10 @@ private struct DisplaySurfacePreview: View {
                         }
                     }
                     .padding(.horizontal, 6)
+                    .popoverDevicePanelSurface()
+                    .offset(y: 2.5)
+
+                    Color.clear.frame(height: 8.5)
                 }
                 .frame(width: 352)
                 .liquidGlassEffect(
@@ -1839,10 +1865,9 @@ private struct DisplaySurfacePreview: View {
                         family: .small
                     ) {
                         WidgetSingleBatterySurfaceContent(
-                            item: widgetRingDevices.first {
-                                $0.deviceType == "iPhone"
-                            },
-                            deviceName: "Joseph’s iPhone",
+                            item: singleBatteryPreviewDevice,
+                            deviceName:
+                                singleBatteryPreviewDevice?.deviceName ?? "",
                             warningText: "Right click to configure"
                         )
                     }
@@ -1852,6 +1877,22 @@ private struct DisplaySurfacePreview: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.colorScheme, previewColorScheme)
+        .onAppear {
+            refreshPreviewData()
+        }
+        .onReceive(mainTimer) { _ in
+            refreshPreviewData()
+        }
+    }
+
+    private func refreshPreviewData() {
+        let internalBattery = InternalBattery.status
+        var devices = AirBatteryModel.getAll()
+        if internalBattery.hasBattery {
+            devices.insert(ib2ab(internalBattery), at: 0)
+        }
+        livePreviewInternalBattery = internalBattery
+        livePreviewDevices = devices
     }
 
     @ViewBuilder
@@ -1879,19 +1920,6 @@ private struct DisplaySurfacePreview: View {
                 .fontWeight(.semibold)
 
             ZStack {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                    .overlay(
-                        RoundedRectangle(
-                            cornerRadius: 22,
-                            style: .continuous
-                        )
-                        .stroke(
-                            Color.secondary.opacity(0.22),
-                            lineWidth: 1
-                        )
-                    )
-
                 content()
                     .padding(family.hostPadding)
             }
@@ -1899,6 +1927,18 @@ private struct DisplaySurfacePreview: View {
                 width: family.size.width,
                 height: family.size.height,
                 alignment: .center
+            )
+            .liquidGlassPanel(
+                cornerRadius: 22,
+                interactive: false,
+                tint: .primary.opacity(0.01)
+            )
+            .shadow(
+                color: .black.opacity(
+                    previewColorScheme == .dark ? 0.16 : 0.07
+                ),
+                radius: 7,
+                y: 2
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
