@@ -55,7 +55,13 @@ struct widgetBundle: WidgetBundle {
     
     func widgets() -> some Widget {
         if #available(macOS 14, *) {
-            return WidgetBundleBuilder.buildBlock(batteryWidget(), batteryWidget2New(), batteryWidget2(), batteryWidget3())
+            return WidgetBundleBuilder.buildBlock(
+                BatteryOverviewWidget(),
+                batteryWidget2New(),
+                batteryWidget(),
+                batteryWidget2(),
+                batteryWidget3()
+            )
         } else {
             return WidgetBundleBuilder.buildBlock(batteryWidget(), batteryWidget2(), batteryWidget3())
         }
