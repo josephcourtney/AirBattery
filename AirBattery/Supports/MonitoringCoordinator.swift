@@ -1,5 +1,5 @@
-import AppKit
-import SwiftUI
+import Combine
+import Foundation
 import WidgetKit
 
 /// Owns AirBattery's periodic application work.
@@ -7,6 +7,7 @@ import WidgetKit
 /// SwiftUI surfaces subscribe only to the published display ticks. Device scans,
 /// alerts, widget snapshot writes, Nearcast broadcasts, and pinned-item refreshes
 /// are process-level work and live here rather than in rendering views.
+@MainActor
 final class MonitoringCoordinator: ObservableObject {
     static let shared = MonitoringCoordinator()
 
@@ -58,7 +59,7 @@ final class MonitoringCoordinator: ObservableObject {
         configuredTimers.forEach { $0.invalidate() }
         configuredTimers.removeAll()
 
-        let interval = max(1, ud.integer(forKey: "updateInterval"))
+        let interval = max(1, AppPreferences.updateInterval)
         let nearcastJitter = Int.random(in: -9...9)
 
         configuredTimers = [
@@ -81,7 +82,7 @@ final class MonitoringCoordinator: ObservableObject {
                 self?.sendNearcastSnapshotIfNeeded()
             },
             makeTimer(every: TimeInterval(60 * interval)) {
-                if ud.integer(forKey: "widgetInterval") != -1 {
+                if UserDefaults.standard.integer(forKey: "widgetInterval") != -1 {
                     WidgetCenter.shared.reloadAllTimelines()
                 }
             },
@@ -100,9 +101,9 @@ final class MonitoringCoordinator: ObservableObject {
     }
 
     private func sendNearcastSnapshotIfNeeded() {
-        guard ud.bool(forKey: "nearCast"),
-              let groupID = ud.string(forKey: "nearcastGroupID"),
-              let sharingKey = ud.string(forKey: "nearcastSharingKey"),
+        let groupID = AppPreferences.nearcastGroupID
+        let sharingKey = AppPreferences.nearcastSharingKey
+        guard AppPreferences.nearCast,
               isNearcastCredentialValid(
                   groupID: groupID,
                   sharingKey: sharingKey
@@ -129,7 +130,7 @@ final class MonitoringCoordinator: ObservableObject {
                 return
             }
 
-            let deviceName = ud.string(forKey: "deviceName") ?? "Mac"
+            let deviceName = AppPreferences.deviceName
             netcastService.sendMessage(
                 NCMessage(
                     id: groupID,
