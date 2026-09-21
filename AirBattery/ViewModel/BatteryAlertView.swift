@@ -171,8 +171,12 @@ struct AlertInputView: View {
     }
 }
 
-class AlertWindowController {
-    var window: NNSWindow?
+private final class BatteryAlertWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+}
+
+final class AlertWindowController {
+    var window: BatteryAlertWindow?
 
     func showAlert(with alert: btAlert, iconName: String, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
         // 创建 AlertInputView，传入可选的 btAlert 对象
@@ -187,7 +191,7 @@ class AlertWindowController {
         })
 
         // 创建窗口
-        let window = NNSWindow(contentViewController: NSHostingController(rootView: alertView))
+        let window = BatteryAlertWindow(contentViewController: NSHostingController(rootView: alertView))
         window.setContentSize(NSSize(width: 360, height: 334))
         window.title = "Create Battery Alert"
         window.styleMask = [.fullSizeContentView]
