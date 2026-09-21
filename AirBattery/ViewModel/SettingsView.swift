@@ -308,16 +308,14 @@ struct DiscoveryView: View {
                 }
 
                 SGroupBox(label: "Refresh & Retention") {
-                    VStack(spacing: 2) {
-                        SSteper("Refresh interval (min)", value: $updateInterval, min: 1, max: 99)
-                        if updateDelay != updateInterval {
-                            HStack {
-                                Text("Relaunch AirBattery to apply this change")
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                            }
-                        }
+                    SSteper(
+                        "Refresh interval (min)",
+                        value: $updateInterval,
+                        min: 1,
+                        max: 99
+                    )
+                    .onChange(of: updateInterval) { _, _ in
+                        MonitoringCoordinator.shared.updateIntervalDidChange()
                     }
                     Divider().opacity(0.5)
                     SPicker(
@@ -386,6 +384,7 @@ private struct KnownDeviceSnapshot: Identifiable {
 struct DevicesView: View {
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
     @ObservedObject private var iDeviceBattery = IDeviceBattery.shared
+    @ObservedObject private var monitoring = MonitoringCoordinator.shared
     @State private var expandedKnown: Set<String> = []
     @State private var expandedNearby: Set<String> = []
     @State private var technicalExpandedKnown: Set<String> = []
@@ -472,8 +471,8 @@ struct DevicesView: View {
 
             }
         }
-        .onReceive(dockTimer) { _ in
-            refreshDate = Date()
+        .onReceive(monitoring.$fiveSecondTick) { tick in
+            refreshDate = tick
         }
     }
 
@@ -1682,6 +1681,7 @@ private struct DisplaySurfacePreview: View {
     @State private var widgetPreviewLabels = true
     @State private var livePreviewDevices = [Device]()
     @State private var livePreviewInternalBattery = InternalBattery.status
+    @ObservedObject private var monitoring = MonitoringCoordinator.shared
 
     private var previewColorScheme: ColorScheme {
         switch appearance {
@@ -1921,7 +1921,7 @@ private struct DisplaySurfacePreview: View {
         .onAppear {
             refreshPreviewData()
         }
-        .onReceive(mainTimer) { _ in
+        .onReceive(monitoring.$secondTick) { _ in
             refreshPreviewData()
         }
     }
