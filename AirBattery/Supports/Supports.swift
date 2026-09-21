@@ -551,17 +551,13 @@ func decryptString(_ string: String, password: String) -> String? {
     }
 }
 
-private let nearcastV2GroupPrefix = "ncg-"
-private let nearcastV2KeyPrefix = "nck2-"
-private let nearcastSetupPrefix = "airbattery-nearcast"
-
 func generateNearcastCredentials() -> (groupID: String, sharingKey: String) {
-    let groupID = nearcastV2GroupPrefix + randomString(length: 16)
+    let groupID = NearcastCredentialFormat.groupPrefix + randomString(length: 16)
     let key = SymmetricKey(size: .bits256)
     let keyData = key.withUnsafeBytes { Data($0) }
     return (
         groupID,
-        nearcastV2KeyPrefix + keyData.base64EncodedString()
+        NearcastCredentialFormat.sharingKeyPrefix + keyData.base64EncodedString()
     )
 }
 
@@ -580,47 +576,20 @@ func migrateLegacyNearcastCredentialsIfNeeded() {
 }
 
 func isNearcastCredentialValid(groupID: String, sharingKey: String) -> Bool {
-    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
-        guard groupID.hasPrefix(nearcastV2GroupPrefix),
-              groupID.count == nearcastV2GroupPrefix.count + 16
-        else {
-            return false
-        }
-        let raw = String(sharingKey.dropFirst(nearcastV2KeyPrefix.count))
-        return Data(base64Encoded: raw)?.count == 32
-    }
-
-    return isGroudIDValid(id: sharingKey) &&
-        groupID == String(sharingKey.prefix(15))
+    NearcastCredentialFormat.isValid(groupID: groupID, sharingKey: sharingKey)
 }
 
 func nearcastSetupCode(groupID: String, sharingKey: String) -> String? {
-    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
-        return nil
-    }
-    return "\(nearcastSetupPrefix):\(groupID):\(sharingKey)"
+    NearcastCredentialFormat.setupCode(groupID: groupID, sharingKey: sharingKey)
 }
 
 func parseNearcastSetupCode(_ code: String) -> (groupID: String, sharingKey: String)? {
-    let parts = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        .split(separator: ":", omittingEmptySubsequences: false)
-    guard parts.count == 3,
-          String(parts[0]) == nearcastSetupPrefix
-    else {
-        return nil
-    }
-
-    let groupID = String(parts[1])
-    let sharingKey = String(parts[2])
-    guard isNearcastCredentialValid(groupID: groupID, sharingKey: sharingKey) else {
-        return nil
-    }
-    return (groupID, sharingKey)
+    NearcastCredentialFormat.parseSetupCode(code)
 }
 
 private func nearcastV2SymmetricKey(groupID: String, sharingKey: String) -> SymmetricKey? {
-    guard sharingKey.hasPrefix(nearcastV2KeyPrefix) else { return nil }
-    let encoded = String(sharingKey.dropFirst(nearcastV2KeyPrefix.count))
+    guard sharingKey.hasPrefix(NearcastCredentialFormat.sharingKeyPrefix) else { return nil }
+    let encoded = String(sharingKey.dropFirst(NearcastCredentialFormat.sharingKeyPrefix.count))
     guard let material = Data(base64Encoded: encoded) else { return nil }
 
     return HKDF<SHA256>.deriveKey(
@@ -640,7 +609,7 @@ func encryptNearcastString(
         return nil
     }
 
-    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
+    if sharingKey.hasPrefix(NearcastCredentialFormat.sharingKeyPrefix) {
         guard let key = nearcastV2SymmetricKey(groupID: groupID, sharingKey: sharingKey) else {
             return nil
         }
@@ -666,7 +635,7 @@ func decryptNearcastString(
         return nil
     }
 
-    if sharingKey.hasPrefix(nearcastV2KeyPrefix) {
+    if sharingKey.hasPrefix(NearcastCredentialFormat.sharingKeyPrefix) {
         guard let key = nearcastV2SymmetricKey(groupID: groupID, sharingKey: sharingKey),
               let data = Data(base64Encoded: string)
         else {
