@@ -17,12 +17,6 @@
 		1841D4782AA8DEF20022A1BE /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 1841D47A2AA8DEF20022A1BE /* Localizable.strings */; };
 		1841D47D2AAA20F80022A1BE /* InternalBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D47C2AAA20F80022A1BE /* InternalBattery.swift */; };
 		1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D4802AAA28880022A1BE /* SettingsView.swift */; };
-				18F0B0412F80000100AB0001 /* GeneralSettingsView.swift in Sources */,
-				18F0B0432F80000100AB0001 /* DiscoverySettingsView.swift in Sources */,
-				18F0B0452F80000100AB0001 /* DevicesSettingsView.swift in Sources */,
-				18F0B0472F80000100AB0001 /* NearcastSettingsView.swift in Sources */,
-				18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */,
-				18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */,
 		184ADEDA2DDB2C8A004791F0 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = 184ADED92DDB2C8A004791F0 /* ArgumentParser */; };
 		184ADEE52DDB49C2004791F0 /* AirBatteryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F615F82B76439300873AA4 /* AirBatteryModel.swift */; };
 		184ADEE62DDB49C7004791F0 /* InternalBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1841D47C2AAA20F80022A1BE /* InternalBattery.swift */; };
@@ -570,6 +564,12 @@
 				18F0B0372F80000100AB0001 /* StatusBarController.swift in Sources */,
 				18F0B0392F80000100AB0001 /* DockPopoverController.swift in Sources */,
 				1841D4812AAA28880022A1BE /* SettingsView.swift in Sources */,
+				18F0B0412F80000100AB0001 /* GeneralSettingsView.swift in Sources */,
+				18F0B0432F80000100AB0001 /* DiscoverySettingsView.swift in Sources */,
+				18F0B0452F80000100AB0001 /* DevicesSettingsView.swift in Sources */,
+				18F0B0472F80000100AB0001 /* NearcastSettingsView.swift in Sources */,
+				18F0B0492F80000100AB0001 /* DisplaySettingsView.swift in Sources */,
+				18F0B04B2F80000100AB0001 /* DebugSettingsView.swift in Sources */,
 				1841D4512AA6071C0022A1BE /* ContentView.swift in Sources */,
 				18F0B0212F70000100AB0001 /* SurfaceRenderers.swift in Sources */,
 				18F615F32B763DD800873AA4 /* BLEBattery.swift in Sources */,
