@@ -184,7 +184,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
                 "deviceName": "Mac",
                 "launchAtLogin": false,
                 "intBattOnStatusBar": true,
-                "deviceOnWidget": "",
                 "updateInterval": 1,
                 "widgetInterval": 0,
                 "hideLevel": 90,
@@ -259,7 +258,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotifi
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             AirBatteryModel.writeData()
-            _ = AirBatteryModel.singleDeviceName()
             WidgetCenter.shared.reloadAllTimelines()
         }
         
