@@ -9,7 +9,27 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SettingsWindowController: NSWindowController {
+func syncAirBatteryActivationPolicy(
+    surfaceSelection: String,
+    settingsVisible: Bool
+) {
+    let policy: NSApplication.ActivationPolicy
+    if settingsVisible {
+        policy = .regular
+    } else {
+        policy =
+            surfaceSelection == "dock" || surfaceSelection == "both"
+                ? .regular
+                : .accessory
+    }
+
+    if NSApp.activationPolicy() != policy {
+        NSApp.setActivationPolicy(policy)
+    }
+}
+
+@MainActor
+final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
     private init() {
@@ -37,6 +57,15 @@ final class SettingsWindowController: NSWindowController {
         window.setFrameAutosaveName("AirBatterySettingsWindow")
 
         super.init(window: window)
+        window.delegate = self
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        syncAirBatteryActivationPolicy(
+            surfaceSelection:
+                UserDefaults.standard.string(forKey: "showOn") ?? "sbar",
+            settingsVisible: false
+        )
     }
 
     @available(*, unavailable)
@@ -59,6 +88,11 @@ final class SettingsWindowController: NSWindowController {
         )
         window.standardWindowButton(.zoomButton)?.isEnabled = true
 
+        syncAirBatteryActivationPolicy(
+            surfaceSelection:
+                UserDefaults.standard.string(forKey: "showOn") ?? "sbar",
+            settingsVisible: true
+        )
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
