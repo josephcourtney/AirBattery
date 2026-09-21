@@ -53,23 +53,6 @@ class MultipeerService: ObservableObject {
                 case "trans":
                     print("Device received.")
                     return
-                    /*if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
-                        if let jsonData = jsonString.data(using: .utf8) {
-                            if let device = try? JSONDecoder().decode(btdDevice.self, from: jsonData) {
-                                let ret = BTTool.connect(mac: device.mac)
-                                if ret {
-                                    createNotification(title: "Device Connected".local,
-                                                       message: String(format: "%@ from %@".local, device.name, peer.name))
-                                } else {
-                                    if let message = self.createInfo(type: 254, title: "Connection Failed".local, info: String(format: "cannot connect to your device!".local, device.name), atta: device.mac) {
-                                        self.sendMessage(message, peerID: peer.id)
-                                    }
-                                }
-                            }
-                        } else {
-                            print("Failed to convert JSON string to Data.")
-                        }
-                    }*/
                 case "notify":
                     print("Info received.")
                     if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
