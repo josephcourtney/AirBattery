@@ -161,6 +161,10 @@ battery presentation, or the native mobile stack, exercise at least:
 - Battery Overview configuration: exercise all four combinations of Show
   Percentages and Show Labels and verify each placed widget updates without
   changing its family or device ordering;
+- Battery Overview ring geometry: percentage-enabled cells use the open/split
+  ring with the numeric value beneath it; percentage-disabled cells use a full
+  ring. Small/Medium annotation-heavy layouts must not clip, and Large uses a
+  balanced 3-column grid rather than stretching the Medium 4-column layout;
 - legacy widget compatibility: existing `widget.battery`,
   `widget.battery.part2`, and `widget.battery.part4` placements continue to
   render after upgrading, while the gallery marks them Legacy and recommends
