@@ -57,7 +57,8 @@ struct MultiBatteryView: View {
     @AppStorage("readBTHID") var readBTHID = true
     @AppStorage("deviceName") var deviceName = "Mac"
     @AppStorage("nearCast") var nearCast = false
-    @AppStorage("ncGroupID") var ncGroupID = ""
+    @AppStorage("nearcastGroupID") var nearcastGroupID = ""
+    @AppStorage("nearcastSharingKey") var nearcastSharingKey = ""
     
     @StateObject private var appearanceMonitor = AppearanceMonitor()
 
@@ -217,14 +218,26 @@ struct MultiBatteryView: View {
             })
         }
         .onReceive(nearCastTimer) {_ in
-            if nearCast && ncGroupID != ""{
+            if nearCast && isNearcastCredentialValid(
+                groupID: nearcastGroupID,
+                sharingKey: nearcastSharingKey
+            ) {
                 var allDevices = AirBatteryModel.getAll()
                 allDevices.insert(ib2ab(InternalBattery.status), at: 0)
                 do {
                     let jsonData = try JSONEncoder().encode(allDevices)
                     guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-                    guard let data = encryptString(jsonString, password: ncGroupID) else { return }
-                    let message = NCMessage(id: String(ncGroupID.prefix(15)), sender: systemUUID ?? deviceName, command: "", content: data)
+                    guard let data = encryptNearcastString(
+                        jsonString,
+                        groupID: nearcastGroupID,
+                        sharingKey: nearcastSharingKey
+                    ) else { return }
+                    let message = NCMessage(
+                        id: nearcastGroupID,
+                        sender: systemUUID ?? deviceName,
+                        command: "",
+                        content: data
+                    )
                     netcastService.sendMessage(message)
                 } catch {
                     print("Write JSON error：\(error)")
