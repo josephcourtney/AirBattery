@@ -221,33 +221,6 @@ struct BlurView: NSViewRepresentable {
     }
 }
 
-private struct PopoverToolbarButton: View {
-    let systemName: String
-    let help: String
-    var hoverColor: Color = .accentColor
-    var action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .regular))
-                .frame(width: 28, height: 28)
-                .foregroundColor(isHovered ? hoverColor : .secondary)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(isHovered ? hoverColor.opacity(0.12) : Color.clear)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help(help)
-        .accessibilityLabel(Text(help))
-        .onHover { isHovered = $0 }
-    }
-}
-
 struct popover: View {
     var fromDock: Bool = false
     var allDevice: [Device]
@@ -584,75 +557,68 @@ struct popover: View {
                             }
                         }
                 }
-                HStack(spacing: 2) {
-                    if fromDock {
-                        PopoverToolbarButton(
-                            systemName: "minus.circle",
-                            help: "Hide".local,
-                            hoverColor: .myYellow
-                        ) {
-                            dockWindow.orderOut(nil)
-                        }
-                    }
-
-                    PopoverToolbarButton(systemName: "info.circle", help: "About AirBattery".local) {
+                PopoverToolbarSurfaceContent(
+                    fromDock: fromDock,
+                    nearcastEnabled: nearCast,
+                    onHide: {
+                        dockWindow.orderOut(nil)
+                    },
+                    onAbout: {
                         dockWindow.orderOut(nil)
                         statusBarItem.menu?.cancelTracking()
                         openAboutPanel()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 0.2
+                        ) {
                             NSApp.activate(ignoringOtherApps: true)
                         }
-                    }
-
-                    PopoverToolbarButton(systemName: "gearshape", help: "Settings".local) {
+                    },
+                    onSettings: {
                         dockWindow.orderOut(nil)
                         statusBarItem.menu?.cancelTracking()
                         openSettingPanel()
-                    }
-
-                    Menu {
-                        Button("Quit AirBattery") {
+                    },
+                    onQuit: {
+                        let response = createAlert(
+                            level: .warning,
+                            title: "Quit AirBattery?",
+                            message:
+                                "AirBattery will stop monitoring device batteries until you launch it again.",
+                            button1: "Quit",
+                            button2: "Cancel"
+                        ).runModal()
+                        if response == .alertFirstButtonReturn {
                             NSApp.terminate(nil)
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("More")
-                    .accessibilityLabel("More AirBattery actions")
-
-                    Spacer()
-
-                    if nearCast {
-                        PopoverToolbarButton(
-                            systemName: "antenna.radiowaves.left.and.right.circle",
-                            help: "Refresh Nearcast".local
-                        ) {
-                            netcastService.refeshAll()
-                            if fromDock {
-                                dockWindow.orderOut(nil)
-                            } else {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    allDevices = AirBatteryModel.getAll()
-                                    let ibStatus = InternalBattery.status
-                                    if ibStatus.hasBattery {
-                                        allDevices.insert(ib2ab(ibStatus), at: 0)
-                                    }
-                                    allNearcast = getFiles(withExtension: "json", in: ncFolder)
+                    },
+                    onRefreshNearcast: {
+                        netcastService.refeshAll()
+                        if fromDock {
+                            dockWindow.orderOut(nil)
+                        } else {
+                            DispatchQueue.main.asyncAfter(
+                                deadline: .now() + 0.5
+                            ) {
+                                allDevices = AirBatteryModel.getAll()
+                                let ibStatus = InternalBattery.status
+                                if ibStatus.hasBattery {
+                                    allDevices.insert(
+                                        ib2ab(ibStatus),
+                                        at: 0
+                                    )
                                 }
+                                allNearcast = getFiles(
+                                    withExtension: "json",
+                                    in: ncFolder
+                                )
                             }
                         }
                     }
+                )
+                .onHover { _ in
+                    (overStack, overStack2) = (-1, -1)
                 }
-                .padding(.top, fromDock ? 8 : 6)
-                .padding(.bottom, 4)
-                .padding(.horizontal, 8)
-                .onHover{ hovering in (overStack, overStack2) = (-1, -1) }
+
                 VStack(alignment:.leading,spacing: 0) {
                     if allDevices.count < 1 && hiddenDevices.count < 1{
                         HStack{
