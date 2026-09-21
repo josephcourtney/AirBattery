@@ -5,6 +5,7 @@
 //  Created by Ryo on 2026/6/19.
 //
 
+import AppKit
 import SwiftUI
 import WidgetKit
 
@@ -12,9 +13,15 @@ private struct LiquidGlassEffectModifier<S: Shape>: ViewModifier {
     let shape: S
     let interactive: Bool
     let tint: Color?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder
     func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+                .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
+                .overlay(shape.stroke(Color.primary.opacity(0.18), lineWidth: 1))
+        } else {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             content
@@ -25,6 +32,7 @@ private struct LiquidGlassEffectModifier<S: Shape>: ViewModifier {
         #else
         content
         #endif
+        }
     }
 }
 
@@ -32,9 +40,15 @@ private struct LiquidGlassPanelModifier<S: Shape>: ViewModifier {
     let shape: S
     let interactive: Bool
     let tint: Color?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder
     func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+                .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
+                .overlay(shape.stroke(Color.primary.opacity(0.18), lineWidth: 1))
+        } else {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             content
@@ -45,6 +59,7 @@ private struct LiquidGlassPanelModifier<S: Shape>: ViewModifier {
         #else
         fallback(content: content)
         #endif
+        }
     }
 
     @ViewBuilder
