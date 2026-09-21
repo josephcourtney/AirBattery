@@ -155,10 +155,16 @@ battery presentation, or the native mobile stack, exercise at least:
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
 - renderer parity: compare Display previews against the live menu bar, popover,
-  Dock tile, and every supported widget family (Battery List Small/Medium/Large,
-  Single Battery Small, Battery Rings Medium/Large, and Battery Rings — Icons
-  Small/Medium) using the same fixture state; differences should be limited to
-  system host sizing, margins, chrome, and compositing;
+  Dock tile, Battery Overview Small/Medium/Large, and Single Battery Small using
+  the same fixture state; differences should be limited to system host sizing,
+  margins, chrome, and compositing;
+- Battery Overview configuration: exercise all four combinations of Show
+  Percentages and Show Labels and verify each placed widget updates without
+  changing its family or device ordering;
+- legacy widget compatibility: existing `widget.battery`,
+  `widget.battery.part2`, and `widget.battery.part4` placements continue to
+  render after upgrading, while the gallery marks them Legacy and recommends
+  Battery Overview for new placements;
 - Display preview host geometry: the Popover preview stays at the production
   352-point width; widget previews show a visible rounded host boundary, do not
   clip charging indicators or rings, and AirPods `Case/L/R` percentages never
