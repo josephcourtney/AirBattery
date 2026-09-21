@@ -21,8 +21,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.contentViewController = hostingController
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
-            width: .greatestFiniteMagnitude,
-            height: .greatestFiniteMagnitude
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
         )
         window.titlebarSeparatorStyle = .automatic
         window.tabbingMode = .disallowed
@@ -51,8 +51,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.styleMask.insert([.resizable, .fullSizeContentView])
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
-            width: .greatestFiniteMagnitude,
-            height: .greatestFiniteMagnitude
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
         )
         window.standardWindowButton(.zoomButton)?.isEnabled = true
 
