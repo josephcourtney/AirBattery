@@ -21,8 +21,23 @@ private struct BluetoothLogEntry: Decodable {
     }
 }
 
-final class BTDBattery {
-    static var allDevices = [String]()
+final class BTDBattery: Sendable {
+    private static let allDevicesLock = NSLock()
+    nonisolated(unsafe) private static var allDevices: [String] = []
+
+    private static func deviceNamesSnapshot() -> [String] {
+        allDevicesLock.lock()
+        defer { allDevicesLock.unlock() }
+        return allDevices
+    }
+
+    private static func recordDeviceName(_ name: String) {
+        allDevicesLock.lock()
+        defer { allDevicesLock.unlock() }
+        if !allDevices.contains(name) {
+            allDevices.append(name)
+        }
+    }
 
     var readBTHID: Bool { AppPreferences.readBTHID }
 
@@ -40,7 +55,7 @@ final class BTDBattery {
             }
 
             let connectedNames = Set(BTDBattery.getConnected())
-            for name in BTDBattery.allDevices where connectedNames.contains(name) {
+            for name in BTDBattery.deviceNamesSnapshot() where connectedNames.contains(name) {
                 guard var device = AirBatteryModel.getByName(name) else {
                     continue
                 }
@@ -118,9 +133,7 @@ final class BTDBattery {
             if entry.name.isEmpty {
                 entry.name = "\(entry.type) (\(entry.mac))"
             }
-            if !allDevices.contains(entry.name) {
-                allDevices.append(entry.name)
-            }
+            recordDeviceName(entry.name)
 
             AirBatteryModel.updateDevice(
                 Device(
