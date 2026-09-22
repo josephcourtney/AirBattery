@@ -721,7 +721,6 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    @ViewBuilder
     private func reviewMenu(_ candidate: BLEDiscoveryCandidate, suggested: Bool) -> some View {
         Menu {
             Button("Allow queries") {
@@ -954,8 +953,6 @@ struct DevicesView: View {
         return AirBatteryModel.airPodsGroup(for: representative, in: device.devices)
     }
 
-    @ViewBuilder
-    @ViewBuilder
     private func candidatePrimarySummary(_ candidate: BLEDiscoveryCandidate) -> String {
         var parts: [String] = []
         if candidate.hasPassiveBatteryData {
