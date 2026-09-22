@@ -1,7 +1,8 @@
 import Foundation
 
 // Serialized incremental log reader for Enhanced HID scans
-final class LogReader {
+// All mutable state and formatter access are serialized by the run gate.
+final class LogReader: @unchecked Sendable {
     static let shared = LogReader()
 
     var readBTHID: Bool { AppPreferences.readBTHID }
@@ -17,6 +18,15 @@ final class LogReader {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZZZ"
+        return f
+    }()
+    private let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds,
+            .withTimeZone,
+        ]
         return f
     }()
 
