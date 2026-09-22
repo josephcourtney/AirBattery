@@ -489,6 +489,10 @@ install-local configuration="Debug":
       fi; \
       /bin/rm -rf "$src"; \
       just stop-host; \
+      old_widget="$dst/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
+      if [[ -d "$old_widget" ]]; then \
+        /usr/bin/pluginkit -r "$old_widget" >/dev/null 2>&1 || true; \
+      fi; \
       if [[ -e "$dst" ]]; then /bin/mv "$dst" "$backup"; fi; \
       if ! /bin/mv "$stage" "$dst"; then \
         if [[ -e "$backup" && ! -e "$dst" ]]; then /bin/mv "$backup" "$dst"; fi; \
