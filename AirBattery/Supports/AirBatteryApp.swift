@@ -26,22 +26,9 @@ let systemUUID = getMacDeviceUUID()
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 
-private struct AirBatterySettingsScene: Scene {
-    var body: some Scene {
-        Settings {
-            SettingsView()
-        }
-        .windowResizability(.contentMinSize)
-    }
-}
-
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
-    private let settingsScene = NSHostingSceneRepresentation {
-        AirBatterySettingsScene()
-    }
-
     private var keepAliveActivity: NSObjectProtocol?
 
     static func main() {
@@ -127,7 +114,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationWillFinishLaunching(_ notification: Notification) {
         registerNotificationCategory()
 
-        NSApplication.shared.addSceneRepresentation(settingsScene)
         installMainMenuIfNeeded()
 
         // default defaults (used if not set)
@@ -415,12 +401,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     func presentSettings() {
-        SurfaceController.shared.syncActivation(
-            surfaceSelection: AppPreferences.showOn,
-            settingsVisible: true
-        )
-        NSApp.activate()
-        settingsScene.environment.openSettings()
+        SettingsWindowController.shared.present()
     }
 
     private func installMainMenuIfNeeded() {
