@@ -12,8 +12,8 @@ import IOBluetooth
 import ServiceManagement
 import Sparkle
 
-let fd = FileManager.default
-let ud = UserDefaults.standard
+var fd: FileManager { FileManager.default }
+var ud: UserDefaults { UserDefaults.standard }
 let updaterController = SPUStandardUpdaterController(
     startingUpdater: true,
     updaterDelegate: nil,
@@ -142,7 +142,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withTimeZone]
         menu.addItem(withTitle:"Settings...".local, action: #selector(openSetting), keyEquivalent: "")
         menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
         
