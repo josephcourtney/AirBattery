@@ -36,7 +36,6 @@ struct SForm<Content: View>: View {
         .padding(.vertical, 18)
         .frame(
             maxWidth: 800,
-            maxHeight: .infinity,
             alignment: .topLeading
         )
     }
