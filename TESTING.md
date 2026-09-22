@@ -133,10 +133,12 @@ The local gate is optimized for the edit/test loop:
 3. smoke-test the staged native helper.
 
 Use `just doctor` for explicit toolchain/project diagnostics and `just resolve`
-when package resolution itself needs to be refreshed. Use `just build-verbose`
-for the complete Xcode stream or `just build-profile` for Xcode's build timing
-summary. Full Xcode logs from concise builds are retained under
-`.build/logs/`.
+when package resolution itself needs to be refreshed. Normal builds print only
+actionable diagnostics and summaries, even when `xcbeautify` is installed.
+Use `just build-verbose` for the complete raw Xcode stream,
+`AIRBATTERY_XCODE_BEAUTIFY=1 just check` for the expanded `xcbeautify`
+presentation, or `just build-profile` for Xcode's build timing summary. Full
+Xcode logs from concise builds are retained under `.build/logs/`.
 
 Real-device testing remains outside `just check` because it depends on the
 currently connected and paired hardware.
