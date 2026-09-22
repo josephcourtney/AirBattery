@@ -27,29 +27,10 @@ let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 
 @main
-struct AirBatteryApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
-    init() {
-        registerNotificationCategory()
-    }
-    
-    var body: some Scene {
-        Settings {
-            SettingsView()
-        }
-        .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
-                    openSettingPanel()
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-        }
-    }
-}
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    private var openSettingsAction: (() -> Void)?
 
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var keepAliveActivity: NSObjectProtocol?
     var showOn: String {
         get { AppPreferences.showOn }
@@ -115,7 +96,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         hasVisibleWindows flag: Bool
     ) -> Bool {
         if showOn == "sbar" || showOn == "none" {
-            openSettingPanel()
+            presentSettings()
             return false
         }
 
@@ -124,6 +105,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        registerNotificationCategory()
+
+        let settingsScene = NSHostingSceneRepresentation {
+            Settings {
+                SettingsView()
+            }
+        }
+        NSApplication.shared.addSceneRepresentation(settingsScene)
+        openSettingsAction = {
+            settingsScene.environment.openSettings()
+        }
+        installMainMenuIfNeeded()
+
         // default defaults (used if not set)
         UserDefaults.standard.register(
             defaults: [
@@ -148,8 +142,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
-        menu.addItem(withTitle:"Settings...".local, action: #selector(openSetting), keyEquivalent: "")
-        menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
+        let settingsItem = menu.addItem(
+            withTitle: "Settings...".local,
+            action: #selector(openSetting),
+            keyEquivalent: ""
+        )
+        settingsItem.target = self
+        let aboutItem = menu.addItem(
+            withTitle: "About AirBattery".local,
+            action: #selector(openAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
         
         //处理旧版偏好设置
         if let alertList = (UserDefaults.standard.object(forKey: "alertList") ?? []) as? [String] {
@@ -335,9 +339,57 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         openAboutPanel()
     }
     
-    @MainActor
     @objc func openSetting() {
-        openSettingPanel()
+        presentSettings()
+    }
+
+    func presentSettings() {
+        SurfaceController.shared.syncActivation(
+            surfaceSelection: AppPreferences.showOn,
+            settingsVisible: true
+        )
+        NSApp.activate()
+        openSettingsAction?()
+    }
+
+    private func installMainMenuIfNeeded() {
+        guard NSApp.mainMenu == nil else { return }
+
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu(title: "AirBattery")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        let aboutItem = NSMenuItem(
+            title: "About AirBattery".local,
+            action: #selector(openAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+        appMenu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(
+            title: "Settings...".local,
+            action: #selector(openSetting),
+            keyEquivalent: ","
+        )
+        settingsItem.keyEquivalentModifierMask = [.command]
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit AirBattery".local,
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        quitItem.target = NSApp
+        appMenu.addItem(quitItem)
+
+        NSApp.mainMenu = mainMenu
     }
     
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
