@@ -1,6 +1,45 @@
 import AppKit
 import SwiftUI
 
+@MainActor
+final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
+    private let contentWidth: CGFloat
+    private var updatingFrame = false
+
+    var onHeightChange: ((CGFloat) -> Void)?
+
+    init(width: CGFloat, rootView: Content) {
+        contentWidth = width
+        super.init(rootView: rootView)
+        frame = NSRect(x: 0, y: 0, width: width, height: 1)
+        autoresizingMask = [.width]
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        resizeToFitContent()
+    }
+
+    func resizeToFitContent() {
+        guard !updatingFrame else { return }
+
+        let targetHeight = ceil(max(fittingSize.height, 1))
+        guard abs(frame.height - targetHeight) > 0.5 else { return }
+
+        updatingFrame = true
+        setFrameSize(
+            NSSize(width: contentWidth, height: targetHeight)
+        )
+        updatingFrame = false
+        onHeightChange?(targetHeight)
+    }
+}
+
 struct BlurView: NSViewRepresentable {
     
     private let material: NSVisualEffectView.Material
