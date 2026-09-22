@@ -80,7 +80,7 @@ struct NearcastView: View {
                             let credentials = generateNearcastCredentials()
                             nearcastGroupID = credentials.groupID
                             nearcastSharingKey = credentials.sharingKey
-                            ud.set("", forKey: "ncGroupID")
+                            UserDefaults.standard.set("", forKey: "ncGroupID")
                         }
                         .disabled(nearCast)
                         .help(
