@@ -37,6 +37,7 @@ struct DevicesView: View {
                         }
                     }
                 }
+                .disclosureGroupStyle(DeviceDisclosureStyle())
 
                 SGroupBox(label: "Nearby Devices") {
                     HStack {
@@ -93,6 +94,7 @@ struct DevicesView: View {
                         }
                     }
                 }
+                .disclosureGroupStyle(DeviceDisclosureStyle())
 
             }
         }
@@ -855,3 +857,43 @@ struct DevicesView: View {
     }
 }
 
+
+
+private struct DeviceDisclosureStyle: DisclosureGroupStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 2) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.14)) {
+                        configuration.isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(
+                            .degrees(configuration.isExpanded ? 90 : 0)
+                        )
+                        .frame(width: 24, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(configuration.isExpanded ? "Collapse" : "Expand")
+                .accessibilityLabel(
+                    configuration.isExpanded ? "Collapse" : "Expand"
+                )
+
+                configuration.label
+            }
+
+            if configuration.isExpanded {
+                configuration.content
+                    .padding(.leading, 26)
+                    .transition(.opacity)
+            }
+        }
+        .animation(
+            .easeInOut(duration: 0.14),
+            value: configuration.isExpanded
+        )
+    }
+}
