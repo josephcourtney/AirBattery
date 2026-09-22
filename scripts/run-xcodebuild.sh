@@ -18,7 +18,8 @@ set +e
 if [[ "${AIRBATTERY_XCODE_VERBOSE:-0}" == "1" ]]; then
   xcodebuild "$@" 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
-elif command -v xcbeautify >/dev/null 2>&1; then
+elif [[ "${AIRBATTERY_XCODE_BEAUTIFY:-0}" == "1" ]] &&
+     command -v xcbeautify >/dev/null 2>&1; then
   xcodebuild "$@" 2>&1 | tee "$log" | xcbeautify
   status=${PIPESTATUS[0]}
 else
