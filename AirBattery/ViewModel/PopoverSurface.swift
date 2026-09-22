@@ -5,7 +5,9 @@ struct PopoverToolbarSurfaceContent: View {
     var fromDock = false
     var nearcastEnabled = false
     let onHide: () -> Void
+    let onAbout: () -> Void
     let onSettings: () -> Void
+    let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
     var body: some View {
@@ -47,6 +49,20 @@ struct PopoverToolbarSurfaceContent: View {
                 help: "Settings".local,
                 action: onSettings
             )
+
+            Menu {
+                Button("About AirBattery".local, action: onAbout)
+                Divider()
+                Button("Quit AirBattery".local, action: onQuit)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 15, weight: .regular))
+                    .frame(width: 28, height: 28)
+                    .foregroundStyle(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("More".local)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
