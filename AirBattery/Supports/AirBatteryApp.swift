@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         Settings {
             SettingsView()
         }
+        .windowResizability(.contentSize)
     }
 
     private var keepAliveActivity: NSObjectProtocol?
@@ -386,6 +387,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     @MainActor
     @objc func openAbout() {
         openAboutPanel()
+    }
+
+    @MainActor
+    @objc func confirmQuit() {
+        let response = createAlert(
+            level: .warning,
+            title: "Quit AirBattery?",
+            message:
+                "AirBattery will stop monitoring device batteries until you launch it again.",
+            button1: "Quit",
+            button2: "Cancel"
+        ).runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
     }
     
     @objc func openSetting() {
