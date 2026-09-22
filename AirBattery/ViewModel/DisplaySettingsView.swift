@@ -194,6 +194,7 @@ private struct DisplaySurfacePreview: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @State private var widgetPreviewPercentages = true
     @State private var widgetPreviewLabels = true
+    @State private var showLargeWidgetPreview = false
     @State private var livePreviewDevices = [Device]()
     @State private var livePreviewInternalBattery = InternalBattery.status
     @ObservedObject private var monitoring = MonitoringCoordinator.shared
@@ -263,14 +264,6 @@ private struct DisplaySurfacePreview: View {
             $0.deviceID != "@MacInternalBattery"
         } ?? widgetRingDevices.first
     }
-
-    private let familyColumns = [
-        GridItem(
-            .adaptive(minimum: 340, maximum: 360),
-            spacing: 16,
-            alignment: .top
-        )
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -373,21 +366,31 @@ private struct DisplaySurfacePreview: View {
                     Spacer()
                 }
 
-                LazyVGrid(
-                    columns: familyColumns,
-                    alignment: .leading,
-                    spacing: 24
-                ) {
-                    widgetFamilyPreview(
-                        "Battery Overview — Small",
-                        family: .small
-                    ) {
-                        WidgetOverviewRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .small,
-                            showPercentages: widgetPreviewPercentages,
-                            showLabels: widgetPreviewLabels
-                        )
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(alignment: .top, spacing: 20) {
+                        widgetFamilyPreview(
+                            "Battery Overview — Small",
+                            family: .small
+                        ) {
+                            WidgetOverviewRingsSurfaceContent(
+                                devices: widgetRingDevices,
+                                family: .small,
+                                showPercentages: widgetPreviewPercentages,
+                                showLabels: widgetPreviewLabels
+                            )
+                        }
+
+                        widgetFamilyPreview(
+                            "Single Battery — Small",
+                            family: .small
+                        ) {
+                            WidgetSingleBatterySurfaceContent(
+                                item: singleBatteryPreviewDevice,
+                                deviceName:
+                                    singleBatteryPreviewDevice?.deviceName ?? "",
+                                warningText: "Right click to configure"
+                            )
+                        }
                     }
 
                     widgetFamilyPreview(
@@ -402,17 +405,25 @@ private struct DisplaySurfacePreview: View {
                         )
                     }
 
-                    widgetFamilyPreview(
-                        "Single Battery — Small",
-                        family: .small
+                    DisclosureGroup(
+                        "Battery Overview — Large",
+                        isExpanded: $showLargeWidgetPreview
                     ) {
-                        WidgetSingleBatterySurfaceContent(
-                            item: singleBatteryPreviewDevice,
-                            deviceName:
-                                singleBatteryPreviewDevice?.deviceName ?? "",
-                            warningText: "Right click to configure"
-                        )
+                        widgetFamilyPreview(
+                            "",
+                            family: .large
+                        ) {
+                            WidgetOverviewRingsSurfaceContent(
+                                devices: widgetRingDevices,
+                                family: .large,
+                                showPercentages: widgetPreviewPercentages,
+                                showLabels: widgetPreviewLabels
+                            )
+                        }
+                        .padding(.top, 6)
                     }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
             }
@@ -561,6 +572,7 @@ private struct DisplaySurfacePreview: View {
 private enum WidgetPreviewFamily {
     case small
     case medium
+    case large
 
     var size: CGSize {
         switch self {
@@ -568,6 +580,8 @@ private enum WidgetPreviewFamily {
             return CGSize(width: 172, height: 172)
         case .medium:
             return CGSize(width: 352, height: 172)
+        case .large:
+            return CGSize(width: 352, height: 368)
         }
     }
 
@@ -577,6 +591,8 @@ private enum WidgetPreviewFamily {
             return 8
         case .medium:
             return 8
+        case .large:
+            return 10
         }
     }
 }
