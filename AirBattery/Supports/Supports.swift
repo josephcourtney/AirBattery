@@ -10,8 +10,7 @@ import SystemConfiguration
 import UserNotifications
 
 let macID = getMacModelIdentifier()
-let isoFormatter = ISO8601DateFormatter()
-var lowPowerNoteDelay = [String: Double]()
+@MainActor var lowPowerNoteDelay = [String: Double]()
 
 extension View {
     func roundedCorners(radius: CGFloat, corners: RectCorner) -> some View {
