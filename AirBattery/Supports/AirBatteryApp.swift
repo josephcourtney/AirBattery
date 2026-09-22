@@ -99,8 +99,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         
         if response.actionIdentifier == "DELAY_30_MIN" {
-            let deviceName = response.notification.request.content.userInfo["customInfo"] as? String ?? ""
-            lowPowerNoteDelay[deviceName] = Date().timeIntervalSince1970 + 1800
+            let deviceName =
+                response.notification.request.content.userInfo["customInfo"]
+                    as? String ?? ""
+            Task { @MainActor in
+                lowPowerNoteDelay[deviceName] =
+                    Date().timeIntervalSince1970 + 1800
+            }
         }
         completionHandler()
     }
@@ -281,11 +286,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             return
         }
 
+        let isAppleDevice = device.isAppleDevice
         print("ℹ️ \(name) (\(address)) connected")
         DispatchQueue.global(qos: .utility).async {
             usleep(2_500_000)
 
-            if !device.isAppleDevice {
+            if !isAppleDevice {
                 SPBluetoothDataModel.shared.refeshData { _ in
                     LogReader.shared.run(.connect)
                     MagicBattery.shared.getIOBTBattery()
