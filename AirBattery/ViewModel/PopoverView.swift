@@ -484,6 +484,7 @@ struct popover: View {
             }
         }
         .frame(width: 352)
+        .fixedSize(horizontal: false, vertical: true)
         .modifier(PopoverHostSurfaceModifier(fromDock: fromDock))
         .onAppear { allDevices = allDevice }
         .onReceive(monitoring.$secondTick) { _ in
