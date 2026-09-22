@@ -19,7 +19,7 @@ struct DiscoveryView: View {
 
     var body: some View {
         ScrollView {
-            SForm(noSpacer: true) {
+            SForm {
                 SettingsPageHeader(
                     title: "Discovery",
                     subtitle: "Control which device sources AirBattery monitors and when active battery queries are allowed."
