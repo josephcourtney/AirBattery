@@ -80,8 +80,11 @@ struct popover: View {
     ) -> some View {
         if let presentation = airPodsPresentation(group) {
             let isExpanded = expandedAirPods.contains(presentation.id)
-            VStack(spacing: 0) {
-                Button {
+            PopoverCompoundDeviceSurfaceContent(
+                presentation: presentation,
+                compactName: fromDock,
+                isExpanded: isExpanded,
+                onToggle: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         if isExpanded {
                             expandedAirPods.remove(presentation.id)
@@ -89,60 +92,9 @@ struct popover: View {
                             expandedAirPods.insert(presentation.id)
                         }
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .frame(width: 12)
-
-                        Image(getDeviceIcon(presentation.representative))
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundColor(.blackWhite)
-                            .frame(width: 22, height: 22)
-
-                        Text(
-                            fromDock
-                                ? presentation.compactName
-                                : presentation.displayName
-                        )
-                        .font(.system(size: 12))
-                        .foregroundColor(.blackWhite)
-                        .lineLimit(1)
-
-                        Spacer(minLength: 4)
-
-                        if let primary = presentation.components.first {
-                            Text("\(primary.level)%")
-                                .font(.system(size: 11, weight: .medium))
-                                .monospacedDigit()
-                            SurfaceBatteryGlyph(item: primary.device)
-                                .scaleEffect(0.85)
-                        }
-                    }
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 10)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-
-                if isExpanded {
-                    HStack(spacing: 18) {
-                        ForEach(presentation.components.prefix(3)) { component in
-                            BatteryRingSurfaceCell(
-                                item: component.device,
-                                diameter: 42,
-                                showPercentage: true,
-                                showLabel: true
-                            )
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
-                    .background(
+            )
+            .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(Color.primary.opacity(0.035))
                     )
