@@ -658,6 +658,6 @@ func openAboutPanel() {
 @MainActor
 func openSettingPanel() {
     DockPopoverController.shared.hide()
-    SettingsWindowController.shared.present()
+    (NSApp.delegate as? AppDelegate)?.presentSettings()
 }
 
