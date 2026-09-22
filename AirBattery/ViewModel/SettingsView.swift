@@ -203,7 +203,7 @@ private final class SettingsWindowLifecycleView: NSView {
     private func configure(_ window: NSWindow) {
         window.title = "AirBattery Settings"
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
+        window.titlebarAppearsTransparent = false
         window.styleMask.insert(.resizable)
         window.styleMask.remove(.fullSizeContentView)
         window.toolbarStyle = .unifiedCompact
