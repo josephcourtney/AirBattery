@@ -327,7 +327,6 @@ private struct DisplaySurfacePreview: View {
                     .popoverDevicePanelSurface()
                     .offset(y: 2.5)
 
-                    Color.clear.frame(height: 8.5)
                 }
                 .frame(width: 352)
                 .liquidGlassEffect(
