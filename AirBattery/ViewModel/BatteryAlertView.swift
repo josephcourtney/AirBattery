@@ -212,6 +212,7 @@ final class AlertWindowController {
     }
 }
 
+@MainActor
 func batteryAlert() {
     let nearCast = AppPreferences.nearCast
 
