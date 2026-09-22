@@ -33,24 +33,33 @@ final class DockPopoverController {
         }
 
         let rootView = popover(fromDock: true, allDevice: allDevices)
-        let contentView = NSHostingView(rootView: rootView)
-        contentView.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
+        let contentView = ContentFittingHostingView(
+            width: 352,
+            rootView: rootView
+        )
         contentView.layoutSubtreeIfNeeded()
-        let menuHeight = ceil(max(contentView.fittingSize.height, 1))
+        contentView.resizeToFitContent()
+        let menuHeight = contentView.frame.height
+        let anchorMouse = NSEvent.mouseLocation
 
         let origin = popupOrigin(
             size: NSSize(width: 352, height: menuHeight),
-            mouse: NSEvent.mouseLocation
+            mouse: anchorMouse
         )
         contentView.frame = NSRect(
-            x: origin.x,
-            y: origin.y,
+            x: 0,
+            y: 0,
             width: 352,
             height: menuHeight
         )
 
         let popup = AutoHideWindow(
-            contentRect: contentView.frame,
+            contentRect: NSRect(
+                x: origin.x,
+                y: origin.y,
+                width: 352,
+                height: menuHeight
+            ),
             styleMask: [.fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -63,6 +72,18 @@ final class DockPopoverController {
         popup.contentView?.wantsLayer = true
         popup.contentView?.layer?.cornerRadius = 7
         popup.contentView?.layer?.masksToBounds = true
+        contentView.onHeightChange = { [weak self, weak popup] height in
+            guard let self, let popup else { return }
+            let size = NSSize(width: 352, height: height)
+            let origin = self.popupOrigin(
+                size: size,
+                mouse: anchorMouse
+            )
+            popup.setFrame(
+                NSRect(origin: origin, size: size),
+                display: true
+            )
+        }
         popup.makeKeyAndOrderFront(nil)
         window = popup
     }
