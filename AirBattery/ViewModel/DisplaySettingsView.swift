@@ -293,8 +293,6 @@ private struct DisplaySurfacePreview: View {
 
             previewSection("Popover") {
                 VStack(spacing: 0) {
-                    Color.clear.frame(height: 8.5)
-
                     PopoverToolbarSurfaceContent(
                         fromDock: false,
                         nearcastEnabled: false,
