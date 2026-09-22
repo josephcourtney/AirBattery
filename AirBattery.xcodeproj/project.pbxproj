@@ -84,7 +84,6 @@
 		18F0B05E2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
 		18F0B05F2F80000100AB0001 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B05C2F80000100AB0001 /* AppPreferences.swift */; };
 		18F0B0612F80000100AB0001 /* LogReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0602F80000100AB0001 /* LogReader.swift */; };
-		18F0B0632F80000100AB0001 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F0B0622F80000100AB0001 /* SettingsWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -197,7 +196,6 @@
 		18F0B0592F80000100AB0001 /* WidgetSurfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSurfaces.swift; sourceTree = "<group>"; };
 		18F0B05C2F80000100AB0001 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		18F0B0602F80000100AB0001 /* LogReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogReader.swift; sourceTree = "<group>"; };
-		18F0B0622F80000100AB0001 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -311,7 +309,6 @@
 				18F0B05C2F80000100AB0001 /* AppPreferences.swift */,
 				18F0B0602F80000100AB0001 /* LogReader.swift */,
 				184ADEFE2DDB6C9F004791F0 /* SurfaceController.swift */,
-				18F0B0622F80000100AB0001 /* SettingsWindowController.swift */,
 			);
 			path = Supports;
 			sourceTree = "<group>";
@@ -618,7 +615,6 @@
 				18F0B05D2F80000100AB0001 /* AppPreferences.swift in Sources */,
 				18F0B0612F80000100AB0001 /* LogReader.swift in Sources */,
 				184ADF092DDB6C9F004791F0 /* SurfaceController.swift in Sources */,
-				18F0B0632F80000100AB0001 /* SettingsWindowController.swift in Sources */,
 				184ADF102DFCA001004791F0 /* GlassEffect.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
 				185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */,
