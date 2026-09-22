@@ -54,7 +54,7 @@ Status-menu and Dock-popover sizing duplicate row-count logic and use several ma
 
 The app declared a native SwiftUI `Settings` scene but then overrode the Settings command and presented a separately constructed `NSWindow` through `SettingsWindowController`.
 
-**Fix:** Use the AppKit application lifecycle and register the SwiftUI `Settings` scene with `NSHostingSceneRepresentation`. All Settings entry points now call the scene environment's `openSettings()` action, so SwiftUI exclusively owns creation and presentation of the Settings window. A small lifecycle observer only applies window configuration and keeps the application's activation policy synchronized while the SwiftUI-owned window is visible.
+**Fix:** Use the AppKit application lifecycle with a single `SettingsWindowController` as the sole owner of the Settings window. The controller creates one standard resizable `NSWindow`, hosts `SettingsView` with `NSHostingController`, and handles activation-policy changes when the window opens or closes. There is no competing SwiftUI `Settings` scene or second window owner.
 
 ### [x] 9. Local-device and Nearcast rows duplicate interaction logic
 
@@ -134,7 +134,7 @@ Examples include `statusBarItem`, `pinnedItems`, `dockWindow`, `netcastService`,
 
 ## Implementation status
 
-All identified simplification issues have been implemented. AirBattery now targets macOS 26 and later, builds in Swift 6 language mode, and uses a single SwiftUI-owned Settings scene hosted from the AppKit lifecycle.
+All identified simplification issues have been implemented. AirBattery now targets macOS 26 and later, builds in Swift 6 language mode, and uses one AppKit-owned Settings window hosting the SwiftUI settings content.
 
 ## Explicit non-issues / design decisions to retain
 
