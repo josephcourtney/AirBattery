@@ -26,7 +26,7 @@ struct AlertInputView: View {
     @State private var fullSound: Bool
     @State private var lowSound: Bool
     @State private var overCloseButton = false
-    @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+    @State private var alertList = UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
 
     var iconName: String
     var onConfirm: (btAlert) -> Void
@@ -125,9 +125,9 @@ struct AlertInputView: View {
                     let canDelete = alertList.map({$0.name}).contains(name)
                     if canDelete {
                         Button(action: {
-                            alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+                            alertList = UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
                             alertList.removeAll(where: {$0.name == name})
-                            ud.set(object: alertList, forKey: "alertList")
+                            UserDefaults.standard.set(object: alertList, forKey: "alertList")
                             onCancel()
                         }, label: {
                             Text("Delete")
@@ -219,7 +219,7 @@ func batteryAlert() {
     let now = Date()
     lowPowerNoteDelay = lowPowerNoteDelay.filter { $0.value >= now.timeIntervalSince1970 }
     
-    let alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+    let alertList = UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     var allDevices = AirBatteryModel.getAll()
     allDevices.append(ib2ab(InternalBattery.status))
     let ncFiles = getFiles(withExtension: "json", in: ncFolder)
