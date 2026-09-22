@@ -31,8 +31,8 @@ final class MultipeerService: ObservableObject {
         
         // Handle received data
         transceiver.receive(Data.self) { [weak self] data, peer in
-            let peerID = peerID
-            let peerName = peerName
+            let peerID = peer.id
+            let peerName = peer.name
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 guard let message = try? JSONDecoder().decode(NCMessage.self, from: data) else {
