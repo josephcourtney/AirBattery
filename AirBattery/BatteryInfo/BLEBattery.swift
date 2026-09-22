@@ -168,6 +168,7 @@ struct BLELogicalDeviceSnapshot: Identifiable {
     var id: String { key }
 }
 
+@MainActor
 final class BLEDiscoveryPolicyStore: ObservableObject {
     static let shared = BLEDiscoveryPolicyStore()
 
@@ -430,7 +431,11 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 }
 
-class BLEBattery: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+@MainActor
+final class BLEBattery: NSObject,
+    @preconcurrency CBCentralManagerDelegate,
+    @preconcurrency CBPeripheralDelegate
+{
     var ideviceOverBLE: Bool { AppPreferences.ideviceOverBLE }
     var readBTDevice: Bool { AppPreferences.readBTDevice }
     var readBLEDevice: Bool { AppPreferences.readBLEDevice }
