@@ -189,7 +189,7 @@ class AirBatteryModel {
     }
 
     private static func isRecentlyBLEObserved(_ device: Device, now: Double) -> Bool {
-        let interval = max(1, ud.integer(forKey: "updateInterval"))
+        let interval = max(1, UserDefaults.standard.integer(forKey: "updateInterval"))
         // BLE scans repeat every 29 * updateInterval seconds. Keep a last-known
         // battery record visible while the corresponding device is still being
         // observed, without altering the battery reading's real timestamp.
@@ -545,14 +545,14 @@ class AirBatteryModel {
     
     
     static func sharedDataDirectory() -> URL {
-        if let container = fd.containerURL(
+        if let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier
         ) {
             let directory = container.appendingPathComponent(
                 "Documents",
                 isDirectory: true
             )
-            try? fd.createDirectory(
+            try? FileManager.default.createDirectory(
                 at: directory,
                 withIntermediateDirectories: true
             )
@@ -563,12 +563,12 @@ class AirBatteryModel {
         // entitlement is unavailable. Production app/widget builds use the
         // shared container above.
         if Bundle.main.bundleIdentifier == key {
-            return fd.urls(
+            return FileManager.default.urls(
                 for: .documentDirectory,
                 in: .userDomainMask
             ).first!
         }
-        return fd.urls(
+        return FileManager.default.urls(
             for: .libraryDirectory,
             in: .userDomainMask
         ).first!.appendingPathComponent(
@@ -586,7 +586,7 @@ class AirBatteryModel {
             "NearcastData",
             isDirectory: true
         )
-        try? fd.createDirectory(at: url, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
 
@@ -602,7 +602,7 @@ class AirBatteryModel {
         maxAge: TimeInterval = 120,
         now: Date = Date()
     ) -> Bool {
-        guard let attributes = try? fd.attributesOfItem(
+        guard let attributes = try? FileManager.default.attributesOfItem(
             atPath: getHeartbeatURL().path
         ),
         let modified = attributes[.modificationDate] as? Date
@@ -613,14 +613,14 @@ class AirBatteryModel {
     }
 
     static func migrateLegacySharedStorageIfNeeded() {
-        guard fd.containerURL(
+        guard FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier
         ) != nil else {
             return
         }
 
         let destination = sharedDataDirectory()
-        let legacy = fd.urls(
+        let legacy = FileManager.default.urls(
             for: .libraryDirectory,
             in: .userDomainMask
         ).first!.appendingPathComponent(
@@ -630,9 +630,9 @@ class AirBatteryModel {
 
         let oldData = legacy.appendingPathComponent("data.json")
         let newData = destination.appendingPathComponent("data.json")
-        if !fd.fileExists(atPath: newData.path),
-           fd.fileExists(atPath: oldData.path) {
-            try? fd.copyItem(at: oldData, to: newData)
+        if !FileManager.default.fileExists(atPath: newData.path),
+           FileManager.default.fileExists(atPath: oldData.path) {
+            try? FileManager.default.copyItem(at: oldData, to: newData)
         }
 
         let oldNearcast = legacy.appendingPathComponent(
@@ -643,9 +643,9 @@ class AirBatteryModel {
             "NearcastData",
             isDirectory: true
         )
-        if !fd.fileExists(atPath: newNearcast.path),
-           fd.fileExists(atPath: oldNearcast.path) {
-            try? fd.copyItem(at: oldNearcast, to: newNearcast)
+        if !FileManager.default.fileExists(atPath: newNearcast.path),
+           FileManager.default.fileExists(atPath: oldNearcast.path) {
+            try? FileManager.default.copyItem(at: oldNearcast, to: newNearcast)
         }
     }
     
@@ -662,7 +662,7 @@ class AirBatteryModel {
     }
 
     static func writeData(){
-        let revList = ud.object(forKey: "revListOnWidget") as? Bool ?? false
+        let revList = UserDefaults.standard.object(forKey: "revListOnWidget") as? Bool ?? false
 
         let ibStatus = InternalBattery.status
         let devices = widgetStoredDevices(
