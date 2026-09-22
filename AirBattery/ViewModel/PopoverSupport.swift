@@ -40,6 +40,7 @@ struct PopoverHostSurfaceModifier: ViewModifier {
 }
 
 enum DeviceActions {
+    @MainActor
     static func configureBatteryAlert(
         for device: Device,
         onChange: @escaping ([btAlert]) -> Void
