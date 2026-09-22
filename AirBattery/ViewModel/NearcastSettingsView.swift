@@ -10,6 +10,11 @@ struct NearcastView: View {
     var body: some View {
         ScrollView {
             SForm(noSpacer: true) {
+                SettingsPageHeader(
+                    title: "Nearcast",
+                    subtitle: "Share battery information securely with other Macs on your local network."
+                )
+
                 SGroupBox(label: "Nearcast") {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(
