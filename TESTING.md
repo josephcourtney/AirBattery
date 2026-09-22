@@ -152,7 +152,7 @@ battery presentation, or the native mobile stack, exercise at least:
 - sleep/wake recovery;
 - an iPhone paired with an Apple Watch, when available;
 - logical-device consistency across the popover, Dock, widgets, and Devices;
-- intentional compact names in constrained surfaces (`Mac`, `iPhone`, `Watch`, `AirPods`);
+- intentional compact names in constrained surfaces (`Mac`, `iPhone`, `Watch`, `AirPods`, `Keyboard`, `Mouse`);
 - AirPods with case + L/R, L/R without the case currently visible, merge off,
   merge within threshold, and charging-state mismatch;
 - Devices progressive disclosure, confirming identifiers/raw RSSI/query state
@@ -161,7 +161,7 @@ battery presentation, or the native mobile stack, exercise at least:
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
 - renderer parity: compare Display previews against the live menu bar, popover,
-  Dock tile, Battery Overview Small/Medium, and Single Battery Small using
+  Dock tile, Battery Overview Small/Medium/Large, and Single Battery Small using
   the same fixture state; differences should be limited to system host sizing,
   margins, chrome, and compositing;
 - Battery Overview configuration: exercise all four combinations of Show
@@ -170,7 +170,8 @@ battery presentation, or the native mobile stack, exercise at least:
 - Battery Overview ring geometry: percentage-enabled cells use the open/split
   ring with the numeric value beneath it; percentage-disabled cells use a full
   ring. Small/Medium annotation-heavy layouts must not clip; Small should keep
-  visually balanced margins around its 2×2 grid;
+  visually balanced margins around its 2×2 grid, and Large should use its
+  3-column layout to avoid a sparse oversized center cluster;
 - widget gallery inventory on every supported macOS release: only Battery
   Overview and Single Battery are offered;
 - Display preview host geometry: the Popover preview stays at the production
