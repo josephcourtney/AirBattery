@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import WidgetKit
 import AppKit
 
 enum SettingsSection: String, Hashable {
@@ -72,7 +71,6 @@ struct SettingsView: View {
             idealHeight: 720,
             maxHeight: .infinity
         )
-        .background(SettingsWindowLifecycleObserver())
         .onChange(of: showDebug) { _, enabled in
             if !enabled && selectedItem == .debug {
                 selectedItem = .general
@@ -142,111 +140,4 @@ struct SettingsView: View {
         .tag(section)
     }
 
-}
-
-private struct SettingsWindowLifecycleObserver: NSViewRepresentable {
-    func makeNSView(context: Context) -> SettingsWindowLifecycleView {
-        SettingsWindowLifecycleView()
-    }
-
-    func updateNSView(
-        _ nsView: SettingsWindowLifecycleView,
-        context: Context
-    ) {}
-}
-
-@MainActor
-private final class SettingsWindowLifecycleView: NSView {
-    private weak var observedWindow: NSWindow?
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-
-        guard observedWindow !== window else { return }
-
-        let hadWindow = observedWindow != nil
-        if let observedWindow {
-            NotificationCenter.default.removeObserver(
-                self,
-                name: NSWindow.willCloseNotification,
-                object: observedWindow
-            )
-            NotificationCenter.default.removeObserver(
-                self,
-                name: NSWindow.didBecomeKeyNotification,
-                object: observedWindow
-            )
-        }
-
-        observedWindow = window
-        guard let window else {
-            if hadWindow {
-                syncActivation(settingsVisible: false)
-            }
-            return
-        }
-
-        configure(window)
-        DispatchQueue.main.async { [weak self, weak window] in
-            guard let self, let window else { return }
-            self.configure(window)
-        }
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(windowWillClose(_:)),
-            name: NSWindow.willCloseNotification,
-            object: window
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(windowDidBecomeKey(_:)),
-            name: NSWindow.didBecomeKeyNotification,
-            object: window
-        )
-        syncActivation(settingsVisible: true)
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    @objc
-    private func windowWillClose(_ notification: Notification) {
-        syncActivation(settingsVisible: false)
-    }
-
-    @objc
-    private func windowDidBecomeKey(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else {
-            return
-        }
-        configure(window)
-    }
-
-    private func configure(_ window: NSWindow) {
-        window.title = "AirBattery Settings"
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = false
-        window.styleMask.insert(.resizable)
-        window.styleMask.remove(.fullSizeContentView)
-        window.contentResizeIncrements = NSSize(width: 1, height: 1)
-        window.toolbarStyle = .unifiedCompact
-        window.contentMinSize = NSSize(width: 720, height: 520)
-        window.contentMaxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        window.titlebarSeparatorStyle = .automatic
-        window.tabbingMode = .disallowed
-        window.setFrameAutosaveName("AirBatterySettingsWindow")
-        window.standardWindowButton(.zoomButton)?.isEnabled = true
-    }
-
-    private func syncActivation(settingsVisible: Bool) {
-        SurfaceController.shared.syncActivation(
-            surfaceSelection: AppPreferences.showOn,
-            settingsVisible: settingsVisible
-        )
-    }
 }
