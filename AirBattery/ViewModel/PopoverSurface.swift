@@ -5,13 +5,11 @@ struct PopoverToolbarSurfaceContent: View {
     var fromDock = false
     var nearcastEnabled = false
     let onHide: () -> Void
-    let onAbout: () -> Void
     let onSettings: () -> Void
-    let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 7) {
             if fromDock {
                 PopoverToolbarSurfaceButton(
                     systemName: "minus.circle",
@@ -21,26 +19,19 @@ struct PopoverToolbarSurfaceContent: View {
                 )
             }
 
-            PopoverToolbarSurfaceButton(
-                systemName: "info.circle",
-                help: "About AirBattery".local,
-                action: onAbout
-            )
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 23, height: 23)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
 
-            PopoverToolbarSurfaceButton(
-                systemName: "gearshape",
-                help: "Settings".local,
-                action: onSettings
-            )
+            Text("AirBattery")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
 
-            PopoverToolbarSurfaceButton(
-                systemName: "xmark.circle",
-                help: "Quit AirBattery".local,
-                hoverColor: .red,
-                action: onQuit
-            )
-
-            Spacer()
+            Spacer(minLength: 8)
 
             if nearcastEnabled {
                 PopoverToolbarSurfaceButton(
@@ -50,10 +41,15 @@ struct PopoverToolbarSurfaceContent: View {
                     action: onRefreshNearcast
                 )
             }
+
+            PopoverToolbarSurfaceButton(
+                systemName: "gearshape",
+                help: "Settings".local,
+                action: onSettings
+            )
         }
-        .padding(.top, fromDock ? 6 : 2)
-        .padding(.bottom, 4)
-        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
     }
 }
 
