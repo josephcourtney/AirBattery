@@ -7,10 +7,25 @@
 import Foundation
 import IOBluetooth
 
-class SPBluetoothDataModel {
-    static var shared: SPBluetoothDataModel = SPBluetoothDataModel()
-    var data: String = "{}"
-    
+final class SPBluetoothDataModel: @unchecked Sendable {
+    static let shared = SPBluetoothDataModel()
+
+    private let dataLock = NSLock()
+    nonisolated(unsafe) private var storedData = "{}"
+
+    var data: String {
+        get {
+            dataLock.lock()
+            defer { dataLock.unlock() }
+            return storedData
+        }
+        set {
+            dataLock.lock()
+            storedData = newValue
+            dataLock.unlock()
+        }
+    }
+
     func refeshData(completion: (String) -> Void, error: (() -> Void)? = nil) {
         if let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) {
             data = result
@@ -21,8 +36,8 @@ class SPBluetoothDataModel {
     }
 }
 
-class MagicBattery {
-    static var shared: MagicBattery = MagicBattery()
+final class MagicBattery: Sendable {
+    static let shared = MagicBattery()
     
     var readBTDevice: Bool { AppPreferences.readBTDevice }
     var deviceName: String { AppPreferences.deviceName }
