@@ -403,18 +403,6 @@ private struct DisplaySurfacePreview: View {
                     }
 
                     widgetFamilyPreview(
-                        "Battery Overview — Large",
-                        family: .large
-                    ) {
-                        WidgetOverviewRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .large,
-                            showPercentages: widgetPreviewPercentages,
-                            showLabels: widgetPreviewLabels
-                        )
-                    }
-
-                    widgetFamilyPreview(
                         "Single Battery — Small",
                         family: .small
                     ) {
@@ -573,7 +561,6 @@ private struct DisplaySurfacePreview: View {
 private enum WidgetPreviewFamily {
     case small
     case medium
-    case large
 
     var size: CGSize {
         switch self {
@@ -581,8 +568,6 @@ private enum WidgetPreviewFamily {
             return CGSize(width: 172, height: 172)
         case .medium:
             return CGSize(width: 352, height: 172)
-        case .large:
-            return CGSize(width: 352, height: 368)
         }
     }
 
@@ -592,8 +577,6 @@ private enum WidgetPreviewFamily {
             return 8
         case .medium:
             return 8
-        case .large:
-            return 10
         }
     }
 }
