@@ -64,6 +64,7 @@ struct SettingsView: View {
                 .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
         .frame(
             minWidth: 760,
             idealWidth: 960,
@@ -204,7 +205,9 @@ private final class SettingsWindowLifecycleView: NSView {
         window.title = "AirBattery Settings"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.styleMask.insert([.resizable, .fullSizeContentView])
+        window.styleMask.insert(.resizable)
+        window.styleMask.remove(.fullSizeContentView)
+        window.toolbarStyle = .unifiedCompact
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
