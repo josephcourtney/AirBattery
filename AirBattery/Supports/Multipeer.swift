@@ -141,7 +141,7 @@ final class MultipeerService: ObservableObject {
             guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
             let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "trans", content: data)
             for peer in transceiver.availablePeers.filter({ $0.name == name }) {
-                self.sendMessage(message, peerID: peerID)
+                self.sendMessage(message, peerID: peer.id)
             }
         } catch {
             print("Write JSON error：\(error)")
@@ -165,10 +165,10 @@ final class MultipeerService: ObservableObject {
 func removeDuplicatesPeer(peers: [Peer]) -> [Peer] {
     var seenIDs = Set<String>()
     let filteredPeers = peers.filter { peer in
-        if seenIDs.contains(peerID) {
+        if seenIDs.contains(peer.id) {
             return false
         } else {
-            seenIDs.insert(peerID)
+            seenIDs.insert(peer.id)
             return true
         }
     }
