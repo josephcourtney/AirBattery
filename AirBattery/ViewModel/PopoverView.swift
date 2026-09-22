@@ -80,6 +80,7 @@ struct popover: View {
     ) -> some View {
         if let presentation = airPodsPresentation(group) {
             let isExpanded = expandedAirPods.contains(presentation.id)
+
             PopoverCompoundDeviceSurfaceContent(
                 presentation: presentation,
                 compactName: fromDock,
@@ -94,14 +95,6 @@ struct popover: View {
                     }
                 }
             )
-            .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.035))
-                    )
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 7)
-                }
-            }
             .background(
                 overStack == index
                     ? Color.blackWhite.opacity(0.10)
@@ -487,17 +480,6 @@ struct popover: View {
                                 }
                         }
                     }
-                }
-                if !fromDock {
-                    Color.clear
-                        .frame(height: 8.5)
-                        .onHover { hovering in
-                            if hovering {
-                                overStack = -1
-                                overStack2 = -1
-                                overStackNC = -1
-                            }
-                        }
                 }
             }
         }
