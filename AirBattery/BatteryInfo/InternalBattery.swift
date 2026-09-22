@@ -19,7 +19,7 @@ struct iBattery {
 }
 
 class InternalBattery {
-    static var status: iBattery = getPowerState()
+    @MainActor static var status: iBattery = getPowerState()
     
     var name: String?
     var timeToFull: Int?
