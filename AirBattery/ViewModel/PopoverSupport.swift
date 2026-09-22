@@ -45,7 +45,7 @@ enum DeviceActions {
         onChange: @escaping ([btAlert]) -> Void
     ) {
         let alerts =
-            ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+            UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
         let initial = alerts.first { $0.name == device.deviceName } ??
             btAlert(
                 name: device.deviceName,
@@ -63,13 +63,13 @@ enum DeviceActions {
             iconName: getDeviceIcon(device),
             onConfirm: { newAlert in
                 var updated =
-                    ud.get(
+                    UserDefaults.standard.get(
                         objectType: [btAlert].self,
                         forKey: "alertList"
                     ) ?? []
                 updated.removeAll { $0.name == device.deviceName }
                 updated.append(newAlert)
-                ud.set(object: updated, forKey: "alertList")
+                UserDefaults.standard.set(object: updated, forKey: "alertList")
                 onChange(updated)
             },
             onCancel: {}
