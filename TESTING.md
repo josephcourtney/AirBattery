@@ -155,8 +155,11 @@ battery presentation, or the native mobile stack, exercise at least:
 - intentional compact names in constrained surfaces (`Mac`, `iPhone`, `Watch`, `AirPods`, `Keyboard`, `Mouse`);
 - AirPods with case + L/R, L/R without the case currently visible, merge off,
   merge within threshold, and charging-state mismatch;
-- Devices progressive disclosure, confirming identifiers/raw RSSI/query state
-  remain under Technical Details rather than the primary device view;
+- Devices master/detail behavior: selecting each known device updates the detail
+  pane without moving the surrounding list; AirPods show Case/L/R battery rings;
+  battery-access policy is separated from ordinary device information; identifiers,
+  raw RSSI, query state, and identity overrides remain under Advanced Technical
+  Details rather than the primary device view;
 - BLE battery-access policy inheritance and an identity-specific override;
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
@@ -178,9 +181,13 @@ battery presentation, or the native mobile stack, exercise at least:
   352-point width; widget previews show a visible rounded host boundary, do not
   clip charging indicators or rings, and AirPods `Case/L/R` percentages never
   wrap the `%` onto a separate line;
-- popover shell parity: the Display preview includes the same toolbar region as
-  the live popover; the live toolbar shows About, Settings, and a non-focus-ring
-  Quit `×`, and quitting requires explicit confirmation;
+- popover shell parity: the Display preview includes the same AirBattery
+  identity header as the live popover; Settings remains directly accessible,
+  About/Quit live in the secondary overflow menu, and quitting requires explicit
+  confirmation;
+- compound-device popover behavior: AirPods occupy one compact summary row when
+  collapsed and expand in place to the same Case/L/R ring presentation used by
+  the shared battery surfaces;
 - Nearcast migration from an existing legacy credential, plus a newly generated
   Group ID / Sharing Key exchanged between two Macs when available;
 - repeatedly switch to Nearcast and back to other Settings pages, then close and
