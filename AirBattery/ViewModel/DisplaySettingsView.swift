@@ -295,8 +295,9 @@ private struct DisplaySurfacePreview: View {
                         fromDock: false,
                         nearcastEnabled: false,
                         onHide: {},
+                        onAbout: {},
                         onSettings: {},
-                        onMore: {},
+                        onQuit: {},
                         onRefreshNearcast: {}
                     )
 
