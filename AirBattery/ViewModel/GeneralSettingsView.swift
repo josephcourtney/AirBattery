@@ -10,6 +10,11 @@ struct GeneralView: View {
     
     var body: some View {
         SForm {
+            SettingsPageHeader(
+                title: "General",
+                subtitle: "Configure startup behavior, command-line tools, and software updates."
+            )
+
             SGroupBox(label: "Startup") {
                 SToggle("Launch at Login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
