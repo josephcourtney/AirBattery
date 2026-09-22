@@ -252,10 +252,33 @@ struct popover: View {
                     onHide: {
                         DockPopoverController.shared.hide()
                     },
+                    onAbout: {
+                        DockPopoverController.shared.hide()
+                        StatusBarController.shared.cancelMenuTracking()
+                        openAboutPanel()
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 0.2
+                        ) {
+                            NSApp.activate()
+                        }
+                    },
                     onSettings: {
                         DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
                         openSettingPanel()
+                    },
+                    onQuit: {
+                        let response = createAlert(
+                            level: .warning,
+                            title: "Quit AirBattery?",
+                            message:
+                                "AirBattery will stop monitoring device batteries until you launch it again.",
+                            button1: "Quit",
+                            button2: "Cancel"
+                        ).runModal()
+                        if response == .alertFirstButtonReturn {
+                            NSApp.terminate(nil)
+                        }
                     },
                     onRefreshNearcast: {
                         netcastService.refeshAll()
