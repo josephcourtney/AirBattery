@@ -159,7 +159,6 @@ private struct PopoverOverflowMenuButton: NSViewRepresentable {
         context.coordinator.onQuit = onQuit
     }
 
-    @MainActor
     final class Coordinator: NSObject {
         var onAbout: () -> Void
         var onQuit: () -> Void
