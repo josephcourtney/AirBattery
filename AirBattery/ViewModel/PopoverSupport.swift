@@ -8,11 +8,16 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
 
     var onHeightChange: ((CGFloat) -> Void)?
 
+    required init(rootView: Content) {
+        contentWidth = 352
+        super.init(rootView: rootView)
+        configureFrame()
+    }
+
     init(width: CGFloat, rootView: Content) {
         contentWidth = width
         super.init(rootView: rootView)
-        frame = NSRect(x: 0, y: 0, width: width, height: 1)
-        autoresizingMask = [.width]
+        configureFrame()
     }
 
     @available(*, unavailable)
@@ -23,6 +28,16 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
     override func layout() {
         super.layout()
         resizeToFitContent()
+    }
+
+    private func configureFrame() {
+        frame = NSRect(
+            x: 0,
+            y: 0,
+            width: contentWidth,
+            height: 1
+        )
+        autoresizingMask = [.width]
     }
 
     func resizeToFitContent() {
