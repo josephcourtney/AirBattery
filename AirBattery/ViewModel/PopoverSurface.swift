@@ -5,8 +5,9 @@ struct PopoverToolbarSurfaceContent: View {
     var fromDock = false
     var nearcastEnabled = false
     let onHide: () -> Void
+    let onAbout: () -> Void
     let onSettings: () -> Void
-    let onMore: () -> Void
+    let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
     var body: some View {
@@ -49,11 +50,12 @@ struct PopoverToolbarSurfaceContent: View {
                 action: onSettings
             )
 
-            PopoverToolbarSurfaceButton(
-                systemName: "ellipsis.circle",
-                help: "More".local,
-                action: onMore
+            PopoverOverflowMenuButton(
+                onAbout: onAbout,
+                onQuit: onQuit
             )
+            .frame(width: 28, height: 28)
+            .help("More".local)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
@@ -94,6 +96,89 @@ private struct PopoverToolbarSurfaceButton: View {
         .help(help)
         .accessibilityLabel(Text(help))
         .onHover { isHovered = $0 }
+    }
+}
+
+private struct PopoverOverflowMenuButton: NSViewRepresentable {
+    let onAbout: () -> Void
+    let onQuit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onAbout: onAbout, onQuit: onQuit)
+    }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = NSPopUpButton(
+            frame: NSRect(x: 0, y: 0, width: 28, height: 28),
+            pullsDown: true
+        )
+        button.isBordered = false
+        button.arrowPosition = .noArrow
+        button.imagePosition = .imageOnly
+        button.image = NSImage(
+            systemSymbolName: "ellipsis.circle",
+            accessibilityDescription: "More".local
+        )
+        button.imageScaling = .scaleProportionallyDown
+        button.toolTip = "More".local
+
+        let menu = NSMenu()
+
+        let displayItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        displayItem.image = button.image
+        displayItem.isEnabled = false
+        menu.addItem(displayItem)
+
+        let aboutItem = NSMenuItem(
+            title: "About AirBattery".local,
+            action: #selector(Coordinator.showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = context.coordinator
+        menu.addItem(aboutItem)
+
+        menu.addItem(.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit AirBattery".local,
+            action: #selector(Coordinator.quit),
+            keyEquivalent: ""
+        )
+        quitItem.target = context.coordinator
+        menu.addItem(quitItem)
+
+        button.menu = menu
+        return button
+    }
+
+    func updateNSView(
+        _ nsView: NSPopUpButton,
+        context: Context
+    ) {
+        context.coordinator.onAbout = onAbout
+        context.coordinator.onQuit = onQuit
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var onAbout: () -> Void
+        var onQuit: () -> Void
+
+        init(
+            onAbout: @escaping () -> Void,
+            onQuit: @escaping () -> Void
+        ) {
+            self.onAbout = onAbout
+            self.onQuit = onQuit
+        }
+
+        @objc func showAbout() {
+            onAbout()
+        }
+
+        @objc func quit() {
+            onQuit()
+        }
     }
 }
 
@@ -304,7 +389,6 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                 )
                 .padding(.horizontal, 8)
                 .padding(.bottom, 7)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
