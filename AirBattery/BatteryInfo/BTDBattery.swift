@@ -93,6 +93,12 @@ final class BTDBattery {
         }
 
         let decoder = JSONDecoder()
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds,
+            .withTimeZone,
+        ]
         var latest: [String: BluetoothLogEntry] = [:]
 
         for line in result.split(separator: "\n") {
