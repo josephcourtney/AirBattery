@@ -50,11 +50,11 @@ Status-menu and Dock-popover sizing duplicate row-count logic and use several ma
 
 **Fix:** Prefer native `Form`, `Section`, `LabeledContent`, `Toggle`, `Picker`, `TextField`, and `Stepper`. Retain only genuinely useful small helpers such as an information button.
 
-### [ ] 8. Settings window ownership is duplicated — deferred for macOS 15 compatibility
+### [ ] 8. Settings window ownership is duplicated — retained pending lifecycle redesign
 
 The app declares a native SwiftUI `Settings` scene but then overrides the Settings command and presents a separately constructed `NSWindow` through `SettingsWindowController`.
 
-**Resolution:** Keep the small `SettingsWindowController` bridge for now. AirBattery must open Settings from AppKit/Dock callbacks as well as SwiftUI, and the fully native imperative settings-opening API is not available across the supported macOS 15/26/27 range. The bridge now has a single responsibility and uses the same `SettingsView` as the SwiftUI scene. Revisit when macOS 15 support is dropped.
+**Resolution:** Keep the small `SettingsWindowController` bridge for now. macOS 26 provides `NSHostingSceneRepresentation` for AppKit-owned SwiftUI scenes, but AirBattery currently uses the SwiftUI app lifecycle with AppKit callbacks. Removing this bridge cleanly would therefore require a separate scene/lifecycle ownership redesign rather than merely dropping an old-OS compatibility path.
 
 ### [x] 9. Local-device and Nearcast rows duplicate interaction logic
 
@@ -134,11 +134,10 @@ Examples include `statusBarItem`, `pinnedItems`, `dockWindow`, `netcastService`,
 
 ## Implementation status
 
-The checked items have been implemented on `simplify-modern-macos-ui`. Items 8 and 18 remain intentionally open because completing them now would either reduce supported-platform reliability (8) or materially broaden the scope into a Swift 6 concurrency migration (18).
+The checked items were implemented by the GUI simplification work. AirBattery now targets macOS 26 and later. Items 8 and 18 remain intentionally open because completing them would respectively require a scene/lifecycle ownership redesign or materially broaden the scope into a Swift 6 concurrency migration.
 
 ## Explicit non-issues / design decisions to retain
 
 - **Keep `NSStatusItem` / `NSMenu` rather than rewriting the app around `MenuBarExtra`.** The current traditional API is appropriate for multiple pinned status items, exact status-item sizing, explicit menu rebuilding, and multi-display behavior.
 - **Keep an AppKit Dock popover/window boundary.** The custom floating surface positioned relative to the Dock is a legitimate AppKit use case.
-- **Keep the Liquid Glass compatibility boundary while macOS 15 remains supported.** The runtime fallback for pre-macOS-26 systems is still required.
 - **Keep the pure presentation/policy direction in `CoreLogic.swift` and `SurfaceRenderers.swift`.** The refactor should move more logic toward explicit value types and testable policies, not add another framework layer.
