@@ -42,12 +42,11 @@ enum SettingsSection: String, Hashable {
 
 struct SettingsView: View {
     @State private var selectedItem: SettingsSection? = .general
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             sidebar
                 .navigationSplitViewColumnWidth(
                     min: 170,
@@ -65,31 +64,6 @@ struct SettingsView: View {
                 .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        columnVisibility =
-                            columnVisibility == .detailOnly
-                                ? .all
-                                : .detailOnly
-                    }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help(
-                    columnVisibility == .detailOnly
-                        ? "Show Sidebar"
-                        : "Hide Sidebar"
-                )
-                .accessibilityLabel(
-                    columnVisibility == .detailOnly
-                        ? "Show Sidebar"
-                        : "Hide Sidebar"
-                )
-            }
-        }
         .frame(
             minWidth: 760,
             idealWidth: 960,
