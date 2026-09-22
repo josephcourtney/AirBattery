@@ -34,8 +34,8 @@
 		184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
 		184ADF0D2DDB6C9F004791F0 /* Supports.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADEFD2DDB6C9F004791F0 /* Supports.swift */; };
 		184ADF0E2DDB83EC004791F0 /* abt in CopyFiles */ = {isa = PBXBuildFile; fileRef = 184ADED12DDB2B37004791F0 /* abt */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		184ADF102DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */; };
-		184ADF112DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */; };
+		184ADF102DFCA001004791F0 /* GlassEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADF0F2DFCA001004791F0 /* GlassEffect.swift */; };
+		184ADF112DFCA001004791F0 /* GlassEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184ADF0F2DFCA001004791F0 /* GlassEffect.swift */; };
 		185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185E382C2C2733B9005578EC /* BTDBattery.swift */; };
 		18892A892B81F8320017377E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18892A882B81F8320017377E /* WidgetKit.framework */; };
 		18892A8B2B81F8320017377E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18892A8A2B81F8320017377E /* SwiftUI.framework */; };
@@ -156,7 +156,7 @@
 		184ADEFC2DDB6C9F004791F0 /* Sparkle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sparkle.swift; sourceTree = "<group>"; };
 		184ADEFD2DDB6C9F004791F0 /* Supports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supports.swift; sourceTree = "<group>"; };
 		184ADEFE2DDB6C9F004791F0 /* SurfaceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceController.swift; sourceTree = "<group>"; };
-		184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassCompat.swift; sourceTree = "<group>"; };
+		184ADF0F2DFCA001004791F0 /* GlassEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassEffect.swift; sourceTree = "<group>"; };
 		185E382C2C2733B9005578EC /* BTDBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BTDBattery.swift; sourceTree = "<group>"; };
 		186671CC2B791CF700D4D27B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		18892A862B81F8320017377E /* AirBatteryWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AirBatteryWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -299,7 +299,7 @@
 				184ADEF62DDB6C9F004791F0 /* CommandLineTool.swift */,
 				18F0B0012F6F000100AB0001 /* CoreLogic.swift */,
 				184ADEF72DDB6C9F004791F0 /* GroupForm.swift */,
-				184ADF0F2DFCA001004791F0 /* LiquidGlassCompat.swift */,
+				184ADF0F2DFCA001004791F0 /* GlassEffect.swift */,
 				18F0B0302F80000100AB0001 /* MonitoringCoordinator.swift */,
 				18F0B0362F80000100AB0001 /* StatusBarController.swift */,
 				18F0B0382F80000100AB0001 /* DockPopoverController.swift */,
@@ -619,7 +619,7 @@
 				18F0B0612F80000100AB0001 /* LogReader.swift in Sources */,
 				184ADF092DDB6C9F004791F0 /* SurfaceController.swift in Sources */,
 				18F0B0632F80000100AB0001 /* SettingsWindowController.swift in Sources */,
-				184ADF102DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
+				184ADF102DFCA001004791F0 /* GlassEffect.swift in Sources */,
 				1819E94C2CC2A8C2007B95E9 /* BatteryAlertView.swift in Sources */,
 				185E382D2C2733B9005578EC /* BTDBattery.swift in Sources */,
 				18347DCE2B88417500A78DF6 /* BatteryView.swift in Sources */,
@@ -648,7 +648,7 @@
 				18F0B00F2F6F000100AB0001 /* CoreLogic.swift in Sources */,
 				184ADF0C2DDB6C9F004791F0 /* Supports.swift in Sources */,
 				18F0B05F2F80000100AB0001 /* AppPreferences.swift in Sources */,
-				184ADF112DFCA001004791F0 /* LiquidGlassCompat.swift in Sources */,
+				184ADF112DFCA001004791F0 /* GlassEffect.swift in Sources */,
 				18892AA32B82F09C0017377E /* InternalBattery.swift in Sources */,
 				18892A8E2B81F8320017377E /* widgetBundle.swift in Sources */,
 				18892A902B81F8320017377E /* BatteryWidget.swift in Sources */,
