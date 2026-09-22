@@ -9,7 +9,8 @@ import Combine
 import Foundation
 import MultipeerKit
 
-class MultipeerService: ObservableObject {
+@MainActor
+final class MultipeerService: ObservableObject {
     var nearcastGroupID: String { AppPreferences.nearcastGroupID }
     var nearcastSharingKey: String { AppPreferences.nearcastSharingKey }
     var deviceName: String { AppPreferences.deviceName }
@@ -29,8 +30,11 @@ class MultipeerService: ObservableObject {
         //transceiver.resume()
         
         // Handle received data
-        transceiver.receive(Data.self) { data, peer in
-            DispatchQueue.global().async {
+        transceiver.receive(Data.self) { [weak self] data, peer in
+            let peerID = peerID
+            let peerName = peerName
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 guard let message = try? JSONDecoder().decode(NCMessage.self, from: data) else {
                     print("Failed to decode message")
                     return
@@ -45,7 +49,7 @@ class MultipeerService: ObservableObject {
                         guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
                         guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
                         let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "", content: data)
-                        netcastService.sendMessage(message, peerID: peer.id)
+                        self.sendMessage(message, peerID: peerID)
                     } catch {
                         print("Write JSON error：\(error)")
                     }
@@ -60,12 +64,15 @@ class MultipeerService: ObservableObject {
                             if let info = try? JSONDecoder().decode(NCNotification.self, from: jsonData) {
                                 switch info.type {
                                 case 1:
-                                    createNotification(title: info.title, message: "\(info.info) (\(peer.name))")
+                                    createNotification(title: info.title, message: "\(info.info) (\(peerName))")
                                 case 255:
-                                    createNotification(title: info.title, message: "\(peer.name) \(info.info)")
+                                    createNotification(title: info.title, message: "\(peerName) \(info.info)")
                                 case 254:
-                                    _ = BTTool.connect(mac: info.atta)
-                                    createNotification(title: info.title, message: "\(peer.name) \(info.info)")
+                                    let mac = info.atta
+                                    DispatchQueue.global(qos: .utility).async {
+                                        _ = BTTool.connect(mac: mac)
+                                    }
+                                    createNotification(title: info.title, message: "\(peerName) \(info.info)")
                                 default:
                                     createNotification(title: info.title, message: info.info)
                                 }
@@ -87,7 +94,7 @@ class MultipeerService: ObservableObject {
                 default:
                     print("Unknown command: \(message.command)")
                     if let info = self.createInfo(type: 255, title: "Unknown Command".local, info: String(format: "doesn't support command \"%@\"".local, message.command)) {
-                        self.sendMessage(info, peerID: peer.id)
+                        self.sendMessage(info, peerID: peerID)
                     }
                     return
                 }
@@ -134,7 +141,7 @@ class MultipeerService: ObservableObject {
             guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
             let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "trans", content: data)
             for peer in transceiver.availablePeers.filter({ $0.name == name }) {
-                self.sendMessage(message, peerID: peer.id)
+                self.sendMessage(message, peerID: peerID)
             }
         } catch {
             print("Write JSON error：\(error)")
@@ -158,24 +165,24 @@ class MultipeerService: ObservableObject {
 func removeDuplicatesPeer(peers: [Peer]) -> [Peer] {
     var seenIDs = Set<String>()
     let filteredPeers = peers.filter { peer in
-        if seenIDs.contains(peer.id) {
+        if seenIDs.contains(peerID) {
             return false
         } else {
-            seenIDs.insert(peer.id)
+            seenIDs.insert(peerID)
             return true
         }
     }
     return filteredPeers
 }
 
-struct NCMessage: Codable {
+struct NCMessage: Codable, Sendable {
     let id: String
     let sender: String
     let command: String
     let content: String
 }
 
-struct NCNotification: Codable {
+struct NCNotification: Codable, Sendable {
     /// 0 = normal
     /// 1 = normal error
     /// 254 = bt error
