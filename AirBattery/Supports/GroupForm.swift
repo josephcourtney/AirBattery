@@ -26,19 +26,19 @@ struct SettingsPageHeader: View {
 
 struct SForm<Content: View>: View {
     var spacing: CGFloat = 20
-    var noSpacer = false
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
             content()
-            if !noSpacer {
-                Spacer(minLength: 0)
-            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
-        .frame(maxWidth: 800, alignment: .topLeading)
+        .frame(
+            maxWidth: 800,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
     }
 }
 
