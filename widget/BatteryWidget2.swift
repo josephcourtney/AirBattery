@@ -48,6 +48,7 @@ struct SingleBatteryWidget: Widget {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .containerBackground(for: .widget) { Color.clear }
+                .widgetURL(URL(string: "airbattery://settings"))
         }
         .configurationDisplayName("Single Battery")
         .description("Displays one selected device from AirBattery")
