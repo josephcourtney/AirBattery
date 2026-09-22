@@ -85,6 +85,10 @@ struct DevicesView: View {
                                         .foregroundColor(.secondary)
                                     Spacer()
                                 }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    showOtherNearby.toggle()
+                                }
                             }
                         }
                     }
@@ -256,6 +260,11 @@ struct DevicesView: View {
                     Label("Technical Details", systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleTechnicalKnown(device.id)
+                        }
                 }
             }
             .padding(.top, 6)
@@ -272,7 +281,11 @@ struct DevicesView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleKnown(device.id)
+                }
                 if let ble = device.ble {
                     logicalPolicyMenu(name: device.name, currentPolicy: ble.policy, hasOverrides: !ble.exactRules.isEmpty)
                 }
@@ -326,7 +339,11 @@ struct DevicesView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleNearby(rowID)
+                }
             }
         }
     }
@@ -381,7 +398,11 @@ struct DevicesView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleNearby(rowID)
+                }
                 reviewMenu(candidate, suggested: suggested)
             }
         }
@@ -422,7 +443,6 @@ struct DevicesView: View {
             .font(.caption)
             .frame(minWidth: 128, alignment: .trailing)
         }
-        .menuStyle(.borderlessButton)
         .fixedSize()
         .accessibilityLabel(
             "Battery access policy: " +
@@ -446,7 +466,6 @@ struct DevicesView: View {
             Text(suggested ? "Review" : "Battery access")
                 .frame(minWidth: 82, alignment: .trailing)
         }
-        .menuStyle(.borderlessButton)
         .fixedSize()
     }
 
@@ -489,8 +508,7 @@ struct DevicesView: View {
                         .font(.caption)
                     }
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+                        .fixedSize()
             }
             candidateTechnicalDetails(candidate)
         }
@@ -592,6 +610,30 @@ struct DevicesView: View {
             Text(message)
                 .foregroundColor(.secondary)
             Spacer()
+        }
+    }
+
+    private func toggleKnown(_ id: String) {
+        if expandedKnown.contains(id) {
+            expandedKnown.remove(id)
+        } else {
+            expandedKnown.insert(id)
+        }
+    }
+
+    private func toggleNearby(_ id: String) {
+        if expandedNearby.contains(id) {
+            expandedNearby.remove(id)
+        } else {
+            expandedNearby.insert(id)
+        }
+    }
+
+    private func toggleTechnicalKnown(_ id: String) {
+        if technicalExpandedKnown.contains(id) {
+            technicalExpandedKnown.remove(id)
+        } else {
+            technicalExpandedKnown.insert(id)
         }
     }
 
