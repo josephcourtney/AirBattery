@@ -76,7 +76,7 @@ fi
 for path in "${SUBMODULES[@]}"; do
   if [[ ! -e "$ROOT/$path/.git" && ! -f "$ROOT/$path/.git" ]]; then
     printf 'Submodule is not initialized: %s\n' "$path" >&2
-    printf '%s\n' 'Run: git submodule update --init --recursive' >&2
+    printf '%s\n' 'Run: just vendor-init' >&2
     exit 2
   fi
 
@@ -85,7 +85,7 @@ for path in "${SUBMODULES[@]}"; do
   if [[ -z "$expected" || "$actual" != "$expected" ]]; then
     printf 'Submodule %s is not at the commit pinned in the AirBattery index.\n' "$path" >&2
     printf 'Expected: %s\nActual:   %s\n' "$expected" "$actual" >&2
-    printf '%s\n' 'Run: git submodule update --init --recursive' >&2
+    printf '%s\n' 'Run: just vendor-init' >&2
     exit 2
   fi
 done
@@ -268,7 +268,7 @@ build_autotools() {
 }
 
 if component_cached openssl "$openssl_fp" "$PREFIX/lib/libcrypto.a" "$PREFIX/lib/libssl.a"; then
-  printf '%s\n' '==> OpenSSL: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> OpenSSL: cached' || true
 else
   printf '%s\n' '==> Building OpenSSL'
   openssl_src="$(materialize openssl third_party/openssl)"
@@ -277,7 +277,7 @@ else
 fi
 
 if component_cached libplist "$plist_fp" "$PREFIX/lib/libplist-2.0.dylib"; then
-  printf '%s\n' '==> libplist: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> libplist: cached' || true
 else
   printf '%s\n' '==> Building libplist'
   plist_src="$(materialize libplist third_party/libplist)"
@@ -286,7 +286,7 @@ else
 fi
 
 if component_cached libimobiledevice-glue "$glue_fp" "$PREFIX/lib/libimobiledevice-glue-1.0.dylib"; then
-  printf '%s\n' '==> libimobiledevice-glue: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> libimobiledevice-glue: cached' || true
 else
   printf '%s\n' '==> Building libimobiledevice-glue'
   glue_src="$(materialize libimobiledevice-glue third_party/libimobiledevice-glue)"
@@ -295,7 +295,7 @@ else
 fi
 
 if component_cached libusbmuxd "$usbmuxd_fp" "$PREFIX/lib/libusbmuxd-2.0.dylib"; then
-  printf '%s\n' '==> libusbmuxd: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> libusbmuxd: cached' || true
 else
   printf '%s\n' '==> Building libusbmuxd'
   usbmuxd_src="$(materialize libusbmuxd third_party/libusbmuxd)"
@@ -304,7 +304,7 @@ else
 fi
 
 if component_cached libtatsu "$tatsu_fp" "$PREFIX/lib/libtatsu.dylib"; then
-  printf '%s\n' '==> libtatsu: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> libtatsu: cached' || true
 else
   printf '%s\n' '==> Building libtatsu'
   tatsu_src="$(materialize libtatsu third_party/libtatsu)"
@@ -319,7 +319,7 @@ if component_cached \
   libimobiledevice "$limd_fp" \
   "$PREFIX/lib/libimobiledevice-1.0.dylib" \
   "$PREFIX/bin/idevice_id" "$PREFIX/bin/ideviceinfo" "$PREFIX/bin/idevicesyslog"; then
-  printf '%s\n' '==> libimobiledevice: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> libimobiledevice: cached' || true
 else
   printf '%s\n' '==> Building libimobiledevice'
   limd_src="$(materialize libimobiledevice third_party/libimobiledevice)"
@@ -338,7 +338,7 @@ read -r -a limd_flags <<<"$(PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --libs
 read -r -a wifi_flags <<<"$(PKG_CONFIG_PATH="$PKG_CONFIG_PATH" pkg-config --libs libimobiledevice-1.0 libusbmuxd-2.0 libplist-2.0)"
 
 if component_cached airbattery-mobile "$airbattery_mobile_fp" "$PREFIX/bin/airbattery-mobile"; then
-  printf '%s\n' '==> airbattery-mobile: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> airbattery-mobile: cached' || true
 else
   printf '%s\n' '==> Building airbattery-mobile'
   "$CC" "${common_flags[@]}" \
@@ -349,7 +349,7 @@ else
 fi
 
 if component_cached wificonnection "$wificonnection_fp" "$PREFIX/bin/wificonnection"; then
-  printf '%s\n' '==> wificonnection: cached'
+  [[ "${AIRBATTERY_VENDOR_VERBOSE:-0}" == "1" ]] && printf '%s\n' '==> wificonnection: cached' || true
 else
   printf '%s\n' '==> Building wificonnection'
   "$CC" "${common_flags[@]}" \
@@ -374,7 +374,7 @@ if [[ -f "$stage_stamp" ]] &&
   cached_helper_status=$?
   set -e
   if [[ "$cached_helper_status" -eq 2 ]]; then
-    printf '==> Runtime staging: cached (%s)\n' "$ARCH"
+    printf '      ✓ native runtime cached (%s, macOS %s)\n' "$ARCH" "$MACOS_MIN"
     exit 0
   fi
   printf '%s\n' 'Cached staged runtime failed its loader check; restaging.'
