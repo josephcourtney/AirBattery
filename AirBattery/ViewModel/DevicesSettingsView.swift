@@ -323,6 +323,11 @@ struct DevicesView: View {
                     Label("Technical Details", systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleTechnicalNearby(rowID)
+                        }
                 }
             }
             .padding(.top, 5)
@@ -381,6 +386,11 @@ struct DevicesView: View {
                     Label("Technical Details", systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleTechnicalNearby(rowID)
+                        }
                 }
             }
             .padding(.top, 5)
@@ -443,6 +453,9 @@ struct DevicesView: View {
             .font(.caption)
             .frame(minWidth: 128, alignment: .trailing)
         }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .fixedSize()
         .accessibilityLabel(
             "Battery access policy: " +
@@ -464,8 +477,10 @@ struct DevicesView: View {
             }
         } label: {
             Text(suggested ? "Review" : "Battery access")
-                .frame(minWidth: 82, alignment: .trailing)
         }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .fixedSize()
     }
 
@@ -508,7 +523,10 @@ struct DevicesView: View {
                         .font(.caption)
                     }
                 }
-                        .fixedSize()
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .fixedSize()
             }
             candidateTechnicalDetails(candidate)
         }
@@ -634,6 +652,14 @@ struct DevicesView: View {
             technicalExpandedKnown.remove(id)
         } else {
             technicalExpandedKnown.insert(id)
+        }
+    }
+
+    private func toggleTechnicalNearby(_ id: String) {
+        if technicalExpandedNearby.contains(id) {
+            technicalExpandedNearby.remove(id)
+        } else {
+            technicalExpandedNearby.insert(id)
         }
     }
 
