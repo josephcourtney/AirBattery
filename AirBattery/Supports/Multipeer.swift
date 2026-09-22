@@ -21,7 +21,7 @@ final class MultipeerService: ObservableObject {
         let configuration = MultipeerConfiguration(
             serviceType: serviceType,
             peerName: getMacDeviceName(),
-            defaults: ud,
+            defaults: UserDefaults.standard,
             security: .default,
             invitation: .automatic)
         transceiver = MultipeerTransceiver(configuration: configuration)
