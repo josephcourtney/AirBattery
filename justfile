@@ -676,5 +676,5 @@ app-path configuration="Debug":
 
 # Remove local Xcode build products, generated native vendor products, and package checkouts.
 clean:
-    rm -rf "{{derived_data}}" "{{install_state_dir}}"
     just vendor-mobile-clean
+    rm -rf ".build" ".cache"
