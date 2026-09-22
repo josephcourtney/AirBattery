@@ -468,9 +468,11 @@ private struct DisplaySurfacePreview: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+            if !title.isEmpty {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
 
             ZStack {
                 content()
