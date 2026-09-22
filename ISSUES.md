@@ -114,11 +114,11 @@ The code contains deprecated `NSApplication.activate(ignoringOtherApps:)`, one-a
 
 **Fix:** After ownership is clear, use structured concurrency/actors where it materially simplifies the implementation. Do not perform a broad concurrency rewrite solely for style.
 
-### [ ] 18. Project language mode is still Swift 5 — separate hardening task
+### [x] 18. Project language mode migrated to Swift 6
 
-The Xcode project declares `SWIFT_VERSION = 5.0` for its Swift targets.
+All Swift target configurations now use `SWIFT_VERSION = 6.0`.
 
-**Resolution:** Intentionally left as a separate hardening task. This refactor removes the principal timer/thread ownership problems first; changing language mode at the same time would turn a behavior-preserving GUI simplification into a concurrency migration.
+**Fix:** Resolve Swift 6 concurrency diagnostics explicitly: isolate UI-owned state to `MainActor`, synchronize genuinely shared mutable stores with locks, make immutable shared configuration constant, and remove shared non-`Sendable` Foundation convenience globals. Narrow `nonisolated(unsafe)` and `@unchecked Sendable` uses remain only where external synchronization or main-queue confinement is explicit.
 
 ### [x] 19. Small redundant compatibility/dead-code fragments remain
 
@@ -134,7 +134,7 @@ Examples include `statusBarItem`, `pinnedItems`, `dockWindow`, `netcastService`,
 
 ## Implementation status
 
-The checked items were implemented by the GUI simplification work. AirBattery now targets macOS 26 and later. Items 8 and 18 remain intentionally open because completing them would respectively require a scene/lifecycle ownership redesign or materially broaden the scope into a Swift 6 concurrency migration.
+The checked items have been implemented. AirBattery now targets macOS 26 and later and builds in Swift 6 language mode. Item 8 remains intentionally open because completing it requires a separate scene/lifecycle ownership redesign.
 
 ## Explicit non-issues / design decisions to retain
 
