@@ -189,6 +189,44 @@ struct popover: View {
         return "\(minutes) " + "mins ago".local
     }
 
+    @MainActor
+    private func showOverflowMenu() {
+        let point = NSEvent.mouseLocation
+        StatusBarController.shared.cancelMenuTracking()
+
+        DispatchQueue.main.async {
+            guard let delegate = NSApp.delegate as? AppDelegate else {
+                return
+            }
+
+            let menu = NSMenu()
+
+            let aboutItem = NSMenuItem(
+                title: "About AirBattery".local,
+                action: #selector(AppDelegate.openAbout),
+                keyEquivalent: ""
+            )
+            aboutItem.target = delegate
+            menu.addItem(aboutItem)
+
+            menu.addItem(.separator())
+
+            let quitItem = NSMenuItem(
+                title: "Quit AirBattery".local,
+                action: #selector(AppDelegate.confirmQuit),
+                keyEquivalent: ""
+            )
+            quitItem.target = delegate
+            menu.addItem(quitItem)
+
+            _ = menu.popUp(
+                positioning: nil,
+                at: point,
+                in: nil
+            )
+        }
+    }
+
     @ViewBuilder
     private func genericHoverControls(
         for device: Device,
@@ -245,33 +283,13 @@ struct popover: View {
                     onHide: {
                         DockPopoverController.shared.hide()
                     },
-                    onAbout: {
-                        DockPopoverController.shared.hide()
-                        StatusBarController.shared.cancelMenuTracking()
-                        openAboutPanel()
-                        DispatchQueue.main.asyncAfter(
-                            deadline: .now() + 0.2
-                        ) {
-                            NSApp.activate()
-                        }
-                    },
                     onSettings: {
                         DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
                         openSettingPanel()
                     },
-                    onQuit: {
-                        let response = createAlert(
-                            level: .warning,
-                            title: "Quit AirBattery?",
-                            message:
-                                "AirBattery will stop monitoring device batteries until you launch it again.",
-                            button1: "Quit",
-                            button2: "Cancel"
-                        ).runModal()
-                        if response == .alertFirstButtonReturn {
-                            NSApp.terminate(nil)
-                        }
+                    onMore: {
+                        showOverflowMenu()
                     },
                     onRefreshNearcast: {
                         netcastService.refeshAll()
