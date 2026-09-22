@@ -24,7 +24,7 @@ struct DebugView: View {
     @Binding var selectedItem: SettingsSection?
     
     var body: some View {
-        SForm(noSpacer: true) {
+        SForm {
             SGroupBox {
                 SToggle("Debug Mode", isOn: $test_debug)
                 Divider().opacity(0.5)
