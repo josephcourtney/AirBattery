@@ -24,14 +24,14 @@ class CommandLineTool {
     }
     
     static func isInstalled() -> Bool {
-        let attributes = try? fd.attributesOfItem(atPath: "/usr/local/bin/airbattery")
+        let attributes = try? FileManager.default.attributesOfItem(atPath: "/usr/local/bin/airbattery")
         return attributes?[.type] as? FileAttributeType == .typeSymbolicLink
     }
     
     static func install(action: (() -> Void)? = nil) {
         if let resourceURL = Bundle.main.resourceURL {
             let binPath = resourceURL.appendingPathComponent("abt").path
-            if !fd.fileExists(atPath: "/usr/local/bin") {
+            if !FileManager.default.fileExists(atPath: "/usr/local/bin") {
                 runAsRoot("/bin/mkdir -p /usr/local/bin;/bin/ln -s '\(binPath)' /usr/local/bin/airbattery") {
                     action?()
                 }
