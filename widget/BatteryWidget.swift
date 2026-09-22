@@ -153,7 +153,6 @@ struct BatteryOverviewEntryView: View {
                 showPercentages: entry.showPercentages,
                 showLabels: entry.showLabels
             )
-            .widgetURL(URL(string: "airbattery://reloadwingets"))
         }
     }
 
@@ -182,6 +181,7 @@ struct BatteryOverviewWidget: Widget {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .containerBackground(for: .widget) { Color.clear }
+                .widgetURL(URL(string: "airbattery://settings"))
         }
         .configurationDisplayName("Battery Overview")
         .description(
