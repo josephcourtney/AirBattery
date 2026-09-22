@@ -23,7 +23,7 @@ struct DevicesView: View {
         let otherBLE = nearbyBLE.filter { !suggestedIDs.contains($0.identifier) }
 
         return ScrollView {
-            SForm(noSpacer: true) {
+            SForm {
                 SettingsPageHeader(
                     title: "Devices",
                     subtitle: "Manage known devices and inspect battery, connection, and discovery information."
