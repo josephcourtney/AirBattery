@@ -274,7 +274,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         completionHandler([.banner, .list, .sound])
     }
     
-    @objc func onDisplayWake() {
+    @objc nonisolated func onDisplayWake() {
+        Task { @MainActor [weak self] in
+            self?.handleDisplayWake()
+        }
+    }
+
+    private func handleDisplayWake() {
         if readBTHID {
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
                 LogReader.shared.run(.wake)
@@ -282,20 +288,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
     }
     
-    @objc func deviceIsConnected(
+    @objc nonisolated func deviceIsConnected(
         notification: IOBluetoothUserNotification,
         fromDevice device: IOBluetoothDevice
     ) {
-        guard readBTHID,
-              Date().timeIntervalSince(startTime) >= 10,
-              let name = device.name,
-              let address = device.addressString,
-              !AirBatteryModel.checkIfBlocked(name: name)
+        guard let name = device.name,
+              let address = device.addressString
         else {
             return
         }
 
         let isAppleDevice = device.isAppleDevice
+        Task { @MainActor [weak self] in
+            self?.handleDeviceConnected(
+                name: name,
+                address: address,
+                isAppleDevice: isAppleDevice
+            )
+        }
+    }
+
+    private func handleDeviceConnected(
+        name: String,
+        address: String,
+        isAppleDevice: Bool
+    ) {
+        guard readBTHID,
+              Date().timeIntervalSince(startTime) >= 10,
+              !AirBatteryModel.checkIfBlocked(name: name)
+        else {
+            return
+        }
+
         print("ℹ️ \(name) (\(address)) connected")
         DispatchQueue.global(qos: .utility).async {
             usleep(2_500_000)
@@ -321,23 +345,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
     }
     
-    @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
-        if let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
-           let url = URL(string: urlString) {
-            if url.scheme == "airbattery"{
-                switch url.host {
-                case "writedata" :
-                    print("Writing data to disk...")
-                    AirBatteryModel.writeData()
-                case "reloadwingets" :
-                    print("Reloading all widgets...")
-                    AirBatteryModel.writeData()
-                    WidgetCenter.shared.reloadAllTimelines()
-                case "settings":
-                    presentSettings()
-                default: print("Unknow command!")
-                }
-            }
+    @objc nonisolated func handleURLEvent(
+        _ event: NSAppleEventDescriptor,
+        replyEvent: NSAppleEventDescriptor
+    ) {
+        guard let urlString = event
+            .paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?
+            .stringValue
+        else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            self?.handleURL(urlString)
+        }
+    }
+
+    private func handleURL(_ urlString: String) {
+        guard let url = URL(string: urlString),
+              url.scheme == "airbattery"
+        else {
+            return
+        }
+
+        switch url.host {
+        case "writedata":
+            print("Writing data to disk...")
+            AirBatteryModel.writeData()
+        case "reloadwingets":
+            print("Reloading all widgets...")
+            AirBatteryModel.writeData()
+            WidgetCenter.shared.reloadAllTimelines()
+        case "settings":
+            presentSettings()
+        default:
+            print("Unknow command!")
         }
     }
      
