@@ -4,6 +4,7 @@ import SwiftUI
 enum WidgetOverviewFamily {
     case small
     case medium
+    case large
 }
 
 struct WidgetOverviewRingsSurfaceContent: View {
@@ -19,6 +20,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
             limit = 4
         case .medium:
             limit = 8
+        case .large:
+            limit = 9
         }
         return Array(devices.filter(\.hasBattery).prefix(limit))
     }
@@ -29,6 +32,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
             return 2
         case .medium:
             return 4
+        case .large:
+            return 3
         }
     }
 
@@ -47,6 +52,10 @@ struct WidgetOverviewRingsSurfaceContent: View {
             if showPercentages && showLabels { return 44 }
             if showPercentages || showLabels { return 50 }
             return 58
+        case .large:
+            if showPercentages && showLabels { return 72 }
+            if showPercentages || showLabels { return 80 }
+            return 90
         }
     }
 
@@ -56,6 +65,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
             return showPercentages || showLabels ? 18 : 20
         case .medium:
             return showPercentages || showLabels ? 14 : 18
+        case .large:
+            return showPercentages || showLabels ? 20 : 24
         }
     }
 
@@ -65,6 +76,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
             return showPercentages && showLabels ? 0 : 5
         case .medium:
             return showPercentages && showLabels ? 5 : 9
+        case .large:
+            return showPercentages && showLabels ? 12 : 18
         }
     }
 
