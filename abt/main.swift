@@ -8,8 +8,8 @@
 import AppKit
 import ArgumentParser
 
-let fd = FileManager.default
-let ud = UserDefaults.standard
+var fd: FileManager { FileManager.default }
+var ud: UserDefaults { UserDefaults.standard }
 let key = "com.lihaoyun6.AirBattery.widget"
 let ncFolder = AirBatteryModel.getNearcastURL()
 
