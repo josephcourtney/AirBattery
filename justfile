@@ -58,7 +58,7 @@ vendor-init:
 
 # Build and stage the pinned libimobiledevice runtime and AirBattery-owned helper.
 # The script is fingerprinted and returns immediately when the staged stack is current.
-vendor-mobile: vendor-init
+vendor-mobile:
     bash scripts/build-mobile-stack.sh
 
 # Report pinned submodule and generated-runtime state without cloning or building.
@@ -131,7 +131,7 @@ vendor-mobile-clean:
 # Resolve Swift package dependencies into the local derived-data directory.
 resolve:
     @mkdir -p "{{derived_data}}"
-    xcodebuild \
+    bash scripts/run-xcodebuild.sh "Resolve packages" -- \
         -resolvePackageDependencies \
         -project "{{project}}" \
         -scheme "{{scheme}}" \
@@ -140,12 +140,31 @@ resolve:
 # Build AirBattery without code signing. Defaults to Debug.
 build configuration="Debug": vendor-mobile
     @mkdir -p "{{derived_data}}"
-    xcodebuild \
+    bash scripts/run-xcodebuild.sh "Build {{configuration}}" -- \
         -project "{{project}}" \
         -scheme "{{scheme}}" \
         -configuration "{{configuration}}" \
         -destination 'platform=macOS' \
         -derivedDataPath "{{derived_data}}" \
+        -disableAutomaticPackageResolution \
+        CODE_SIGNING_ALLOWED=NO \
+        build
+
+# Print the complete xcodebuild stream while retaining the normal build path.
+build-verbose configuration="Debug":
+    AIRBATTERY_XCODE_VERBOSE=1 just build "{{configuration}}"
+
+# Show Xcode's timing summary for a normal incremental build.
+build-profile configuration="Debug": vendor-mobile
+    @mkdir -p "{{derived_data}}"
+    bash scripts/run-xcodebuild.sh "Profile {{configuration}} build" -- \
+        -project "{{project}}" \
+        -scheme "{{scheme}}" \
+        -configuration "{{configuration}}" \
+        -destination 'platform=macOS' \
+        -derivedDataPath "{{derived_data}}" \
+        -disableAutomaticPackageResolution \
+        -showBuildTimingSummary \
         CODE_SIGNING_ALLOWED=NO \
         build
 
@@ -184,9 +203,11 @@ build-signed configuration="Debug":
     @identity="$(just signing-identity)"; \
       app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       test -d "$app" || { echo "Missing $app after ad-hoc build." >&2; exit 1; }; \
-      printf 'Re-signing with: %s\n' "$identity"; \
+      printf '      Signing with: %s\n' "$identity"; \
+      signed_count=0; \
       sign_one() { \
-        printf 'Signing code object: %s\n' "$1"; \
+        signed_count=$((signed_count + 1)); \
+        if [[ "${AIRBATTERY_SIGN_VERBOSE:-0}" == "1" ]]; then printf 'Signing code object: %s\n' "$1"; fi; \
         if /usr/bin/codesign -d "$1" >/dev/null 2>&1; then \
           /usr/bin/codesign \
             --force \
@@ -238,6 +259,7 @@ build-signed configuration="Debug":
           done | /usr/bin/sort -rn \
       ); \
       sign_one "$app"; \
+      printf '      ✓ Signed %s code objects\n' "$signed_count"; \
       if [[ "$identity" != "-" ]]; then \
         actual_team="$(/usr/bin/codesign -dvv "$app" 2>&1 | /usr/bin/sed -n 's/^TeamIdentifier=//p')"; \
         [[ -n "$actual_team" && "$actual_team" != "not set" ]] || { \
@@ -252,12 +274,13 @@ build-signed configuration="Debug":
 # stage of build-signed. Do not install it directly for TCC-sensitive testing.
 build-adhoc configuration="Debug": vendor-mobile
     @mkdir -p "{{derived_data}}"
-    xcodebuild \
+    bash scripts/run-xcodebuild.sh "Build {{configuration}} (ad-hoc signed)" -- \
         -project "{{project}}" \
         -scheme "{{scheme}}" \
         -configuration "{{configuration}}" \
         -destination 'platform=macOS' \
         -derivedDataPath "{{derived_data}}" \
+        -disableAutomaticPackageResolution \
         CODE_SIGNING_ALLOWED=YES \
         CODE_SIGNING_REQUIRED=YES \
         CODE_SIGN_STYLE=Manual \
@@ -272,7 +295,7 @@ verify-signing configuration="Debug":
       widget="$app/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
       test -d "$app" || { echo "Missing $app; run 'just build-signed {{configuration}}' first." >&2; exit 1; }; \
       test -d "$widget" || { echo "Missing embedded widget extension: $widget" >&2; exit 1; }; \
-      codesign --verify --deep --strict --verbose=2 "$app"; \
+      codesign --verify --deep --strict "$app"; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == "{{app_bundle_id}}" ]] || { echo "Unexpected app bundle identifier." >&2; exit 1; }; \
       [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$widget/Contents/Info.plist")" == "{{widget_bundle_id}}" ]] || { echo "Unexpected widget bundle identifier." >&2; exit 1; }; \
       printf '%s\n' "Signed app:    {{app_bundle_id}}" "Signed widget: {{widget_bundle_id}}"
@@ -580,25 +603,35 @@ uninstall-local:
       rm -rf "$install_dir/AirBattery.app"; \
       rm -rf "{{install_state_dir}}"
 
-# Run deterministic hostless XCTest coverage. This does not launch AirBattery
-# and does not require Bluetooth or mobile hardware.
-test:
+# Run deterministic hostless XCTest coverage while also compiling the complete app graph.
+test: vendor-mobile
+    just _test-xcode
+
+_test-xcode:
     @mkdir -p "{{derived_data}}"
-    xcodebuild \
+    bash scripts/run-xcodebuild.sh "Build + hostless tests" -- \
         -project "{{project}}" \
         -scheme AirBatteryTests \
         -configuration Debug \
         -destination 'platform=macOS' \
         -derivedDataPath "{{derived_data}}" \
+        -disableAutomaticPackageResolution \
         CODE_SIGNING_ALLOWED=NO \
         test
 
 # Verify the staged native runtime without requiring a connected mobile device.
 test-runtime: vendor-mobile
-    @bin="AirBattery/libimobiledevice/bin/airbattery-mobile"; \
+    just _test-runtime
+
+_test-runtime:
+    @stage="AirBattery/libimobiledevice"; \
+      bin="$stage/bin/airbattery-mobile"; \
+      [[ -f "$stage/MANIFEST.txt" && -x "$bin" ]] || { \
+        echo "Staged mobile runtime is incomplete; run 'just vendor-mobile'." >&2; exit 1; \
+      }; \
       set +e; "$bin" >/dev/null 2>&1; rc=$?; set -e; \
-      [[ "$rc" -eq 2 ]] || { echo "airbattery-mobile usage smoke test failed: expected 2, got $rc" >&2; exit 1; }
-    just vendor-mobile-diagnose
+      [[ "$rc" -eq 2 ]] || { echo "airbattery-mobile usage smoke test failed: expected 2, got $rc" >&2; exit 1; }; \
+      printf '%s\n' '      ✓ airbattery-mobile loader/usage smoke'
 
 # Exercise real USB/network iDevice battery reads and repeatedly stress the
 # companion-proxy helper. Set AIRBATTERY_HARDWARE_STRESS_ITERATIONS to change
@@ -606,13 +639,16 @@ test-runtime: vendor-mobile
 test-hardware: vendor-mobile
     bash scripts/test-mobile-hardware.sh
 
-# Run the normal local verification path.
+# Run the normal local verification path with one Xcode invocation.
 check:
-    just doctor
-    just resolve
-    just test
-    just build
-    just test-runtime
+    @start=$SECONDS; \
+      printf '%s\n' 'AirBattery check' '' '[1/3] Native runtime'; \
+      just vendor-mobile; \
+      printf '%s\n' '' '[2/3] Xcode build + tests'; \
+      just _test-xcode; \
+      printf '%s\n' '' '[3/3] Runtime smoke'; \
+      just _test-runtime; \
+      printf '\n✓ check passed — %ss\n' "$((SECONDS - start))"
 
 # Run the same unsigned build commands used by GitHub Actions.
 ci: vendor-mobile
