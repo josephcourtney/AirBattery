@@ -29,6 +29,7 @@ struct KnownDeviceSnapshot: Identifiable {
     var isBuiltIn = false
 }
 
+@MainActor
 final class DeviceInventoryModel: ObservableObject {
     @Published private(set) var devices: [KnownDeviceSnapshot] = []
 
