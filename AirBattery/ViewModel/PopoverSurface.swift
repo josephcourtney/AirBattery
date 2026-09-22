@@ -61,6 +61,7 @@ struct PopoverToolbarSurfaceContent: View {
                     .foregroundStyle(.secondary)
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
             .help("More".local)
         }
