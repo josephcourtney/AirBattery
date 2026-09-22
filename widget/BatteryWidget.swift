@@ -183,7 +183,7 @@ struct BatteryOverviewWidget: Widget {
             BatteryOverviewEntryView(entry: entry)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
-                .liquidGlassWidgetBackground()
+                .containerBackground(for: .widget) { Color.clear }
         }
         .configurationDisplayName("Battery Overview")
         .description(
