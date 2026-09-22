@@ -22,7 +22,7 @@ struct DisplayView: View {
 
     var body: some View {
         ScrollView {
-            SForm(noSpacer: true) {
+            SForm {
                 SettingsPageHeader(
                     title: "Display",
                     subtitle: "Choose where AirBattery appears and how battery information is presented."
