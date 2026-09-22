@@ -12,8 +12,6 @@ import IOBluetooth
 import ServiceManagement
 import Sparkle
 
-var fd: FileManager { FileManager.default }
-var ud: UserDefaults { UserDefaults.standard }
 @MainActor
 let updaterController = SPUStandardUpdaterController(
     startingUpdater: true,
@@ -122,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // default defaults (used if not set)
-        ud.register(
+        UserDefaults.standard.register(
             defaults: [
                 "showOn": "sbar",
                 "machineType": "mac",
@@ -149,24 +147,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
         
         //处理旧版偏好设置
-        if let alertList = (ud.object(forKey: "alertList") ?? []) as? [String] {
+        if let alertList = (UserDefaults.standard.object(forKey: "alertList") ?? []) as? [String] {
             let alerts: [btAlert] = alertList.map({
                 btAlert(name: $0, full: fullyLevel == 100 ? 99 : fullyLevel, fullOn: true, fullSound: alertSound, low: alertLevel, lowOn: true, lowSound: alertSound)
             })
-            ud.set([], forKey: "alertList")
-            ud.set(object: alerts, forKey: "alertList")
+            UserDefaults.standard.set([], forKey: "alertList")
+            UserDefaults.standard.set(object: alerts, forKey: "alertList")
         }
         
-        if !fd.fileExists(atPath: ncFolder.path) {
+        if !FileManager.default.fileExists(atPath: ncFolder.path) {
             do {
-                try fd.createDirectory(at: ncFolder, withIntermediateDirectories: true, attributes: nil)
+                try FileManager.default.createDirectory(at: ncFolder, withIntermediateDirectories: true, attributes: nil)
                 print("ℹ️ Folder created at: \(ncFolder.path)")
             } catch {
                 print("⚠️ Failed to create folder: \(error)")
             }
         } else {
             let oldFiles = getFiles(withExtension: "json", in: ncFolder)
-            for url in oldFiles { try? fd.removeItem(at: url) }
+            for url in oldFiles { try? FileManager.default.removeItem(at: url) }
         }
         
         startTime = Date()
