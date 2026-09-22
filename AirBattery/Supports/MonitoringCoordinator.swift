@@ -100,10 +100,12 @@ final class MonitoringCoordinator: ObservableObject {
 
     private func makeTimer(
         every interval: TimeInterval,
-        action: @escaping () -> Void
+        action: @escaping @MainActor @Sendable () -> Void
     ) -> Timer {
         let timer = Timer(timeInterval: interval, repeats: true) { _ in
-            action()
+            Task { @MainActor in
+                action()
+            }
         }
         RunLoop.main.add(timer, forMode: .common)
         return timer
