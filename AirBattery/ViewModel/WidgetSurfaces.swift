@@ -103,7 +103,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
         let end = min(start + columns, items.count)
         HStack(spacing: horizontalSpacing) {
             ForEach(start..<end, id: \.self) { index in
-                OverviewRingCell(
+                BatteryRingSurfaceCell(
                     item: items[index],
                     diameter: diameter,
                     showPercentage: showPercentages,
@@ -114,7 +114,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 }
 
-private struct OverviewRingCell: View {
+struct BatteryRingSurfaceCell: View {
     let item: Device
     let diameter: CGFloat
     let showPercentage: Bool
