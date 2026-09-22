@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-private let settingsLabelWidth: CGFloat = 200
+private let settingsLabelWidth: CGFloat = 224
 
 struct SForm<Content: View>: View {
     var spacing: CGFloat = 20
@@ -21,7 +21,7 @@ struct SForm<Content: View>: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
-        .frame(maxWidth: 760, alignment: .topLeading)
+        .frame(maxWidth: 800, alignment: .topLeading)
     }
 }
 
@@ -96,7 +96,10 @@ private struct SettingsControlRow<Control: View>: View {
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
                 Text(title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.88)
                     .multilineTextAlignment(.trailing)
+                    .layoutPriority(1)
                 if let tips {
                     SInfoButton(tips: tips)
                 }
