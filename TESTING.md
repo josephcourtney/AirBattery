@@ -40,9 +40,10 @@ Run:
 just test-runtime
 ```
 
-This builds the native vendor stack if required, verifies the helper's command
-line contract, and runs `just vendor-mobile-diagnose` to check staged Mach-O
-architecture, relocatable linkage, and code signatures.
+This builds the native vendor stack if required and verifies the staged helper's
+loader/command-line contract. Full Mach-O architecture, linkage, and signature
+inspection remains available explicitly through `just vendor-mobile-diagnose`
+without slowing the normal gate.
 
 This layer does not require a connected iPhone or iPad.
 
@@ -124,13 +125,18 @@ Run:
 just check
 ```
 
-The local gate now performs:
+The local gate is optimized for the edit/test loop:
 
-1. Xcode/toolchain validation;
-2. Swift package resolution;
-3. deterministic XCTest coverage;
-4. an unsigned application build; and
-5. native runtime verification.
+1. validate or reuse the fingerprinted native runtime;
+2. run one Xcode invocation that compiles the complete app graph and executes
+   the deterministic hostless XCTest suite using the committed package lock;
+3. smoke-test the staged native helper.
+
+Use `just doctor` for explicit toolchain/project diagnostics and `just resolve`
+when package resolution itself needs to be refreshed. Use `just build-verbose`
+for the complete Xcode stream or `just build-profile` for Xcode's build timing
+summary. Full Xcode logs from concise builds are retained under
+`.build/logs/`.
 
 Real-device testing remains outside `just check` because it depends on the
 currently connected and paired hardware.
@@ -155,7 +161,7 @@ battery presentation, or the native mobile stack, exercise at least:
 - Display previews while changing light/dark mode, menu-bar battery style,
   earbud merging, Dock visibility, and widget ordering;
 - renderer parity: compare Display previews against the live menu bar, popover,
-  Dock tile, Battery Overview Small/Medium/Large, and Single Battery Small using
+  Dock tile, Battery Overview Small/Medium, and Single Battery Small using
   the same fixture state; differences should be limited to system host sizing,
   margins, chrome, and compositing;
 - Battery Overview configuration: exercise all four combinations of Show
@@ -163,8 +169,8 @@ battery presentation, or the native mobile stack, exercise at least:
   changing its family or device ordering;
 - Battery Overview ring geometry: percentage-enabled cells use the open/split
   ring with the numeric value beneath it; percentage-disabled cells use a full
-  ring. Small/Medium annotation-heavy layouts must not clip, and Large uses a
-  balanced 3-column grid rather than stretching the Medium 4-column layout;
+  ring. Small/Medium annotation-heavy layouts must not clip; Small should keep
+  visually balanced margins around its 2×2 grid;
 - widget gallery inventory on every supported macOS release: only Battery
   Overview and Single Battery are offered;
 - Display preview host geometry: the Popover preview stays at the production
