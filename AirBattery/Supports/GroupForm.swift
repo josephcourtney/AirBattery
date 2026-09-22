@@ -7,6 +7,23 @@ import SwiftUI
 
 private let settingsLabelWidth: CGFloat = 224
 
+struct SettingsPageHeader: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.title2.weight(.semibold))
+            Text(subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct SForm<Content: View>: View {
     var spacing: CGFloat = 20
     var noSpacer = false
