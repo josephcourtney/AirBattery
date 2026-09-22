@@ -51,7 +51,7 @@ struct PopoverToolbarSurfaceContent: View {
                 )
             }
         }
-        .padding(.top, fromDock ? 8 : 6)
+        .padding(.top, fromDock ? 6 : 2)
         .padding(.bottom, 4)
         .padding(.horizontal, 8)
     }
