@@ -113,7 +113,9 @@ private struct PopoverOverflowMenuButton: NSViewRepresentable {
             pullsDown: true
         )
         button.isBordered = false
-        button.arrowPosition = .noArrow
+        if let cell = button.cell as? NSPopUpButtonCell {
+            cell.arrowPosition = .noArrow
+        }
         button.imagePosition = .imageOnly
         button.image = NSImage(
             systemSymbolName: "ellipsis.circle",
