@@ -174,7 +174,7 @@ struct IDeviceDiscoveryCandidate: Identifiable, Hashable {
     }
 }
 
-final class ExclusiveScanGate {
+final class ExclusiveScanGate: @unchecked Sendable {
     private let lock = NSLock()
     private var inFlight = false
 
