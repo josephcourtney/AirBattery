@@ -228,17 +228,6 @@ struct popover: View {
         ZStack{
             if fromDock { Color.clear.background(BlurView(material: .menu)) }
             VStack(spacing: 0){
-                if !fromDock {
-                    Color.clear
-                        .frame(height: 8.5)
-                        .onHover { hovering in
-                            if hovering {
-                                overStack = -1
-                                overStack2 = -1
-                                overStackNC = -1
-                            }
-                        }
-                }
                 PopoverToolbarSurfaceContent(
                     fromDock: fromDock,
                     nearcastEnabled: nearCast,
