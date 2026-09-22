@@ -204,23 +204,30 @@ build-signed configuration="Debug":
       app="{{derived_data}}/Build/Products/{{configuration}}/AirBattery.app"; \
       test -d "$app" || { echo "Missing $app after ad-hoc build." >&2; exit 1; }; \
       printf '      Signing with: %s\n' "$identity"; \
+      mkdir -p .build/logs; \
+      sign_log=".build/logs/codesign.log"; \
+      : > "$sign_log"; \
       signed_count=0; \
       sign_one() { \
         signed_count=$((signed_count + 1)); \
         if [[ "${AIRBATTERY_SIGN_VERBOSE:-0}" == "1" ]]; then printf 'Signing code object: %s\n' "$1"; fi; \
         if /usr/bin/codesign -d "$1" >/dev/null 2>&1; then \
-          /usr/bin/codesign \
+          if ! /usr/bin/codesign \
             --force \
             --sign "$identity" \
             --timestamp=none \
             --preserve-metadata=identifier,entitlements,flags,runtime \
-            "$1"; \
+            "$1" >>"$sign_log" 2>&1; then \
+            tail -n 40 "$sign_log" >&2; return 1; \
+          fi; \
         else \
-          /usr/bin/codesign \
+          if ! /usr/bin/codesign \
             --force \
             --sign "$identity" \
             --timestamp=none \
-            "$1"; \
+            "$1" >>"$sign_log" 2>&1; then \
+            tail -n 40 "$sign_log" >&2; return 1; \
+          fi; \
         fi; \
       }; \
       while IFS=$'\t' read -r _ path; do \
