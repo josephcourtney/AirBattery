@@ -268,13 +268,13 @@ struct NameRulesEditor: View {
             .frame(minHeight: 28)
         }
         .onAppear {
-            names = (ud.object(forKey: "blockedDevices") as? [String]) ?? []
+            names = (UserDefaults.standard.object(forKey: "blockedDevices") as? [String]) ?? []
             names.sort {
                 $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
             }
         }
         .onChange(of: names) { _, value in
-            ud.setValue(value, forKey: "blockedDevices")
+            UserDefaults.standard.setValue(value, forKey: "blockedDevices")
         }
     }
 }
