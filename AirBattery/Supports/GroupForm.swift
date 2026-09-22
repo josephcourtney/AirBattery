@@ -21,7 +21,7 @@ struct SForm<Content: View>: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: 760, alignment: .topLeading)
     }
 }
 
@@ -30,17 +30,20 @@ struct SGroupBox<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        if let label {
-            GroupBox {
-                groupContent
-            } label: {
-                Text(label).font(.headline)
-            }
-        } else {
-            GroupBox {
-                groupContent
+        Group {
+            if let label {
+                GroupBox {
+                    groupContent
+                } label: {
+                    Text(label).font(.headline)
+                }
+            } else {
+                GroupBox {
+                    groupContent
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var groupContent: some View {
