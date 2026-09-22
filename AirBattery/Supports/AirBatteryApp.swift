@@ -14,14 +14,17 @@ import Sparkle
 
 var fd: FileManager { FileManager.default }
 var ud: UserDefaults { UserDefaults.standard }
+@MainActor
 let updaterController = SPUStandardUpdaterController(
     startingUpdater: true,
     updaterDelegate: nil,
     userDriverDelegate: nil
 )
+@MainActor
 let netcastService = MultipeerService(serviceType: "airbattery-nc")
 let ncFolder = AirBatteryModel.getNearcastURL()
 let systemUUID = getMacDeviceUUID()
+@MainActor
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 
