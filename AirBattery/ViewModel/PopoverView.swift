@@ -18,7 +18,7 @@ struct popover: View {
     @State private var overStackNC = -1
     @State private var hidden = [Int]()
     @State private var hidden2 = [Int]()
-    @State private var alertList = ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+    @State private var alertList = UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     @State private var pinnedList = AppPreferences.pinnedNames
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
 
@@ -518,7 +518,7 @@ struct NearcastDeviceSection: View {
 
     @State private var overStack = -1
     @State private var alertList =
-        ud.get(objectType: [btAlert].self, forKey: "alertList") ?? []
+        UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     @State private var pinnedList = AppPreferences.pinnedNames
 
     var body: some View {
