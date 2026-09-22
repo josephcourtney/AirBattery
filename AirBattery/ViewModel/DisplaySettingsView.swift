@@ -23,6 +23,11 @@ struct DisplayView: View {
     var body: some View {
         ScrollView {
             SForm(noSpacer: true) {
+                SettingsPageHeader(
+                    title: "Display",
+                    subtitle: "Choose where AirBattery appears and how battery information is presented."
+                )
+
                 SGroupBox(label: "Surfaces") {
                     SPicker(
                         "Show AirBattery",
