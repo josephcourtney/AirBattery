@@ -658,7 +658,7 @@ check:
       printf '\n✓ check passed — %ss\n' "$((SECONDS - start))"
 
 # Run the unsigned build path used for clean-machine verification.
-ci: vendor-mobile
+ci: vendor-init vendor-mobile
     @mkdir -p "{{derived_data}}"
     bash scripts/run-xcodebuild.sh "CI build" -- \
         -project "{{project}}" \
