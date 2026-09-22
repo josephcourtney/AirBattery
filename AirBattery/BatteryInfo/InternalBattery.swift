@@ -8,7 +8,7 @@
 import Foundation
 import IOKit.ps
 
-struct iBattery {
+struct iBattery: Sendable {
     var hasBattery: Bool
     var isCharging: Bool
     var isCharged: Bool
@@ -19,7 +19,21 @@ struct iBattery {
 }
 
 class InternalBattery {
-    @MainActor static var status: iBattery = getPowerState()
+    private static let statusLock = NSLock()
+    nonisolated(unsafe) private static var storedStatus = getPowerState()
+
+    static var status: iBattery {
+        get {
+            statusLock.lock()
+            defer { statusLock.unlock() }
+            return storedStatus
+        }
+        set {
+            statusLock.lock()
+            storedStatus = newValue
+            statusLock.unlock()
+        }
+    }
     
     var name: String?
     var timeToFull: Int?
