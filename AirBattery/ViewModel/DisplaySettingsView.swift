@@ -296,11 +296,20 @@ private struct DisplaySurfacePreview: View {
 
                     VStack(spacing: 0) {
                         ForEach(presentations.indices, id: \.self) { index in
-                            MenuDeviceRowContent(
-                                presentation: presentations[index]
-                            )
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 10)
+                            let presentation = presentations[index]
+                            if presentation.components.count > 1 {
+                                PopoverCompoundDeviceSurfaceContent(
+                                    presentation: presentation,
+                                    isExpanded: true,
+                                    onToggle: {}
+                                )
+                            } else {
+                                MenuDeviceRowContent(
+                                    presentation: presentation
+                                )
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 10)
+                            }
 
                             if index != presentations.count - 1 {
                                 Divider()
