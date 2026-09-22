@@ -86,12 +86,10 @@ struct popover: View {
                 compactName: fromDock,
                 isExpanded: isExpanded,
                 onToggle: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        if isExpanded {
-                            expandedAirPods.remove(presentation.id)
-                        } else {
-                            expandedAirPods.insert(presentation.id)
-                        }
+                    if isExpanded {
+                        expandedAirPods.remove(presentation.id)
+                    } else {
+                        expandedAirPods.insert(presentation.id)
                     }
                 }
             )
@@ -189,44 +187,6 @@ struct popover: View {
         return "\(minutes) " + "mins ago".local
     }
 
-    @MainActor
-    private func showOverflowMenu() {
-        let point = NSEvent.mouseLocation
-        StatusBarController.shared.cancelMenuTracking()
-
-        DispatchQueue.main.async {
-            guard let delegate = NSApp.delegate as? AppDelegate else {
-                return
-            }
-
-            let menu = NSMenu()
-
-            let aboutItem = NSMenuItem(
-                title: "About AirBattery".local,
-                action: #selector(AppDelegate.openAbout),
-                keyEquivalent: ""
-            )
-            aboutItem.target = delegate
-            menu.addItem(aboutItem)
-
-            menu.addItem(.separator())
-
-            let quitItem = NSMenuItem(
-                title: "Quit AirBattery".local,
-                action: #selector(AppDelegate.confirmQuit),
-                keyEquivalent: ""
-            )
-            quitItem.target = delegate
-            menu.addItem(quitItem)
-
-            _ = menu.popUp(
-                positioning: nil,
-                at: point,
-                in: nil
-            )
-        }
-    }
-
     @ViewBuilder
     private func genericHoverControls(
         for device: Device,
@@ -283,13 +243,24 @@ struct popover: View {
                     onHide: {
                         DockPopoverController.shared.hide()
                     },
+                    onAbout: {
+                        DockPopoverController.shared.hide()
+                        StatusBarController.shared.cancelMenuTracking()
+                        DispatchQueue.main.async {
+                            openAboutPanel()
+                        }
+                    },
                     onSettings: {
                         DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
                         openSettingPanel()
                     },
-                    onMore: {
-                        showOverflowMenu()
+                    onQuit: {
+                        DockPopoverController.shared.hide()
+                        StatusBarController.shared.cancelMenuTracking()
+                        DispatchQueue.main.async {
+                            (NSApp.delegate as? AppDelegate)?.confirmQuit()
+                        }
                     },
                     onRefreshNearcast: {
                         netcastService.refeshAll()
