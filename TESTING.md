@@ -145,6 +145,10 @@ currently connected and paired hardware.
 
 ## Manual application checks
 
+- Settings window geometry: the window is resizable from every edge/corner,
+  page content starts at the top of the detail area after opening/switching
+  sections, and only one native sidebar toggle is visible;
+
 Automated tests do not replace a few application-level checks that depend on
 macOS services and real peripherals. Before a release that changes discovery,
 battery presentation, or the native mobile stack, exercise at least:
@@ -185,8 +189,8 @@ battery presentation, or the native mobile stack, exercise at least:
   wrap the `%` onto a separate line;
 - popover shell parity: the Display preview includes the same AirBattery
   identity header as the live popover; Settings remains directly accessible,
-  About/Quit live in the secondary overflow menu, and quitting requires explicit
-  confirmation;
+  the overflow button opens an AppKit menu containing About/Quit, and quitting
+  requires explicit confirmation;
 - compound-device popover behavior: AirPods occupy one compact summary row when
   collapsed and expand in place to the same Case/L/R ring presentation used by
   the shared battery surfaces;
