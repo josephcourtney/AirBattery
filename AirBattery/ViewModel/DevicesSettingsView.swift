@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import WidgetKit
 
 struct DevicesView: View {
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
@@ -25,13 +24,10 @@ struct DevicesView: View {
 
         return ScrollView {
             SForm(noSpacer: true) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Devices")
-                        .font(.title2.weight(.semibold))
-                    Text("Manage known devices and inspect battery, connection, and discovery information.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                SettingsPageHeader(
+                    title: "Devices",
+                    subtitle: "Manage known devices and inspect battery, connection, and discovery information."
+                )
 
                 knownDevicesBrowser(known)
 
