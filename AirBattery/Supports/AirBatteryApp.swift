@@ -29,9 +29,22 @@ let btdBattery = BTDBattery()
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
-    private var openSettingsAction: (() -> Void)?
+    private let settingsScene = NSHostingSceneRepresentation {
+        Settings {
+            SettingsView()
+        }
+    }
 
     private var keepAliveActivity: NSObjectProtocol?
+
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = AppDelegate()
+        application.delegate = delegate
+        withExtendedLifetime(delegate) {
+            application.run()
+        }
+    }
     var showOn: String {
         get { AppPreferences.showOn }
         set { AppPreferences.showOn = newValue }
@@ -107,15 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationWillFinishLaunching(_ notification: Notification) {
         registerNotificationCategory()
 
-        let settingsScene = NSHostingSceneRepresentation {
-            Settings {
-                SettingsView()
-            }
-        }
         NSApplication.shared.addSceneRepresentation(settingsScene)
-        openSettingsAction = {
-            settingsScene.environment.openSettings()
-        }
         installMainMenuIfNeeded()
 
         // default defaults (used if not set)
@@ -212,14 +217,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             WidgetCenter.shared.reloadAllTimelines()
         }
         
-        StatusBarController.shared.install()
-
-        SurfaceController.shared.apply(
-            showOn,
-            settingsVisible: false
-        )
-        NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
-        NSApp.dockTile.display()
         if nearCast {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 netcastService.refeshAll()
@@ -228,6 +225,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        StatusBarController.shared.install()
+        SurfaceController.shared.apply(
+            showOn,
+            settingsVisible: false
+        )
+        NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
+        NSApp.dockTile.display()
+
         let opts: ProcessInfo.ActivityOptions = [.automaticTerminationDisabled, .suddenTerminationDisabled]
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(options: opts, reason: "AirBattery menu bar monitoring")
 
@@ -328,6 +333,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                     print("Reloading all widgets...")
                     AirBatteryModel.writeData()
                     WidgetCenter.shared.reloadAllTimelines()
+                case "settings":
+                    presentSettings()
                 default: print("Unknow command!")
                 }
             }
@@ -349,7 +356,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             settingsVisible: true
         )
         NSApp.activate()
-        openSettingsAction?()
+        settingsScene.environment.openSettings()
     }
 
     private func installMainMenuIfNeeded() {
