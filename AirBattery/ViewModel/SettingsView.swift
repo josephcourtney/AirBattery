@@ -53,6 +53,7 @@ struct SettingsView: View {
                     ideal: 190,
                     max: 220
                 )
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             detailView
                 .id(selectedItem)
@@ -64,7 +65,6 @@ struct SettingsView: View {
                 .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
         .frame(
             minWidth: 760,
             idealWidth: 960,
