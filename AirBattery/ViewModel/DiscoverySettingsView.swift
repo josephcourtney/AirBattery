@@ -102,24 +102,15 @@ struct DiscoveryView: View {
                 }
 
                 SGroupBox(label: "Experimental") {
-                    HStack(spacing: 6) {
-                        Text("Apple Pencil from iPad")
-                        Text("Experimental")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                        Spacer()
-                        SInfoButton(
-                            tips: "Read the battery status of a connected Apple Pencil through your iPad. Initial discovery may take 10 minutes or longer and may increase iPad battery use."
-                        )
-                        Toggle("", isOn: $readPencil)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .accessibilityLabel("Apple Pencil from iPad")
-                    }
-                    .frame(minHeight: 28)
+                    SToggle(
+                        "Apple Pencil from iPad",
+                        isOn: $readPencil,
+                        tips: "Read the battery status of a connected Apple Pencil through your iPad. Initial discovery may take 10 minutes or longer and may increase iPad battery use."
+                    )
+                    Text("Experimental feature")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 SGroupBox(label: "Refresh & Retention") {
