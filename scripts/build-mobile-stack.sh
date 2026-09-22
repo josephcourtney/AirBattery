@@ -8,7 +8,7 @@ PREFIX="$BUILD_ROOT/prefix"
 STAMP_ROOT="$BUILD_ROOT/stamps"
 STAGE="$ROOT/AirBattery/libimobiledevice"
 ARCH="${AIRBATTERY_VENDOR_ARCH:-$(uname -m)}"
-MACOS_MIN="${AIRBATTERY_VENDOR_MACOS_MIN:-26.0}"
+MACOS_MIN="26.0"
 JOBS="${AIRBATTERY_VENDOR_JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 SUBMODULES=(
@@ -219,7 +219,6 @@ legacy_build_matches_all_sources() {
 
 LEGACY_BOOTSTRAP=0
 if [[ -z "${AIRBATTERY_VENDOR_ARCH+x}" ]] &&
-   [[ -z "${AIRBATTERY_VENDOR_MACOS_MIN+x}" ]] &&
    [[ -z "$(ls -A "$STAMP_ROOT" 2>/dev/null)" ]] &&
    legacy_build_matches_all_sources; then
   LEGACY_BOOTSTRAP=1
