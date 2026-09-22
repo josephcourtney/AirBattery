@@ -475,7 +475,7 @@ install-local configuration="Debug":
       cleanup() { rm -rf "$stage" "$backup"; }; \
       trap cleanup EXIT; \
       /usr/bin/ditto "$src" "$stage"; \
-      /usr/bin/codesign --verify --deep --strict --verbose=2 "$stage"; \
+      /usr/bin/codesign --verify --deep --strict "$stage"; \
       src_widget="$src/Contents/PlugIns/AirBatteryWidgetExtension.appex"; \
       if [[ -d "$src_widget" ]]; then \
         /usr/bin/pluginkit -r "$src_widget" >/dev/null 2>&1 || true; \
@@ -488,7 +488,7 @@ install-local configuration="Debug":
         echo "Failed to install staged AirBattery bundle." >&2; \
         exit 1; \
       fi; \
-      /usr/bin/codesign --verify --deep --strict --verbose=2 "$dst" || { \
+      /usr/bin/codesign --verify --deep --strict "$dst" || { \
         rm -rf "$dst"; \
         if [[ -e "$backup" ]]; then /bin/mv "$backup" "$dst"; fi; \
         echo "Installed AirBattery bundle failed signature verification; restored previous build." >&2; \
@@ -650,17 +650,16 @@ check:
       just _test-runtime; \
       printf '\n✓ check passed — %ss\n' "$((SECONDS - start))"
 
-# Run the same unsigned build commands used by GitHub Actions.
+# Run the unsigned build path used for clean-machine verification.
 ci: vendor-mobile
-    xcodebuild \
-        -resolvePackageDependencies \
-        -project "{{project}}" \
-        -scheme "{{scheme}}"
-    xcodebuild \
+    @mkdir -p "{{derived_data}}"
+    bash scripts/run-xcodebuild.sh "CI build" -- \
         -project "{{project}}" \
         -scheme "{{scheme}}" \
         -configuration Debug \
         -destination 'platform=macOS' \
+        -derivedDataPath "{{derived_data}}" \
+        -disableAutomaticPackageResolution \
         CODE_SIGNING_ALLOWED=NO \
         build
 
