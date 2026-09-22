@@ -72,6 +72,7 @@ struct SettingsView: View {
             idealHeight: 720,
             maxHeight: .infinity
         )
+        .background(SettingsWindowLifecycleObserver())
         .onChange(of: showDebug) { _, enabled in
             if !enabled && selectedItem == .debug {
                 selectedItem = .general
@@ -143,3 +144,82 @@ struct SettingsView: View {
 
 }
 
+private struct SettingsWindowLifecycleObserver: NSViewRepresentable {
+    func makeNSView(context: Context) -> SettingsWindowLifecycleView {
+        SettingsWindowLifecycleView()
+    }
+
+    func updateNSView(
+        _ nsView: SettingsWindowLifecycleView,
+        context: Context
+    ) {}
+}
+
+@MainActor
+private final class SettingsWindowLifecycleView: NSView {
+    private weak var observedWindow: NSWindow?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        guard observedWindow !== window else { return }
+
+        let hadWindow = observedWindow != nil
+        if let observedWindow {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: NSWindow.willCloseNotification,
+                object: observedWindow
+            )
+        }
+
+        observedWindow = window
+        guard let window else {
+            if hadWindow {
+                syncActivation(settingsVisible: false)
+            }
+            return
+        }
+
+        configure(window)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: window
+        )
+        syncActivation(settingsVisible: true)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc
+    private func windowWillClose(_ notification: Notification) {
+        syncActivation(settingsVisible: false)
+    }
+
+    private func configure(_ window: NSWindow) {
+        window.title = "AirBattery Settings"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.styleMask.insert([.resizable, .fullSizeContentView])
+        window.contentMinSize = NSSize(width: 720, height: 520)
+        window.contentMaxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        window.titlebarSeparatorStyle = .automatic
+        window.tabbingMode = .disallowed
+        window.setFrameAutosaveName("AirBatterySettingsWindow")
+        window.standardWindowButton(.zoomButton)?.isEnabled = true
+    }
+
+    private func syncActivation(settingsVisible: Bool) {
+        SurfaceController.shared.syncActivation(
+            surfaceSelection: AppPreferences.showOn,
+            settingsVisible: settingsVisible
+        )
+    }
+}
