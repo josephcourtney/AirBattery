@@ -868,12 +868,13 @@ private struct DeviceDisclosureStyle: DisclosureGroupStyle {
                         configuration.isExpanded.toggle()
                     }
                 } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
+                    Image(systemName: "chevron.right.circle")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
                         .rotationEffect(
                             .degrees(configuration.isExpanded ? 90 : 0)
                         )
-                        .frame(width: 24, height: 28)
+                        .frame(width: 28, height: 30)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -887,7 +888,6 @@ private struct DeviceDisclosureStyle: DisclosureGroupStyle {
 
             if configuration.isExpanded {
                 configuration.content
-                    .padding(.leading, 26)
                     .transition(.opacity)
             }
         }
