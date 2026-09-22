@@ -721,39 +721,6 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    private func logicalPolicyMenu(
-        name: String,
-        currentPolicy: BLEDevicePolicy?,
-        hasOverrides: Bool
-    ) -> some View {
-        Menu {
-            ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
-                Button(policy.title) {
-                    policyStore.setLogicalPolicy(name: name, policy: policy)
-                }
-            }
-            Divider()
-            Button("Use discovery default") {
-                policyStore.clearLogicalPolicy(name: name)
-            }
-        } label: {
-            Text(
-                "Battery access: " +
-                (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
-            )
-            .font(.caption)
-            .frame(minWidth: 128, alignment: .trailing)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .fixedSize()
-        .accessibilityLabel(
-            "Battery access policy: " +
-            (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
-        )
-    }
-
     @ViewBuilder
     private func reviewMenu(_ candidate: BLEDiscoveryCandidate, suggested: Bool) -> some View {
         Menu {
@@ -930,14 +897,6 @@ struct DevicesView: View {
         }
     }
 
-    private func toggleTechnicalKnown(_ id: String) {
-        if technicalExpandedKnown.contains(id) {
-            technicalExpandedKnown.remove(id)
-        } else {
-            technicalExpandedKnown.insert(id)
-        }
-    }
-
     private func toggleTechnicalNearby(_ id: String) {
         if technicalExpandedNearby.contains(id) {
             technicalExpandedNearby.remove(id)
@@ -993,31 +952,6 @@ struct DevicesView: View {
             return nil
         }
         return AirBatteryModel.airPodsGroup(for: representative, in: device.devices)
-    }
-
-    private func airPodsBatterySummary(_ group: AirPodsBatteryGroup) -> String {
-        var parts = ["\(group.componentCount) components"]
-        if let caseDevice = group.caseDevice {
-            parts.append("Case \(caseDevice.batteryLevel)%")
-        }
-
-        if let merged = group.mergedEarbudLevel(enabled: twsMergeEnabled, threshold: twsMerge) {
-            parts.append("Earbuds \(merged)%")
-        } else {
-            if let left = group.leftEarbud {
-                parts.append("L \(left.batteryLevel)%")
-            }
-            if let right = group.rightEarbud {
-                parts.append("R \(right.batteryLevel)%")
-            }
-            if group.leftEarbud == nil,
-               group.rightEarbud == nil,
-               let legacy = group.legacyMergedEarbuds {
-                parts.append("Earbuds \(legacy.batteryLevel)%")
-            }
-        }
-
-        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
