@@ -23,13 +23,23 @@ elif command -v xcbeautify >/dev/null 2>&1; then
   status=${PIPESTATUS[0]}
 else
   xcodebuild "$@" 2>&1 | tee "$log" | awk '
-    /:[[:space:]]*(error|warning|note):/ ||
+    /:[[:space:]]*(error|warning):/ ||
     /^error:/ || /^warning:/ ||
-    /^Test Suite / || /^Test Case / ||
+    /^Test Suite .* (passed|failed) at/ ||
+    /^Test Case .* failed/ ||
     /^Executed [0-9]+ test/ ||
-    /^\*\* (BUILD|TEST) (SUCCEEDED|FAILED) \*\*/ ||
-    /^Build Timing Summary/ ||
-    /^[[:space:]]*[0-9.]+ seconds/ {
+    /^\*\* (BUILD|TEST) (SUCCEEDED|FAILED) \*\*/ {
+      print
+      fflush()
+      next
+    }
+    /^Build Timing Summary/ {
+      timing = 1
+      print
+      fflush()
+      next
+    }
+    timing && /seconds/ {
       print
       fflush()
     }
