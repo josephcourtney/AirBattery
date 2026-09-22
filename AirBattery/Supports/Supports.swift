@@ -454,15 +454,15 @@ func generateNearcastCredentials() -> (groupID: String, sharingKey: String) {
 func migrateLegacyNearcastCredentialsIfNeeded() {
     let groupKey = "nearcastGroupID"
     let sharingKeyKey = "nearcastSharingKey"
-    let currentGroupID = ud.string(forKey: groupKey) ?? ""
-    let currentSharingKey = ud.string(forKey: sharingKeyKey) ?? ""
+    let currentGroupID = UserDefaults.standard.string(forKey: groupKey) ?? ""
+    let currentSharingKey = UserDefaults.standard.string(forKey: sharingKeyKey) ?? ""
     guard currentGroupID.isEmpty || currentSharingKey.isEmpty else { return }
 
-    let legacy = ud.string(forKey: "ncGroupID") ?? ""
+    let legacy = UserDefaults.standard.string(forKey: "ncGroupID") ?? ""
     guard isGroudIDValid(id: legacy) else { return }
 
-    ud.set(String(legacy.prefix(15)), forKey: groupKey)
-    ud.set(legacy, forKey: sharingKeyKey)
+    UserDefaults.standard.set(String(legacy.prefix(15)), forKey: groupKey)
+    UserDefaults.standard.set(legacy, forKey: sharingKeyKey)
 }
 
 func isNearcastCredentialValid(groupID: String, sharingKey: String) -> Bool {
