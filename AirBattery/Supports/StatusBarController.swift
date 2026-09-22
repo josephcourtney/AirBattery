@@ -155,12 +155,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             allDevices.insert(ib2ab(internalBattery), at: 0)
         }
 
-        let host = NSHostingView(
+        let host = ContentFittingHostingView(
+            width: 352,
             rootView: popover(fromDock: false, allDevice: allDevices)
         )
-        host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
         host.layoutSubtreeIfNeeded()
-        host.frame.size.height = ceil(max(host.fittingSize.height, 1))
+        host.resizeToFitContent()
 
         let item = NSMenuItem()
         item.view = host
