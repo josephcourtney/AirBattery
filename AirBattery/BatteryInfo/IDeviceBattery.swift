@@ -7,8 +7,10 @@
 import Combine
 import Foundation
 
-class IDeviceBattery: ObservableObject {
-    static var shared: IDeviceBattery = IDeviceBattery()
+// Scan state is protected by lock-backed gates; published discovery state is
+// confined to DispatchQueue.main.
+final class IDeviceBattery: ObservableObject, @unchecked Sendable {
+    static let shared = IDeviceBattery()
     
     var readPencil: Bool { AppPreferences.readPencil }
     var readIDevice: Bool { AppPreferences.readIDevice }
