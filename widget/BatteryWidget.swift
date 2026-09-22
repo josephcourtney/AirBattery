@@ -8,8 +8,6 @@
 import WidgetKit
 import SwiftUI
 
-var fd: FileManager { FileManager.default }
-var ud: UserDefaults { UserDefaults.standard }
 let ncFolder = AirBatteryModel.getNearcastURL()
 
 struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
