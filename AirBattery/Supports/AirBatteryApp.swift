@@ -26,14 +26,20 @@ let systemUUID = getMacDeviceUUID()
 let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 
+private struct AirBatterySettingsScene: Scene {
+    var body: some Scene {
+        Settings {
+            SettingsView()
+        }
+        .windowResizability(.contentMinSize)
+    }
+}
+
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let settingsScene = NSHostingSceneRepresentation {
-        Settings {
-            SettingsView()
-        }
-        .windowResizability(.contentSize)
+        AirBatterySettingsScene()
     }
 
     private var keepAliveActivity: NSObjectProtocol?
