@@ -175,6 +175,7 @@ private final class BatteryAlertWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 }
 
+@MainActor
 final class AlertWindowController {
     private var window: BatteryAlertWindow?
 
