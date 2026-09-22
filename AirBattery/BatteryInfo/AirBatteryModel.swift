@@ -167,12 +167,12 @@ struct LogicalDevicePresentation: Identifiable, Hashable {
 
 class AirBatteryModel {
     private static let devicesLock = NSLock()
-    private static var devices: [Device] = []
+    nonisolated(unsafe) private static var devices: [Device] = []
     static let key = "com.josephcourtney.AirBattery.widget"
     static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
 
     private static let presenceLock = NSLock()
-    private static var lastBLEPresence: [String: Double] = [:]
+    nonisolated(unsafe) private static var lastBLEPresence: [String: Double] = [:]
 
     static func noteBLEPresence(name: String) {
         let key = normalizedObservationName(name)
