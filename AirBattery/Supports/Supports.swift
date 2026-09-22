@@ -209,6 +209,7 @@ func getMenuBarHeight() -> CGFloat {
     return 0.0
 }
 
+@MainActor
 func createAlert(level: NSAlert.Style = .warning, title: String, message: String, button1: String, button2: String = "") -> NSAlert {
     let alert = NSAlert()
     alert.messageText = title.local
@@ -312,6 +313,7 @@ func getPowerColor(_ device: Device) -> String {
     return colorName
 }
 
+@MainActor
 func getDarkMode() -> Bool {
     let appearance = AppPreferences.appearance
     return (appearance == "auto")
@@ -381,11 +383,10 @@ func getMacModelIdentifier() -> String {
     sysctlbyname("hw.model", nil, &size, nil, 0)
     var model = [CChar](repeating: 0,  count: Int(size))
     sysctlbyname("hw.model", &model, &size, nil, 0)
-    if let modelString = String(validatingUTF8: model) {
-        return modelString
-    } else {
-        return "unknow"
+    if let nullIndex = model.firstIndex(of: 0) {
+        model.removeSubrange(nullIndex...)
     }
+    return String(validating: model, as: UTF8.self) ?? "unknow"
 }
 
 func getMacDeviceName() -> String {
