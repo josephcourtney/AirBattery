@@ -171,6 +171,11 @@ private final class SettingsWindowLifecycleView: NSView {
                 name: NSWindow.willCloseNotification,
                 object: observedWindow
             )
+            NotificationCenter.default.removeObserver(
+                self,
+                name: NSWindow.didBecomeKeyNotification,
+                object: observedWindow
+            )
         }
 
         observedWindow = window
@@ -182,10 +187,21 @@ private final class SettingsWindowLifecycleView: NSView {
         }
 
         configure(window)
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window else { return }
+            self.configure(window)
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(windowWillClose(_:)),
             name: NSWindow.willCloseNotification,
+            object: window
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidBecomeKey(_:)),
+            name: NSWindow.didBecomeKeyNotification,
             object: window
         )
         syncActivation(settingsVisible: true)
@@ -200,12 +216,21 @@ private final class SettingsWindowLifecycleView: NSView {
         syncActivation(settingsVisible: false)
     }
 
+    @objc
+    private func windowDidBecomeKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+        configure(window)
+    }
+
     private func configure(_ window: NSWindow) {
         window.title = "AirBattery Settings"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = false
         window.styleMask.insert(.resizable)
         window.styleMask.remove(.fullSizeContentView)
+        window.contentResizeIncrements = NSSize(width: 1, height: 1)
         window.toolbarStyle = .unifiedCompact
         window.contentMinSize = NSSize(width: 720, height: 520)
         window.contentMaxSize = NSSize(
