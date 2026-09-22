@@ -160,6 +160,8 @@ struct BatteryOverviewEntryView: View {
         switch entry.family {
         case .systemSmall:
             return .small
+        case .systemLarge:
+            return .large
         default:
             return .medium
         }
@@ -188,7 +190,8 @@ struct BatteryOverviewWidget: Widget {
         .contentMarginsDisabled()
         .supportedFamilies([
             .systemSmall,
-            .systemMedium
+            .systemMedium,
+            .systemLarge
         ])
     }
 }
