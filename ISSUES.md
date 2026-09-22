@@ -50,11 +50,11 @@ Status-menu and Dock-popover sizing duplicate row-count logic and use several ma
 
 **Fix:** Prefer native `Form`, `Section`, `LabeledContent`, `Toggle`, `Picker`, `TextField`, and `Stepper`. Retain only genuinely useful small helpers such as an information button.
 
-### [ ] 8. Settings window ownership is duplicated — retained pending lifecycle redesign
+### [x] 8. Settings window ownership was duplicated
 
-The app declares a native SwiftUI `Settings` scene but then overrides the Settings command and presents a separately constructed `NSWindow` through `SettingsWindowController`.
+The app declared a native SwiftUI `Settings` scene but then overrode the Settings command and presented a separately constructed `NSWindow` through `SettingsWindowController`.
 
-**Resolution:** Keep the small `SettingsWindowController` bridge for now. macOS 26 provides `NSHostingSceneRepresentation` for AppKit-owned SwiftUI scenes, but AirBattery currently uses the SwiftUI app lifecycle with AppKit callbacks. Removing this bridge cleanly would therefore require a separate scene/lifecycle ownership redesign rather than merely dropping an old-OS compatibility path.
+**Fix:** Use the AppKit application lifecycle and register the SwiftUI `Settings` scene with `NSHostingSceneRepresentation`. All Settings entry points now call the scene environment's `openSettings()` action, so SwiftUI exclusively owns creation and presentation of the Settings window. A small lifecycle observer only applies window configuration and keeps the application's activation policy synchronized while the SwiftUI-owned window is visible.
 
 ### [x] 9. Local-device and Nearcast rows duplicate interaction logic
 
@@ -134,7 +134,7 @@ Examples include `statusBarItem`, `pinnedItems`, `dockWindow`, `netcastService`,
 
 ## Implementation status
 
-The checked items have been implemented. AirBattery now targets macOS 26 and later and builds in Swift 6 language mode. Item 8 remains intentionally open because completing it requires a separate scene/lifecycle ownership redesign.
+All identified simplification issues have been implemented. AirBattery now targets macOS 26 and later, builds in Swift 6 language mode, and uses a single SwiftUI-owned Settings scene hosted from the AppKit lifecycle.
 
 ## Explicit non-issues / design decisions to retain
 
