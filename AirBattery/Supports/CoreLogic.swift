@@ -67,6 +67,16 @@ enum DevicePresentationNaming {
             type.contains("studio") || type.contains("imac") {
             return "Mac"
         }
+        if type.contains("keyboard") || name.contains("keyboard") {
+            return "Keyboard"
+        }
+        if type.contains("mouse") || name.contains("mouse") ||
+            name.contains("mx ergo") {
+            return "Mouse"
+        }
+        if type.contains("trackpad") || name.contains("trackpad") {
+            return "Trackpad"
+        }
         return displayName
     }
 
