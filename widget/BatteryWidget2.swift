@@ -47,7 +47,7 @@ struct SingleBatteryWidget: Widget {
             SingleBatteryWidgetEntryView(entry: entry)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
-                .liquidGlassWidgetBackground()
+                .containerBackground(for: .widget) { Color.clear }
         }
         .configurationDisplayName("Single Battery")
         .description("Displays one selected device from AirBattery")
