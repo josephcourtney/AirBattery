@@ -180,14 +180,14 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
 
     private init() {
         let storedRules: [BLEDeviceRule]
-        if let data = ud.data(forKey: rulesKey),
+        if let data = UserDefaults.standard.data(forKey: rulesKey),
            let decoded = try? JSONDecoder().decode([BLEDeviceRule].self, from: data) {
             storedRules = decoded
         } else {
             storedRules = []
         }
 
-        if let data = ud.data(forKey: logicalRulesKey),
+        if let data = UserDefaults.standard.data(forKey: logicalRulesKey),
            let decoded = try? JSONDecoder().decode([BLELogicalDeviceRule].self, from: data) {
             rules = storedRules
             logicalRules = decoded
@@ -211,10 +211,10 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
             }
             if !migratedRules.isEmpty {
                 if let data = try? JSONEncoder().encode(rules) {
-                    ud.set(data, forKey: rulesKey)
+                    UserDefaults.standard.set(data, forKey: rulesKey)
                 }
                 if let data = try? JSONEncoder().encode(logicalRules) {
-                    ud.set(data, forKey: logicalRulesKey)
+                    UserDefaults.standard.set(data, forKey: logicalRulesKey)
                 }
             }
         }
@@ -331,9 +331,9 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
     }
 
     var suggestedCandidates: [BLEDiscoveryCandidate] {
-        let mode = BLEDiscoveryMode(rawValue: ud.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
+        let mode = BLEDiscoveryMode(rawValue: UserDefaults.standard.string(forKey: "bleDiscoveryMode") ?? "") ?? .review
         guard mode == .review else { return [] }
-        guard ud.bool(forKey: "readBLEDevice") || ud.bool(forKey: "ideviceOverBLE") else { return [] }
+        guard UserDefaults.standard.bool(forKey: "readBLEDevice") || UserDefaults.standard.bool(forKey: "ideviceOverBLE") else { return [] }
         return nearbyCandidates.filter(isReviewCandidate)
     }
 
@@ -419,13 +419,13 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
 
     private func saveRules() {
         if let data = try? JSONEncoder().encode(rules) {
-            ud.set(data, forKey: rulesKey)
+            UserDefaults.standard.set(data, forKey: rulesKey)
         }
     }
 
     private func saveLogicalRules() {
         if let data = try? JSONEncoder().encode(logicalRules) {
-            ud.set(data, forKey: logicalRulesKey)
+            UserDefaults.standard.set(data, forKey: logicalRulesKey)
         }
     }
 }
