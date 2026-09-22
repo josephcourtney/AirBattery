@@ -194,70 +194,6 @@ write_stamp() {
   printf '%s\n' "$2" > "$(stamp_path "$1")"
 }
 
-source_description() {
-  git -C "$ROOT/$1" describe --tags --always
-}
-
-legacy_build_matches_all_sources() {
-  local spec name path marker expected
-  for spec in \
-    "openssl:third_party/openssl" \
-    "libplist:third_party/libplist" \
-    "libimobiledevice-glue:third_party/libimobiledevice-glue" \
-    "libusbmuxd:third_party/libusbmuxd" \
-    "libtatsu:third_party/libtatsu" \
-    "libimobiledevice:third_party/libimobiledevice"; do
-    name="${spec%%:*}"
-    path="${spec#*:}"
-    marker="$WORK_ROOT/src/$name/.tarball-version"
-    [[ -f "$marker" ]] || return 1
-    expected="$(source_description "$path")"
-    [[ "$(cat "$marker")" == "$expected" ]] || return 1
-  done
-  return 0
-}
-
-LEGACY_BOOTSTRAP=0
-if [[ -z "${AIRBATTERY_VENDOR_ARCH+x}" ]] &&
-   [[ -z "$(ls -A "$STAMP_ROOT" 2>/dev/null)" ]] &&
-   legacy_build_matches_all_sources; then
-  LEGACY_BOOTSTRAP=1
-fi
-
-# Migrate successful outputs produced by the previous all-or-nothing builder.
-# This is intentionally conservative: it only applies to the default target,
-# verifies the exact materialized source revision, checks all expected outputs,
-# and confirms the representative Mach-O/archive contains the current arch.
-maybe_bootstrap_component() {
-  local name="$1"
-  local fingerprint="$2"
-  local repo_path="$3"
-  local representative="$4"
-  shift 4
-  local marker expected_desc artifact archs
-
-  [[ ! -f "$(stamp_path "$name")" ]] || return 0
-  [[ "$LEGACY_BOOTSTRAP" -eq 1 ]] || return 0
-
-  marker="$WORK_ROOT/src/$name/.tarball-version"
-  [[ -f "$marker" ]] || return 0
-  expected_desc="$(source_description "$repo_path")"
-  [[ "$(cat "$marker")" == "$expected_desc" ]] || return 0
-
-  for artifact in "$representative" "$@"; do
-    [[ -e "$artifact" ]] || return 0
-  done
-
-  archs="$(lipo -archs "$representative" 2>/dev/null || true)"
-  case " $archs " in
-    *" $ARCH "*) ;;
-    *) return 0 ;;
-  esac
-
-  write_stamp "$name" "$fingerprint"
-  printf '==> Reusing successful %s output from the previous vendor build\n' "$name"
-}
-
 materialize() {
   local name="$1"
   local path="$2"
@@ -330,26 +266,6 @@ build_autotools() {
     make install
   )
 }
-
-maybe_bootstrap_component \
-  openssl "$openssl_fp" third_party/openssl \
-  "$PREFIX/lib/libcrypto.a" "$PREFIX/lib/libssl.a"
-maybe_bootstrap_component \
-  libplist "$plist_fp" third_party/libplist \
-  "$PREFIX/lib/libplist-2.0.dylib"
-maybe_bootstrap_component \
-  libimobiledevice-glue "$glue_fp" third_party/libimobiledevice-glue \
-  "$PREFIX/lib/libimobiledevice-glue-1.0.dylib"
-maybe_bootstrap_component \
-  libusbmuxd "$usbmuxd_fp" third_party/libusbmuxd \
-  "$PREFIX/lib/libusbmuxd-2.0.dylib"
-maybe_bootstrap_component \
-  libtatsu "$tatsu_fp" third_party/libtatsu \
-  "$PREFIX/lib/libtatsu.dylib"
-maybe_bootstrap_component \
-  libimobiledevice "$limd_fp" third_party/libimobiledevice \
-  "$PREFIX/lib/libimobiledevice-1.0.dylib" \
-  "$PREFIX/bin/idevice_id" "$PREFIX/bin/ideviceinfo" "$PREFIX/bin/idevicesyslog"
 
 if component_cached openssl "$openssl_fp" "$PREFIX/lib/libcrypto.a" "$PREFIX/lib/libssl.a"; then
   printf '%s\n' '==> OpenSSL: cached'
