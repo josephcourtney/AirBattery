@@ -46,7 +46,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
     private var usesGroupedLayout: Bool {
         family != .small &&
             groupedPresentations.count == 1 &&
-            singlePresentations.count <= 3 &&
+            singlePresentations.count <= 4 &&
             groupedPresentations[0].components.count <= 3
     }
 
@@ -143,8 +143,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
     private func groupedOverview(_ group: LogicalDevicePresentation) -> some View {
         VStack(spacing: family == .large ? 9 : 4) {
             if !singlePresentations.isEmpty {
-                HStack(spacing: family == .large ? 24 : 18) {
-                    ForEach(singlePresentations.prefix(3)) { presentation in
+                HStack(spacing: family == .large ? 18 : 14) {
+                    ForEach(singlePresentations.prefix(4)) { presentation in
                         if let component = presentation.components.first {
                             OverviewRingCell(
                                 item: component.device,
