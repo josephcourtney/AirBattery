@@ -169,6 +169,7 @@ final class BatteryHistoryStore {
     private static let retention: TimeInterval = 48 * 60 * 60
     private static let maximumSamplesPerDevice = 512
     private static let minimumSampleSpacing: TimeInterval = 55
+    private static let maximumReadingAge: TimeInterval = 3 * 60
 
     private let defaults =
         UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
@@ -203,6 +204,13 @@ final class BatteryHistoryStore {
 
         for device in devices where device.hasBattery &&
             (0...100).contains(device.batteryLevel) {
+            let readingAge = max(0, timestamp - device.lastUpdate)
+            guard device.deviceID == "@MacInternalBattery" ||
+                    readingAge <= Self.maximumReadingAge
+            else {
+                continue
+            }
+
             let key = Self.key(for: device)
             let sample = BatteryHistorySample(
                 timestamp: timestamp,
