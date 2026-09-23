@@ -449,6 +449,23 @@ final class DiscoveryCandidateTests: XCTestCase {
     }
 }
 
+private final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = 0
+
+    func increment() {
+        lock.lock()
+        storage += 1
+        lock.unlock()
+    }
+
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+}
+
 final class ExclusiveScanGateTests: XCTestCase {
     func testOnlyOneScanMayBeInFlight() {
         let gate = ExclusiveScanGate()
@@ -464,18 +481,15 @@ final class ExclusiveScanGateTests: XCTestCase {
 
     func testConcurrentBeginsHaveSingleWinner() {
         let gate = ExclusiveScanGate()
-        let resultLock = NSLock()
-        var successes = 0
+        let successes = LockedCounter()
 
         DispatchQueue.concurrentPerform(iterations: 64) { _ in
             if gate.tryBegin() {
-                resultLock.lock()
-                successes += 1
-                resultLock.unlock()
+                successes.increment()
             }
         }
 
-        XCTAssertEqual(successes, 1)
+        XCTAssertEqual(successes.value, 1)
         gate.end()
     }
 }
