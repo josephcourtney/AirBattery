@@ -404,11 +404,6 @@ struct WidgetSingleBatterySurfaceContent: View {
                                     lineJoin: .round
                                 )
                             )
-
-                        Image(getDeviceIcon(item))
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 50, height: 50)
                     }
                     .rotationEffect(.degrees(126))
                     .frame(width: 110, height: 110)
