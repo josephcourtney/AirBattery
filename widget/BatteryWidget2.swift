@@ -16,6 +16,29 @@ struct SingleBatteryWidgetEntryView: View {
         return entry.data.first { $0.deviceName == entry.deviceName }
     }
 
+    private var presentation: LogicalDevicePresentation? {
+        guard !entry.deviceName.isEmpty else { return nil }
+        let presentations = AirBatteryModel.widgetLogicalPresentations(
+            from: entry.data
+        )
+
+        if let item {
+            return presentations.first { presentation in
+                presentation.components.contains { component in
+                    component.device.deviceID == item.deviceID &&
+                        component.device.deviceType == item.deviceType
+                }
+            }
+        }
+
+        return presentations.first { presentation in
+            presentation.displayName == entry.deviceName ||
+                presentation.components.contains {
+                    $0.device.deviceName == entry.deviceName
+                }
+        }
+    }
+
     var body: some View {
         if !entry.mainApp {
             Text(
@@ -28,6 +51,7 @@ struct SingleBatteryWidgetEntryView: View {
         } else {
             WidgetSingleBatterySurfaceContent(
                 item: item,
+                presentation: presentation,
                 deviceName: entry.deviceName,
                 warningText: "Right click to configure".local
             )
