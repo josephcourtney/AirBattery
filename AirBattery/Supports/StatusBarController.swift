@@ -152,13 +152,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         var allDevices = AirBatteryModel.getAll()
         let internalBattery = InternalBattery.status
         if internalBattery.hasBattery {
-            allDevices.insert(ib2ab(internalBattery), at: 0)
+            allDevices.insert(
+                AirBatteryModel.internalBatteryDevice(from: internalBattery),
+                at: 0
+            )
         }
 
         let host = NSHostingView(
             rootView: popover(fromDock: false, allDevice: allDevices)
         )
-        host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
+        host.frame = NSRect(x: 0, y: 0, width: 420, height: 1)
         host.layoutSubtreeIfNeeded()
         host.frame.size.height = ceil(max(host.fittingSize.height, 1))
 
