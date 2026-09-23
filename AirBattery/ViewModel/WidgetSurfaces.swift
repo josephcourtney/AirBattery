@@ -13,6 +13,18 @@ struct WidgetOverviewRingsSurfaceContent: View {
     let showPercentages: Bool
     let showLabels: Bool
 
+    private var presentations: [LogicalDevicePresentation] {
+        AirBatteryModel.widgetLogicalPresentations(from: devices)
+    }
+
+    private var groupedPresentations: [LogicalDevicePresentation] {
+        presentations.filter { $0.components.count > 1 }
+    }
+
+    private var singlePresentations: [LogicalDevicePresentation] {
+        presentations.filter { $0.components.count == 1 }
+    }
+
     private var items: [Device] {
         let limit: Int
         switch family {
@@ -23,7 +35,19 @@ struct WidgetOverviewRingsSurfaceContent: View {
         case .large:
             limit = 9
         }
-        return Array(devices.filter(\.hasBattery).prefix(limit))
+        return Array(
+            presentations
+                .flatMap(\.components)
+                .map(\.device)
+                .prefix(limit)
+        )
+    }
+
+    private var usesGroupedLayout: Bool {
+        family != .small &&
+            groupedPresentations.count == 1 &&
+            singlePresentations.count <= 3 &&
+            groupedPresentations[0].components.count <= 3
     }
 
     private var columns: Int {
@@ -49,13 +73,24 @@ struct WidgetOverviewRingsSurfaceContent: View {
             if showPercentages || showLabels { return 52 }
             return 58
         case .medium:
-            if showPercentages && showLabels { return 44 }
-            if showPercentages || showLabels { return 50 }
-            return 58
+            if showPercentages && showLabels { return 42 }
+            if showPercentages || showLabels { return 48 }
+            return 54
         case .large:
             if showPercentages && showLabels { return 58 }
             if showPercentages || showLabels { return 64 }
             return 72
+        }
+    }
+
+    private var groupedDiameter: CGFloat {
+        switch family {
+        case .small:
+            return diameter
+        case .medium:
+            return showPercentages && showLabels ? 38 : 44
+        case .large:
+            return showPercentages && showLabels ? 54 : 62
         }
     }
 
@@ -81,12 +116,18 @@ struct WidgetOverviewRingsSurfaceContent: View {
         }
     }
 
+    private var showsEstimates: Bool {
+        family != .small && showLabels
+    }
+
     var body: some View {
         Group {
             if items.isEmpty {
                 Text("No battery devices")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
+            } else if usesGroupedLayout, let group = groupedPresentations.first {
+                groupedOverview(group)
             } else {
                 VStack(spacing: verticalSpacing) {
                     ForEach(0..<rowCount, id: \.self) { row in
@@ -99,6 +140,64 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     @ViewBuilder
+    private func groupedOverview(_ group: LogicalDevicePresentation) -> some View {
+        VStack(spacing: family == .large ? 9 : 4) {
+            if !singlePresentations.isEmpty {
+                HStack(spacing: family == .large ? 24 : 18) {
+                    ForEach(singlePresentations.prefix(3)) { presentation in
+                        if let component = presentation.components.first {
+                            OverviewRingCell(
+                                item: component.device,
+                                diameter: diameter,
+                                showPercentage: showPercentages,
+                                showLabel: showLabels,
+                                showEstimate: showsEstimates
+                            )
+                        }
+                    }
+                }
+            }
+
+            Divider()
+                .opacity(0.45)
+                .padding(.horizontal, family == .large ? 18 : 12)
+
+            HStack(spacing: 6) {
+                Image(getDeviceIcon(group.representative))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .foregroundColor(.secondary)
+
+                Text(group.displayName)
+                    .font(.system(size: family == .large ? 11 : 9.5, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer()
+
+                Text("\(group.components.count) components")
+                    .font(.system(size: family == .large ? 9 : 8))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, family == .large ? 20 : 14)
+
+            HStack(spacing: family == .large ? 28 : 22) {
+                ForEach(group.components.prefix(3)) { component in
+                    OverviewRingCell(
+                        item: component.device,
+                        diameter: groupedDiameter,
+                        showPercentage: showPercentages,
+                        showLabel: true,
+                        showEstimate: showsEstimates
+                    )
+                }
+            }
+        }
+        .padding(.vertical, family == .large ? 8 : 5)
+    }
+
+    @ViewBuilder
     private func overviewRow(start: Int) -> some View {
         let end = min(start + columns, items.count)
         HStack(spacing: horizontalSpacing) {
@@ -107,7 +206,8 @@ struct WidgetOverviewRingsSurfaceContent: View {
                     item: items[index],
                     diameter: diameter,
                     showPercentage: showPercentages,
-                    showLabel: showLabels
+                    showLabel: showLabels,
+                    showEstimate: showsEstimates
                 )
             }
         }
@@ -119,9 +219,10 @@ private struct OverviewRingCell: View {
     let diameter: CGFloat
     let showPercentage: Bool
     let showLabel: Bool
+    let showEstimate: Bool
 
     private var lineWidth: CGFloat {
-        diameter >= 64 ? 7 : 6
+        diameter >= 64 ? 7 : (diameter < 42 ? 5 : 6)
     }
 
     private var ringFraction: Double {
@@ -169,37 +270,17 @@ private struct OverviewRingCell: View {
                         width: diameter * 0.45,
                         height: diameter * 0.45
                     )
-
-                if item.isCharging != 0 {
-                    Image("batt_bolt_mask")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: diameter * 0.2)
-                        .blendMode(.destinationOut)
-                        .offset(y: -diameter * 0.51)
-
-                    Image("batt_bolt")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: diameter * 0.17)
-                        .foregroundColor(
-                            item.batteryLevel == 100
-                                ? .myGreen
-                                : .primary
-                        )
-                        .offset(y: -diameter * 0.51)
-                }
             }
             .frame(width: diameter, height: diameter)
-            .compositingGroup()
 
             if showPercentage {
                 HStack(spacing: 2) {
                     Text("\(item.batteryLevel)%")
                         .monospacedDigit()
-                    if item.isCharging != 0 {
+                    if item.isCharging != 0 || item.acPowered {
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 7, weight: .bold))
+                            .foregroundColor(.myGreen)
                     }
                 }
                 .font(percentageFont)
@@ -212,7 +293,16 @@ private struct OverviewRingCell: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(width: diameter + 12)
+                    .frame(width: diameter + 18)
+            }
+
+            if showEstimate, let estimate = compactEstimate {
+                Text(estimate)
+                    .font(.system(size: diameter >= 54 ? 8.5 : 7.5))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
             }
         }
         .accessibilityElement(children: .ignore)
@@ -256,15 +346,27 @@ private struct OverviewRingCell: View {
         }
     }
 
+    private var compactEstimate: String? {
+        BatteryEstimateFormatting.compact(
+            level: item.batteryLevel,
+            charging: item.isCharging != 0 || item.acPowered,
+            charged: item.isCharged,
+            secondsRemaining: item.estimatedSecondsRemaining,
+            lastUpdate: item.lastUpdate
+        )
+    }
+
     private var accessibilitySummary: String {
         var values = [shortLabel, "\(item.batteryLevel) percent"]
-        if item.isCharging != 0 {
+        if item.isCharging != 0 || item.acPowered {
             values.append("charging")
+        }
+        if let compactEstimate {
+            values.append(compactEstimate)
         }
         return values.joined(separator: ", ")
     }
 }
-
 
 struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
@@ -275,80 +377,81 @@ struct WidgetSingleBatterySurfaceContent: View {
 
     var body: some View {
         if let item {
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 ZStack {
                     Group {
-                        Group {
-                            Circle()
-                                .trim(from: 0, to: 0.8)
-                                .stroke(
-                                    style: StrokeStyle(
-                                        lineWidth: lineWidth,
-                                        lineCap: .round,
-                                        lineJoin: .round
-                                    )
+                        Circle()
+                            .trim(from: 0, to: 0.8)
+                            .stroke(
+                                style: StrokeStyle(
+                                    lineWidth: lineWidth,
+                                    lineCap: .round,
+                                    lineJoin: .round
                                 )
-                                .opacity(0.15)
+                            )
+                            .opacity(0.15)
 
-                            Circle()
-                                .trim(
-                                    from: 0,
-                                    to: Double(item.batteryLevel) /
-                                        100 * 0.8
+                        Circle()
+                            .trim(
+                                from: 0,
+                                to: Double(item.batteryLevel) / 100 * 0.8
+                            )
+                            .stroke(
+                                Color(getPowerColor(item)),
+                                style: StrokeStyle(
+                                    lineWidth: lineWidth,
+                                    lineCap: .round,
+                                    lineJoin: .round
                                 )
-                                .stroke(
-                                    Color(getPowerColor(item)),
-                                    style: StrokeStyle(
-                                        lineWidth: lineWidth,
-                                        lineCap: .round,
-                                        lineJoin: .round
-                                    )
-                                )
-                        }
-                        .rotationEffect(.degrees(126))
+                            )
 
                         Image(getDeviceIcon(item))
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 50, height: 50)
-
-                        if item.isCharging != 0 || item.acPowered {
-                            Image("batt_bolt_mask")
-                                .interpolation(.high)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 18)
-                                .blendMode(.destinationOut)
-                                .offset(y: -55.5)
-
-                            Image("batt_bolt")
-                                .interpolation(.high)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 16)
-                                .foregroundColor(
-                                    item.batteryLevel == 100
-                                        ? .myGreen
-                                        : .primary
-                                )
-                                .offset(y: -55.5)
-                        }
                     }
+                    .rotationEffect(.degrees(126))
                     .frame(width: 110, height: 110)
 
-                    Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
-                        .font(.system(size: 17))
-                        .offset(x: 1, y: 47)
+                    Image(getDeviceIcon(item))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 50, height: 50)
+
+                    HStack(spacing: 3) {
+                        Text(item.hasBattery ? "\(item.batteryLevel)%" : "")
+                            .monospacedDigit()
+                        if item.isCharging != 0 || item.acPowered {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.myGreen)
+                        }
+                    }
+                    .font(.system(size: 17))
+                    .offset(x: 1, y: 47)
                 }
-                .compositingGroup()
 
                 Text(item.deviceName)
                     .font(.system(size: 12))
                     .frame(width: 144)
                     .lineLimit(1)
                     .truncationMode(.middle)
+
+                if let estimate = BatteryEstimateFormatting.compact(
+                    level: item.batteryLevel,
+                    charging: item.isCharging != 0 || item.acPowered,
+                    charged: item.isCharged,
+                    secondsRemaining: item.estimatedSecondsRemaining,
+                    lastUpdate: item.lastUpdate
+                ) {
+                    Text(estimate)
+                        .font(.system(size: 9.5))
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
             }
-            .offset(y: item.isCharging != 0 ? 5 : 3.5)
+            .offset(y: 2)
         } else {
             VStack(spacing: 7) {
                 ZStack {
