@@ -23,7 +23,7 @@ struct PopoverToolbarSurfaceContent: View {
 
             ZStack {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.myGreen.gradient)
+                    .fill(Color.myGreen)
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.white)
@@ -291,11 +291,22 @@ struct MenuDeviceRowContent: View {
     }
 
     private func fullEstimate(for device: Device) -> String? {
-        BatteryEstimateFormatting.full(
+        let secondsRemaining: Double?
+        if let estimate = device.estimatedSecondsRemaining {
+            secondsRemaining = estimate
+        } else if device.deviceID == "@MacInternalBattery" {
+            secondsRemaining = BatteryEstimateEngine.seconds(
+                fromNativeTimeLeft: InternalBattery.status.timeLeft
+            )
+        } else {
+            secondsRemaining = nil
+        }
+
+        return BatteryEstimateFormatting.full(
             level: device.batteryLevel,
             charging: device.isCharging != 0 || device.acPowered,
             charged: device.isCharged,
-            secondsRemaining: device.estimatedSecondsRemaining,
+            secondsRemaining: secondsRemaining,
             lastUpdate: device.lastUpdate,
             now: Date(timeIntervalSince1970: now)
         )
