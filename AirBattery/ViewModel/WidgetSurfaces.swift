@@ -103,14 +103,24 @@ struct WidgetOverviewRingsSurfaceContent: View {
         let end = min(start + columns, items.count)
         HStack(spacing: horizontalSpacing) {
             ForEach(start..<end, id: \.self) { index in
+                let item = items[index]
                 BatteryRingSurfaceCell(
-                    item: items[index],
+                    item: item,
                     diameter: diameter,
                     showPercentage: showPercentages,
-                    showLabel: showLabels
+                    showLabel: showLabels,
+                    estimate: widgetEstimate(for: item)
                 )
             }
         }
+    }
+
+    private func widgetEstimate(for item: Device) -> BatteryTimeEstimate? {
+        guard AppPreferences.widgetTimeEstimates else { return nil }
+        return BatteryHistorySharedReader.estimate(
+            canonicalID: item.deviceID,
+            deviceType: item.deviceType
+        )
     }
 }
 
@@ -180,8 +190,8 @@ struct BatteryRingSurfaceCell: View {
                 if let estimate {
                     BatteryTimeSpiralView(estimate: estimate)
                         .frame(
-                            width: diameter * 0.76,
-                            height: diameter * 0.76
+                            width: diameter * 0.92,
+                            height: diameter * 0.92
                         )
                 }
 
@@ -322,13 +332,13 @@ private struct BatteryTimeSpiralView: View {
             let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
             let duration = max(1, estimate.duration)
             let revolutions = max(duration / (12 * 60 * 60), 0.01)
-            let baseRadius = size * 0.33
-            let outerRadius = size * 0.47
+            let baseRadius = size * 0.36
+            let outerRadius = size * 0.485
             let pitch = min(
-                size * 0.045,
+                size * 0.055,
                 (outerRadius - baseRadius) / max(revolutions, 1)
             )
-            let strokeWidth = max(1.25, size * 0.035)
+            let strokeWidth = max(1.5, size * 0.045)
             let startAngle = clockAngle(for: estimate.startDate)
             let steps = min(
                 360,
@@ -368,7 +378,7 @@ private struct BatteryTimeSpiralView: View {
                     }
                 }
                 .stroke(
-                    spiralColor.opacity(0.78),
+                    spiralColor.opacity(0.82),
                     style: StrokeStyle(
                         lineWidth: strokeWidth,
                         lineCap: .round,
@@ -435,6 +445,13 @@ struct WidgetSingleBatterySurfaceContent: View {
 
     var body: some View {
         if let item {
+            let estimate = AppPreferences.widgetTimeEstimates
+                ? BatteryHistorySharedReader.estimate(
+                    canonicalID: item.deviceID,
+                    deviceType: item.deviceType
+                )
+                : nil
+
             VStack(spacing: 10) {
                 ZStack {
                     Group {
@@ -466,6 +483,11 @@ struct WidgetSingleBatterySurfaceContent: View {
                                 )
                         }
                         .rotationEffect(.degrees(126))
+
+                        if let estimate {
+                            BatteryTimeSpiralView(estimate: estimate)
+                                .frame(width: 103, height: 103)
+                        }
 
                         Image(getDeviceIcon(item))
                             .resizable()
