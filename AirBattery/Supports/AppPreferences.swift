@@ -15,6 +15,11 @@ enum AppPreferences {
         UserDefaults.standard.string(forKey: key) ?? defaultValue
     }
 
+    private static var sharedDefaults: UserDefaults {
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
+            .standard
+    }
+
     static var showOn: String {
         get { string("showOn", default: "sbar") }
         set { UserDefaults.standard.set(newValue, forKey: "showOn") }
@@ -100,6 +105,18 @@ enum AppPreferences {
         set { UserDefaults.standard.set(newValue, forKey: "widgetInterval") }
     }
 
+    static var widgetTimeEstimates: Bool {
+        get {
+            guard sharedDefaults.object(forKey: "widgetTimeEstimates") != nil else {
+                return false
+            }
+            return sharedDefaults.bool(forKey: "widgetTimeEstimates")
+        }
+        set {
+            sharedDefaults.set(newValue, forKey: "widgetTimeEstimates")
+        }
+    }
+
     static var carouselMode: Bool {
         get { bool("carouselMode", default: true) }
         set { UserDefaults.standard.set(newValue, forKey: "carouselMode") }
@@ -173,5 +190,38 @@ enum AppPreferences {
     static var neverRemind: [String] {
         get { UserDefaults.standard.stringArray(forKey: "neverRemindMe") ?? [] }
         set { UserDefaults.standard.set(newValue, forKey: "neverRemindMe") }
+    }
+}
+
+enum BatteryHistorySharedReader {
+    private static let storageKey = "batteryHistory.v1"
+
+    private static var defaults: UserDefaults {
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
+            .standard
+    }
+
+    static func estimate(
+        canonicalID: String,
+        deviceType: String,
+        now: Date = Date()
+    ) -> BatteryTimeEstimate? {
+        guard let data = defaults.data(forKey: storageKey),
+              let history = try? JSONDecoder().decode(
+                  [String: [BatteryHistorySample]].self,
+                  from: data
+              )
+        else {
+            return nil
+        }
+
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: canonicalID,
+            deviceType: deviceType
+        )
+        return BatteryTimeEstimator.estimate(
+            samples: history[key] ?? [],
+            now: now
+        )
     }
 }
