@@ -244,7 +244,12 @@ final class BatteryHistoryStore {
     }
 
     func estimate(for device: Device, now: Date = Date()) -> BatteryTimeEstimate? {
-        BatteryTimeEstimator.estimate(
+        if device.deviceID == "@MacInternalBattery",
+           let native = nativeInternalEstimate(now: now) {
+            return native
+        }
+
+        return BatteryTimeEstimator.estimate(
             samples: history[Self.key(for: device)] ?? [],
             now: now
         )
@@ -259,6 +264,41 @@ final class BatteryHistoryStore {
             canonicalID: device.deviceID,
             deviceType: device.deviceType
         )
+    }
+
+    private func nativeInternalEstimate(
+        now: Date
+    ) -> BatteryTimeEstimate? {
+        let status = InternalBattery.status
+        guard status.hasBattery,
+              status.batteryLevel > 0,
+              status.batteryLevel < 100,
+              let duration = parseTimeLeft(status.timeLeft),
+              duration >= 3 * 60
+        else {
+            return nil
+        }
+
+        return BatteryTimeEstimate(
+            kind: status.isCharging ? .charging : .discharging,
+            startDate: now,
+            endDate: now.addingTimeInterval(duration),
+            duration: duration,
+            confidence: 1
+        )
+    }
+
+    private func parseTimeLeft(_ value: String) -> TimeInterval? {
+        let parts = value.split(separator: ":")
+        guard parts.count == 2,
+              let hours = Int(parts[0]),
+              let minutes = Int(parts[1]),
+              hours >= 0,
+              (0..<60).contains(minutes)
+        else {
+            return nil
+        }
+        return TimeInterval(hours * 3600 + minutes * 60)
     }
 
     private func prune(now: TimeInterval) {
