@@ -10,55 +10,113 @@ struct PopoverToolbarSurfaceContent: View {
     let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
+    @State private var overflowExpanded = false
+
     var body: some View {
-        HStack(spacing: 7) {
-            if fromDock {
+        VStack(alignment: .trailing, spacing: 0) {
+            HStack(spacing: 7) {
+                if fromDock {
+                    PopoverToolbarSurfaceButton(
+                        systemName: "minus.circle",
+                        help: "Hide".local,
+                        hoverColor: .myYellow,
+                        action: onHide
+                    )
+                }
+
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 23, height: 23)
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    )
+
+                Text("AirBattery")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 8)
+
+                if nearcastEnabled {
+                    PopoverToolbarSurfaceButton(
+                        systemName:
+                            "antenna.radiowaves.left.and.right.circle",
+                        help: "Refresh Nearcast".local,
+                        action: onRefreshNearcast
+                    )
+                }
+
                 PopoverToolbarSurfaceButton(
-                    systemName: "minus.circle",
-                    help: "Hide".local,
-                    hoverColor: .myYellow,
-                    action: onHide
+                    systemName: "gearshape",
+                    help: "Settings".local,
+                    action: onSettings
+                )
+
+                PopoverOverflowSurfaceButton(
+                    isExpanded: $overflowExpanded
                 )
             }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
 
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 23, height: 23)
-                .clipShape(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                )
-
-            Text("AirBattery")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 8)
-
-            if nearcastEnabled {
-                PopoverToolbarSurfaceButton(
-                    systemName:
-                        "antenna.radiowaves.left.and.right.circle",
-                    help: "Refresh Nearcast".local,
-                    action: onRefreshNearcast
-                )
+            if overflowExpanded {
+                overflowMenu
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 7)
             }
-
-            PopoverToolbarSurfaceButton(
-                systemName: "gearshape",
-                help: "Settings".local,
-                action: onSettings
-            )
-
-            PopoverOverflowMenuButton(
-                onAbout: onAbout,
-                onQuit: onQuit
-            )
-            .frame(width: 28, height: 28)
-            .help("More".local)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
+    }
+
+    private var overflowMenu: some View {
+        VStack(spacing: 0) {
+            Button {
+                overflowExpanded = false
+                onAbout()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .frame(width: 16)
+                    Text("About AirBattery".local)
+                    Spacer(minLength: 12)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+
+            Button {
+                overflowExpanded = false
+                onQuit()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "power")
+                        .frame(width: 16)
+                    Text("Quit AirBattery".local)
+                    Spacer(minLength: 12)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(width: 174)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(
+                    Color(nsColor: .separatorColor).opacity(0.7),
+                    lineWidth: 0.75
+                )
+        )
+        .shadow(color: .black.opacity(0.14), radius: 7, y: 2)
     }
 }
 
@@ -99,72 +157,41 @@ private struct PopoverToolbarSurfaceButton: View {
     }
 }
 
-private struct PopoverOverflowMenuButton: NSViewRepresentable {
-    let onAbout: () -> Void
-    let onQuit: () -> Void
+private struct PopoverOverflowSurfaceButton: View {
+    @Binding var isExpanded: Bool
+    @State private var isHovered = false
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onAbout: onAbout, onQuit: onQuit)
-    }
-
-    func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(
-            frame: NSRect(x: 0, y: 0, width: 28, height: 28),
-            pullsDown: true
-        )
-        button.isBordered = false
-        button.bezelStyle = .inline
-        button.font = .systemFont(ofSize: 18, weight: .regular)
-        button.alignment = .center
-        button.contentTintColor = .secondaryLabelColor
-        button.toolTip = "More".local
-        if let cell = button.cell as? NSPopUpButtonCell {
-            cell.arrowPosition = .noArrow
+    var body: some View {
+        Button {
+            isExpanded.toggle()
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 15, weight: .regular))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(.secondary)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(
+                            Color.primary.opacity(
+                                isExpanded ? 0.12 : (isHovered ? 0.09 : 0.045)
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .strokeBorder(
+                            Color(nsColor: .separatorColor).opacity(0.45),
+                            lineWidth: 0.5
+                        )
+                )
+                .contentShape(Rectangle())
         }
-
-        button.addItem(withTitle: "…")
-        button.addItem(withTitle: "About AirBattery".local)
-        button.menu?.addItem(.separator())
-        button.addItem(withTitle: "Quit AirBattery".local)
-
-        if let aboutItem = button.item(withTitle: "About AirBattery".local) {
-            aboutItem.action = #selector(Coordinator.showAbout)
-            aboutItem.target = context.coordinator
-        }
-        if let quitItem = button.item(withTitle: "Quit AirBattery".local) {
-            quitItem.action = #selector(Coordinator.quit)
-            quitItem.target = context.coordinator
-        }
-        return button
-    }
-
-    func updateNSView(
-        _ nsView: NSPopUpButton,
-        context: Context
-    ) {
-        context.coordinator.onAbout = onAbout
-        context.coordinator.onQuit = onQuit
-    }
-
-    final class Coordinator: NSObject {
-        var onAbout: () -> Void
-        var onQuit: () -> Void
-
-        init(
-            onAbout: @escaping () -> Void,
-            onQuit: @escaping () -> Void
-        ) {
-            self.onAbout = onAbout
-            self.onQuit = onQuit
-        }
-
-        @objc func showAbout() {
-            onAbout()
-        }
-
-        @objc func quit() {
-            onQuit()
-        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help("More".local)
+        .accessibilityLabel(Text("More".local))
+        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+        .onHover { isHovered = $0 }
     }
 }
 
