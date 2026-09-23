@@ -113,43 +113,28 @@ private struct PopoverOverflowMenuButton: NSViewRepresentable {
             pullsDown: true
         )
         button.isBordered = false
+        button.bezelStyle = .inline
+        button.font = .systemFont(ofSize: 18, weight: .regular)
+        button.alignment = .center
+        button.contentTintColor = .secondaryLabelColor
+        button.toolTip = "More".local
         if let cell = button.cell as? NSPopUpButtonCell {
             cell.arrowPosition = .noArrow
         }
-        button.imagePosition = .imageOnly
-        button.image = NSImage(
-            systemSymbolName: "ellipsis.circle",
-            accessibilityDescription: "More".local
-        )
-        button.imageScaling = .scaleProportionallyDown
-        button.toolTip = "More".local
 
-        let menu = NSMenu()
+        button.addItem(withTitle: "…")
+        button.addItem(withTitle: "About AirBattery".local)
+        button.menu?.addItem(.separator())
+        button.addItem(withTitle: "Quit AirBattery".local)
 
-        let displayItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        displayItem.image = button.image
-        displayItem.isEnabled = false
-        menu.addItem(displayItem)
-
-        let aboutItem = NSMenuItem(
-            title: "About AirBattery".local,
-            action: #selector(Coordinator.showAbout),
-            keyEquivalent: ""
-        )
-        aboutItem.target = context.coordinator
-        menu.addItem(aboutItem)
-
-        menu.addItem(.separator())
-
-        let quitItem = NSMenuItem(
-            title: "Quit AirBattery".local,
-            action: #selector(Coordinator.quit),
-            keyEquivalent: ""
-        )
-        quitItem.target = context.coordinator
-        menu.addItem(quitItem)
-
-        button.menu = menu
+        if let aboutItem = button.item(withTitle: "About AirBattery".local) {
+            aboutItem.action = #selector(Coordinator.showAbout)
+            aboutItem.target = context.coordinator
+        }
+        if let quitItem = button.item(withTitle: "Quit AirBattery".local) {
+            quitItem.action = #selector(Coordinator.quit)
+            quitItem.target = context.coordinator
+        }
         return button
     }
 
@@ -242,15 +227,10 @@ struct MenuDeviceRowContent: View {
                 .frame(width: 22, height: 22)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(
-                    stalePrefix +
-                        (compactName
-                            ? presentation.compactName
-                            : presentation.displayName)
-                )
-                .font(.system(size: 12))
-                .foregroundColor(.blackWhite)
-                .lineLimit(1)
+                Text(stalePrefix + resolvedPresentationName)
+                    .font(.system(size: 12))
+                    .foregroundColor(.blackWhite)
+                    .lineLimit(1)
 
                 HStack(spacing: 10) {
                     ForEach(presentation.components.prefix(3)) { component in
@@ -273,15 +253,10 @@ struct MenuDeviceRowContent: View {
                 .frame(width: 22, height: 22, alignment: .center)
 
             HStack(spacing: 1) {
-                Text(
-                    stalePrefix +
-                        (compactName
-                            ? presentation.compactName
-                            : presentation.displayName)
-                )
-                .font(.system(size: 12))
-                .foregroundColor(.blackWhite)
-                .frame(height: 24, alignment: .center)
+                Text(stalePrefix + resolvedPresentationName)
+                    .font(.system(size: 12))
+                    .foregroundColor(.blackWhite)
+                    .frame(height: 24, alignment: .center)
 
                 Spacer().frame(width: 0.5)
 
@@ -314,6 +289,19 @@ struct MenuDeviceRowContent: View {
         }
     }
 
+    private var resolvedPresentationName: String {
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: presentation.representative.deviceID,
+            deviceType: presentation.representative.deviceType
+        )
+        if let custom = DeviceDisplayNameStore.override(forKey: key) {
+            return custom
+        }
+        return compactName
+            ? presentation.compactName
+            : presentation.displayName
+    }
+
     private var stalePrefix: String {
         (now - presentation.newestUpdate) / 60 > 10 ? "⚠︎ " : ""
     }
@@ -341,14 +329,10 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                         .foregroundColor(.blackWhite)
                         .frame(width: 22, height: 22)
 
-                    Text(
-                        compactName
-                            ? presentation.compactName
-                            : presentation.displayName
-                    )
-                    .font(.system(size: 12))
-                    .foregroundColor(.blackWhite)
-                    .lineLimit(1)
+                    Text(resolvedPresentationName)
+                        .font(.system(size: 12))
+                        .foregroundColor(.blackWhite)
+                        .lineLimit(1)
 
                     Spacer(minLength: 4)
 
@@ -366,7 +350,7 @@ struct PopoverCompoundDeviceSurfaceContent: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                "\(presentation.displayName), " +
+                "\(resolvedPresentationName), " +
                     (isExpanded ? "collapse components" : "expand components")
             )
 
@@ -392,6 +376,19 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                 .padding(.bottom, 7)
             }
         }
+    }
+
+    private var resolvedPresentationName: String {
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: presentation.representative.deviceID,
+            deviceType: presentation.representative.deviceType
+        )
+        if let custom = DeviceDisplayNameStore.override(forKey: key) {
+            return custom
+        }
+        return compactName
+            ? presentation.compactName
+            : presentation.displayName
     }
 }
 
@@ -428,4 +425,3 @@ struct MenuBatteryComponentContent: View {
         )
     }
 }
-
