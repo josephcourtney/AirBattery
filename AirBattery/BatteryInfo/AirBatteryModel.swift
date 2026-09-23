@@ -36,6 +36,8 @@ struct Device: Hashable, Codable {
     var mobileDeviceID: String?
     var bleDeviceID: String?
     var batterySource: DeviceObservationSource?
+    var estimatedRatePerHour: Double?
+    var estimatedSecondsRemaining: Double?
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(hasBattery)
@@ -56,6 +58,8 @@ struct Device: Hashable, Codable {
         hasher.combine(mobileDeviceID)
         hasher.combine(bleDeviceID)
         hasher.combine(batterySource)
+        hasher.combine(estimatedRatePerHour)
+        hasher.combine(estimatedSecondsRemaining)
     }
 
     mutating func mergeIdentifiers(fromExisting existing: Device) {
@@ -275,6 +279,9 @@ class AirBatteryModel {
         charging: Int
     ) -> Device {
         let source = group.leftEarbud ?? group.rightEarbud ?? group.caseDevice ?? group.legacyMergedEarbuds!
+        let secondsRemaining = [group.leftEarbud, group.rightEarbud]
+            .compactMap { $0?.estimatedSecondsRemaining }
+            .min()
         return Device(
             deviceID: source.deviceID,
             deviceType: "ap_pod_all",
@@ -286,7 +293,8 @@ class AirBatteryModel {
             lastUpdate: source.lastUpdate,
             mobileDeviceID: source.mobileDeviceID,
             bleDeviceID: source.bleDeviceID,
-            batterySource: source.batterySource
+            batterySource: source.batterySource,
+            estimatedSecondsRemaining: secondsRemaining
         )
     }
 
@@ -475,8 +483,21 @@ class AirBatteryModel {
         if let index = devices.firstIndex(where: {
             $0.deviceName == device.deviceName
         }) {
+            let existing = devices[index]
             var merged = device
-            merged.mergeIdentifiers(fromExisting: devices[index])
+            merged.mergeIdentifiers(fromExisting: existing)
+            let estimate = BatteryEstimateEngine.updated(
+                previousLevel: existing.batteryLevel,
+                previousCharging: existing.isCharging != 0,
+                previousTime: existing.lastUpdate,
+                previousRatePerHour: existing.estimatedRatePerHour,
+                previousSecondsRemaining: existing.estimatedSecondsRemaining,
+                level: merged.batteryLevel,
+                charging: merged.isCharging != 0,
+                time: merged.lastUpdate
+            )
+            merged.estimatedRatePerHour = estimate.ratePerHour
+            merged.estimatedSecondsRemaining = estimate.secondsRemaining
             devices[index] = merged
         } else {
             devices.append(device)
@@ -661,13 +682,20 @@ class AirBatteryModel {
         return ordered
     }
 
+    static func internalBatteryDevice(from battery: iBattery) -> Device {
+        var device = ib2ab(battery)
+        device.estimatedSecondsRemaining =
+            BatteryEstimateEngine.seconds(fromNativeTimeLeft: battery.timeLeft)
+        return device
+    }
+
     static func writeData(){
         let revList = UserDefaults.standard.object(forKey: "revListOnWidget") as? Bool ?? false
 
         let ibStatus = InternalBattery.status
         let devices = widgetStoredDevices(
             from: getAll(),
-            internalBattery: ibStatus.hasBattery ? ib2ab(ibStatus) : nil,
+            internalBattery: ibStatus.hasBattery ? internalBatteryDevice(from: ibStatus) : nil,
             reverse: revList
         )
         do {
