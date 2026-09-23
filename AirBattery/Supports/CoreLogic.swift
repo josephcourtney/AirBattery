@@ -344,3 +344,170 @@ enum EarbudMergePolicy {
         return leftCharging
     }
 }
+
+struct BatteryEstimateState: Equatable {
+    let ratePerHour: Double?
+    let secondsRemaining: Double?
+}
+
+enum BatteryEstimateEngine {
+    private static let minimumSampleInterval: TimeInterval = 120
+    private static let minimumPlausibleRate = 0.1
+    private static let maximumPlausibleRate = 100.0
+    private static let smoothingWeight = 0.3
+
+    static func updated(
+        previousLevel: Int,
+        previousCharging: Bool,
+        previousTime: TimeInterval,
+        previousRatePerHour: Double?,
+        previousSecondsRemaining: Double?,
+        level: Int,
+        charging: Bool,
+        time: TimeInterval
+    ) -> BatteryEstimateState {
+        guard (0...100).contains(level), time > previousTime else {
+            return BatteryEstimateState(
+                ratePerHour: previousRatePerHour,
+                secondsRemaining: previousSecondsRemaining
+            )
+        }
+
+        if charging != previousCharging {
+            return BatteryEstimateState(ratePerHour: nil, secondsRemaining: nil)
+        }
+
+        let elapsed = time - previousTime
+        let delta = level - previousLevel
+        let movedInExpectedDirection = charging ? delta > 0 : delta < 0
+        var rate = previousRatePerHour
+
+        if movedInExpectedDirection, elapsed >= minimumSampleInterval {
+            let observed = abs(Double(delta)) / elapsed * 3600
+            if (minimumPlausibleRate...maximumPlausibleRate).contains(observed) {
+                if let previousRatePerHour {
+                    rate = previousRatePerHour * (1 - smoothingWeight) +
+                        observed * smoothingWeight
+                } else {
+                    rate = observed
+                }
+            }
+        } else if delta != 0, abs(delta) > 1 {
+            // A sizeable move opposite the current power direction usually
+            // means the power state changed before it was reported, or the
+            // source recalibrated. Re-learn instead of publishing a bad ETA.
+            rate = nil
+        }
+
+        guard let rate, rate > 0 else {
+            return BatteryEstimateState(ratePerHour: nil, secondsRemaining: nil)
+        }
+
+        let secondsRemaining: Double
+        if delta == 0, let previousSecondsRemaining {
+            secondsRemaining = max(0, previousSecondsRemaining - elapsed)
+        } else {
+            let pointsRemaining = charging ? max(0, 100 - level) : max(0, level)
+            secondsRemaining = Double(pointsRemaining) / rate * 3600
+        }
+
+        return BatteryEstimateState(
+            ratePerHour: rate,
+            secondsRemaining: secondsRemaining
+        )
+    }
+
+    static func seconds(fromNativeTimeLeft value: String) -> Double? {
+        guard value != "∞", value != "…" else { return nil }
+        let parts = value.split(separator: ":")
+        guard parts.count == 2,
+              let hours = Double(parts[0]),
+              let minutes = Double(parts[1]),
+              hours >= 0,
+              (0..<60).contains(minutes)
+        else {
+            return nil
+        }
+        return (hours * 60 + minutes) * 60
+    }
+}
+
+enum BatteryEstimateFormatting {
+    static func full(
+        level: Int,
+        charging: Bool,
+        charged: Bool,
+        secondsRemaining: Double?,
+        lastUpdate: TimeInterval,
+        now: Date = Date()
+    ) -> String? {
+        if charged || (charging && level >= 100) {
+            return "Full while charging"
+        }
+        guard let remaining = adjustedRemaining(
+            secondsRemaining,
+            lastUpdate: lastUpdate,
+            now: now
+        ) else {
+            return nil
+        }
+
+        let verb = charging ? "Full" : "Empty"
+        let target = clockString(now.addingTimeInterval(remaining))
+        return "\(verb) around \(target) (~\(durationString(remaining)))"
+    }
+
+    static func compact(
+        level: Int,
+        charging: Bool,
+        charged: Bool,
+        secondsRemaining: Double?,
+        lastUpdate: TimeInterval,
+        now: Date = Date()
+    ) -> String? {
+        if charged || (charging && level >= 100) {
+            return "Full"
+        }
+        guard let remaining = adjustedRemaining(
+            secondsRemaining,
+            lastUpdate: lastUpdate,
+            now: now
+        ) else {
+            return nil
+        }
+        let verb = charging ? "Full" : "Empty"
+        return "\(verb) \(clockString(now.addingTimeInterval(remaining)))"
+    }
+
+    private static func adjustedRemaining(
+        _ secondsRemaining: Double?,
+        lastUpdate: TimeInterval,
+        now: Date
+    ) -> Double? {
+        guard let secondsRemaining, secondsRemaining.isFinite, secondsRemaining >= 0 else {
+            return nil
+        }
+        let elapsed = max(0, now.timeIntervalSince1970 - lastUpdate)
+        return max(0, secondsRemaining - elapsed)
+    }
+
+    private static func clockString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
+    }
+
+    private static func durationString(_ seconds: Double) -> String {
+        let totalMinutes = max(0, Int((seconds / 60).rounded()))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours == 0 {
+            return "\(minutes)m"
+        }
+        if minutes == 0 {
+            return "\(hours)h"
+        }
+        return "\(hours)h \(minutes)m"
+    }
+}
