@@ -8,11 +8,22 @@ enum WidgetOverviewFamily {
 }
 
 private enum WidgetEstimateText {
+    private static let defaults =
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
+    private static let historyKey = "batteryHistory.v1"
+
     static func compact(for item: Device, now: Date = Date()) -> String? {
         let charging = item.isCharging != 0 || item.acPowered
         if item.isCharged || (charging && item.batteryLevel >= 100) {
             return "Full"
         }
+
+        if item.deviceID != "@MacInternalBattery",
+           let estimate = historyEstimate(for: item, now: now) {
+            return "\(estimate.kind == .charging ? "Full" : "Empty") " +
+                estimate.endDate.formatted(date: .omitted, time: .shortened)
+        }
+
         guard let stored = item.estimatedSecondsRemaining,
               stored.isFinite,
               stored >= 0
@@ -26,6 +37,28 @@ private enum WidgetEstimateText {
             time: .shortened
         )
         return "\(charging ? "Full" : "Empty") \(target)"
+    }
+
+    private static func historyEstimate(
+        for device: Device,
+        now: Date
+    ) -> BatteryTimeEstimate? {
+        guard let data = defaults.data(forKey: historyKey),
+              let history = try? JSONDecoder().decode(
+                  [String: [BatteryHistorySample]].self,
+                  from: data
+              )
+        else {
+            return nil
+        }
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: device.deviceID,
+            deviceType: device.deviceType
+        )
+        return BatteryTimeEstimator.estimate(
+            samples: history[key] ?? [],
+            now: now
+        )
     }
 }
 
