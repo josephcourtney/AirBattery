@@ -1,13 +1,13 @@
 import AppKit
 import SwiftUI
-import WidgetKit
 
 struct DevicesView: View {
     @ObservedObject private var policyStore = BLEDiscoveryPolicyStore.shared
     @ObservedObject private var iDeviceBattery = IDeviceBattery.shared
     @ObservedObject private var monitoring = MonitoringCoordinator.shared
     @StateObject private var inventoryModel = DeviceInventoryModel()
-    @State private var expandedKnown: Set<String> = []
+    @State private var selectedKnownID: String?
+    @State private var displayNameDraft = ""
     @State private var expandedNearby: Set<String> = []
     @State private var technicalExpandedKnown: Set<String> = []
     @State private var technicalExpandedNearby: Set<String> = []
@@ -24,19 +24,13 @@ struct DevicesView: View {
         let otherBLE = nearbyBLE.filter { !suggestedIDs.contains($0.identifier) }
 
         return ScrollView {
-            SForm(noSpacer: true) {
-                SGroupBox(label: "Known Devices") {
-                    if known.isEmpty {
-                        emptyRow("No known devices.")
-                    } else {
-                        ForEach(known) { device in
-                            knownDeviceRow(device)
-                            if device.id != known.last?.id {
-                                Divider().opacity(0.5)
-                            }
-                        }
-                    }
-                }
+            SForm {
+                SettingsPageHeader(
+                    title: "Devices",
+                    subtitle: "Manage known devices and inspect battery, connection, and discovery information."
+                )
+
+                knownDevicesBrowser(known)
 
                 SGroupBox(label: "Nearby Devices") {
                     HStack {
@@ -85,18 +79,27 @@ struct DevicesView: View {
                                         .foregroundColor(.secondary)
                                     Spacer()
                                 }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    showOtherNearby.toggle()
+                                }
                             }
                         }
                     }
                 }
+                .disclosureGroupStyle(DeviceDisclosureStyle())
 
             }
         }
         .onAppear {
             refreshInventory()
+            syncDisplayNameDraft()
         }
         .onReceive(monitoring.$fiveSecondTick) { _ in
             refreshInventory()
+        }
+        .onChange(of: selectedKnownID) { _, _ in
+            syncDisplayNameDraft()
         }
         .onChange(of: policyStore.rules) { _, _ in
             refreshInventory()
@@ -114,6 +117,600 @@ struct DevicesView: View {
             policyStore: policyStore,
             iDeviceBattery: iDeviceBattery
         )
+
+        if selectedKnownID == nil ||
+            !inventoryModel.devices.contains(where: { $0.id == selectedKnownID }) {
+            selectedKnownID = inventoryModel.devices.first?.id
+        }
+    }
+
+    @ViewBuilder
+    private func knownDevicesBrowser(
+        _ known: [KnownDeviceSnapshot]
+    ) -> some View {
+        if known.isEmpty {
+            SGroupBox(label: "Known Devices") {
+                emptyRow("No known devices.")
+            }
+        } else {
+            HStack(spacing: 0) {
+                ScrollView {
+                    LazyVStack(spacing: 3) {
+                        ForEach(known) { device in
+                            knownDeviceListRow(device)
+                        }
+                    }
+                    .padding(6)
+                }
+                .frame(width: 236)
+
+                Divider()
+
+                ScrollView {
+                    if let selected = known.first(where: {
+                        $0.id == selectedKnownID
+                    }) {
+                        knownDeviceDetail(selected)
+                            .padding(16)
+                    } else {
+                        ContentUnavailableView(
+                            "Select a Device",
+                            systemImage: "battery.100",
+                            description: Text(
+                                "Choose a known device to inspect its battery and connection information."
+                            )
+                        )
+                        .padding(24)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(minHeight: 360, idealHeight: 430, maxHeight: 520)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.secondary.opacity(0.055))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.secondary.opacity(0.12))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private func knownDeviceListRow(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        let selected = selectedKnownID == device.id
+        Button {
+            selectedKnownID = device.id
+        } label: {
+            HStack(spacing: 9) {
+                knownDeviceIcon(device, size: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayName(for: device))
+                        .lineLimit(1)
+                        .foregroundStyle(selected ? .white : .primary)
+
+                    Text(knownDeviceListSummary(device))
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(
+                            selected
+                                ? Color.white.opacity(0.82)
+                                : Color.secondary
+                        )
+                }
+
+                Spacer(minLength: 4)
+
+                Circle()
+                    .fill(knownDeviceStatusColor(device))
+                    .frame(width: 7, height: 7)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Color.accentColor : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func knownDeviceDetail(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                knownDeviceIcon(device, size: 40)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(displayName(for: device))
+                        .font(.title3.weight(.semibold))
+                    Text(knownDeviceConnectionSummary(device))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            if let group = airPodsGroup(device) {
+                batteryComponentCard(group)
+            } else if let representative = representativeDevice(device),
+                      representative.hasBattery {
+                detailedBatteryView(representative)
+            }
+
+            detailSection("Device Settings") {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Display Name")
+                    Spacer()
+                    TextField(device.name, text: $displayNameDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 150, idealWidth: 190, maxWidth: 230)
+                        .onChange(of: displayNameDraft) { _, value in
+                            saveDisplayName(value, for: device)
+                        }
+                    if DeviceDisplayNameStore.override(
+                        forKey: displayNameKey(for: device)
+                    ) != nil {
+                        Button("Reset") {
+                            DeviceDisplayNameStore.setOverride(
+                                nil,
+                                forKey: displayNameKey(for: device)
+                            )
+                            displayNameDraft = ""
+                        }
+                        .controlSize(.small)
+                    }
+                }
+
+                if let ble = device.ble {
+                    Divider().opacity(0.5)
+                    HStack {
+                        Text("Battery Access")
+                        Spacer()
+                        policyValueMenu(
+                            name: device.name,
+                            currentPolicy: ble.policy,
+                            hasOverrides: !ble.exactRules.isEmpty
+                        )
+                    }
+
+                    if !ble.exactRules.isEmpty {
+                        Text(
+                            "One or more Bluetooth identities override the device-level battery-access policy."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            detailSection("Device Information") {
+                deviceInformationRows(device)
+            }
+
+            advancedTechnicalDetails(device)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private func detailedBatteryView(_ device: Device) -> some View {
+        let estimate = BatteryHistoryStore.shared.estimate(for: device)
+        HStack(alignment: .center, spacing: 18) {
+            BatteryRingSurfaceCell(
+                item: device,
+                diameter: 86,
+                showPercentage: true,
+                showLabel: false,
+                estimate: estimate
+            )
+
+            if let estimate {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(estimateDurationText(estimate))
+                        .font(.headline)
+                    Text(estimateEndpointText(estimate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Estimated from recent battery history")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func advancedTechnicalDetails(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        let expanded = technicalExpandedKnown.contains(device.id)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                if expanded {
+                    technicalExpandedKnown.remove(device.id)
+                } else {
+                    technicalExpandedKnown.insert(device.id)
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    Image(systemName: "wrench.and.screwdriver")
+                    Text("Advanced Technical Details")
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                expanded
+                    ? "Collapse Advanced Technical Details"
+                    : "Expand Advanced Technical Details"
+            )
+
+            if expanded {
+                knownDeviceTechnicalDetails(device)
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func knownDeviceIcon(
+        _ device: KnownDeviceSnapshot,
+        size: CGFloat
+    ) -> some View {
+        if let representative = representativeDevice(device) {
+            Image(getDeviceIcon(representative))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .font(.system(size: size * 0.65))
+                .frame(width: size, height: size)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func batteryComponentCard(
+        _ group: AirPodsBatteryGroup
+    ) -> some View {
+        let presentation = AirBatteryModel.logicalPresentations(
+            from: group.components,
+            mergeEarbuds: twsMergeEnabled,
+            mergeThreshold: twsMerge
+        ).first
+
+        if let presentation {
+            HStack(alignment: .top, spacing: 18) {
+                ForEach(presentation.components) { component in
+                    let estimate = BatteryHistoryStore.shared.estimate(
+                        for: component.device
+                    )
+                    VStack(spacing: 3) {
+                        BatteryRingSurfaceCell(
+                            item: component.device,
+                            diameter: 68,
+                            showPercentage: true,
+                            showLabel: true,
+                            estimate: estimate
+                        )
+                        if let estimate {
+                            Text(estimateShortText(estimate))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.secondary.opacity(0.05))
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func detailSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            VStack(alignment: .leading, spacing: 6) {
+                content()
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.secondary.opacity(0.045))
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func deviceInformationRows(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        if let representative = representativeDevice(device) {
+            detailRow("Detected name", device.name)
+            detailRow("Product Type", humanReadableType(device))
+            if let model = representative.deviceModel, !model.isEmpty {
+                detailRow("Model", model)
+            }
+            detailRow("Identifier", representative.deviceID)
+            detailRow(
+                "Connected via",
+                sortedSources(device.sources)
+                    .map(\.rawValue)
+                    .joined(separator: " · ")
+            )
+            detailRow(
+                "Last updated",
+                relativeAge(representative.lastUpdate)
+            )
+        } else {
+            detailRow("Detected name", device.name)
+            detailRow(
+                "Connected via",
+                sortedSources(device.sources)
+                    .map(\.rawValue)
+                    .joined(separator: " · ")
+            )
+            detailRow("Battery", "No retained battery reading")
+        }
+    }
+
+    @ViewBuilder
+    private func knownDeviceTechnicalDetails(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            if let representative = representativeDevice(device) {
+                if let mobileID = representative.mobileDeviceID,
+                   !mobileID.isEmpty {
+                    detailRow("Mobile UDID", mobileID)
+                }
+                if let bleID = representative.bleDeviceID,
+                   !bleID.isEmpty {
+                    detailRow("Bluetooth ID", bleID)
+                }
+                if let source = representative.batterySource {
+                    detailRow("Last battery via", batterySourceLabel(source))
+                }
+
+                let sampleCount = BatteryHistoryStore.shared
+                    .samples(for: representative)
+                    .count
+                detailRow("ETA history", "\(sampleCount) recent samples")
+            }
+
+            if !device.iDeviceCandidates.isEmpty {
+                Divider().opacity(0.5)
+                Text("Apple device connections")
+                    .font(.caption.weight(.semibold))
+                ForEach(device.iDeviceCandidates) { candidate in
+                    iDeviceTechnicalDetails(candidate)
+                }
+            }
+
+            if let ble = device.ble {
+                if !ble.identities.isEmpty {
+                    Divider().opacity(0.5)
+                    Text("Bluetooth identities")
+                        .font(.caption.weight(.semibold))
+                    ForEach(ble.identities) { candidate in
+                        identityDetail(candidate, logicalPolicy: ble.policy)
+                    }
+                } else if device.sources.contains(.bluetooth) {
+                    Text(
+                        "Bluetooth device not observed during this launch."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func policyValueMenu(
+        name: String,
+        currentPolicy: BLEDevicePolicy?,
+        hasOverrides: Bool
+    ) -> some View {
+        Menu {
+            ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
+                Button(policy.title) {
+                    policyStore.setLogicalPolicy(
+                        name: name,
+                        policy: policy
+                    )
+                }
+            }
+            Divider()
+            Button("Use discovery default") {
+                policyStore.clearLogicalPolicy(name: name)
+            }
+        } label: {
+            Text(
+                currentPolicy?.title ??
+                    (hasOverrides ? "Per identity" : "Discovery default")
+            )
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .fixedSize()
+    }
+
+    private func knownDeviceListSummary(
+        _ device: KnownDeviceSnapshot
+    ) -> String {
+        if let group = airPodsGroup(device) {
+            if let caseDevice = group.caseDevice {
+                return "Case \(caseDevice.batteryLevel)%"
+            }
+            if let first = group.components.first {
+                return "Battery \(first.batteryLevel)%"
+            }
+        }
+
+        if let representative = representativeDevice(device) {
+            return representative.hasBattery
+                ? "\(representative.batteryLevel)% · " +
+                    relativeAge(representative.lastUpdate)
+                : relativeAge(representative.lastUpdate)
+        }
+
+        return "No battery reading"
+    }
+
+    private func knownDeviceConnectionSummary(
+        _ device: KnownDeviceSnapshot
+    ) -> String {
+        let sources = sortedSources(device.sources).map(\.rawValue)
+        let sourceText = sources.isEmpty
+            ? "Known device"
+            : sources.joined(separator: " · ")
+
+        guard let representative = representativeDevice(device) else {
+            return sourceText + " · no retained battery reading"
+        }
+        return sourceText + " · " + relativeAge(representative.lastUpdate)
+    }
+
+    private func knownDeviceStatusColor(
+        _ device: KnownDeviceSnapshot
+    ) -> Color {
+        guard let representative = representativeDevice(device) else {
+            return .secondary.opacity(0.45)
+        }
+        let age = Date().timeIntervalSince1970 - representative.lastUpdate
+        return age < 120 ? .green : .secondary.opacity(0.55)
+    }
+
+    private func humanReadableType(
+        _ device: KnownDeviceSnapshot
+    ) -> String {
+        if airPodsGroup(device) != nil {
+            return "AirPods"
+        }
+        guard let representative = representativeDevice(device) else {
+            return "Device"
+        }
+
+        let type = representative.deviceType.lowercased()
+        if type.contains("iphone") { return "iPhone" }
+        if type.contains("ipad") { return "iPad" }
+        if type.contains("watch") { return "Apple Watch" }
+        if type.contains("keyboard") { return "Keyboard" }
+        if type.contains("mouse") || representative.deviceName
+            .localizedCaseInsensitiveContains("MX Ergo") {
+            return "Pointing Device"
+        }
+        if type.contains("mac") ||
+            representative.deviceID == "@MacInternalBattery" {
+            return "Mac"
+        }
+        return representative.deviceType
+    }
+
+    private func displayName(for device: KnownDeviceSnapshot) -> String {
+        DeviceDisplayNameStore.displayName(
+            forKey: displayNameKey(for: device),
+            fallback: device.name
+        )
+    }
+
+    private func displayNameKey(for device: KnownDeviceSnapshot) -> String {
+        if let representative = representativeDevice(device) {
+            return DeviceDisplayNameStore.key(
+                canonicalID: representative.deviceID,
+                deviceType: representative.deviceType
+            )
+        }
+        return DeviceDisplayNameStore.key(
+            canonicalID: "known:" + device.id,
+            deviceType: "logical"
+        )
+    }
+
+    private func syncDisplayNameDraft() {
+        guard let selectedKnownID,
+              let device = inventoryModel.devices.first(where: {
+                  $0.id == selectedKnownID
+              })
+        else {
+            displayNameDraft = ""
+            return
+        }
+        displayNameDraft = DeviceDisplayNameStore.override(
+            forKey: displayNameKey(for: device)
+        ) ?? ""
+    }
+
+    private func saveDisplayName(
+        _ value: String,
+        for device: KnownDeviceSnapshot
+    ) {
+        DeviceDisplayNameStore.setOverride(
+            value,
+            forKey: displayNameKey(for: device)
+        )
+    }
+
+    private func estimateShortText(_ estimate: BatteryTimeEstimate) -> String {
+        let duration = formattedDuration(estimate.duration)
+        return estimate.kind == .charging
+            ? "\(duration) to full"
+            : "\(duration) left"
+    }
+
+    private func estimateDurationText(_ estimate: BatteryTimeEstimate) -> String {
+        "~" + estimateShortText(estimate)
+    }
+
+    private func estimateEndpointText(_ estimate: BatteryTimeEstimate) -> String {
+        let time = estimate.endDate.formatted(
+            date: .omitted,
+            time: .shortened
+        )
+        return estimate.kind == .charging
+            ? "Full around \(time)"
+            : "Empty around \(time)"
+    }
+
+    private func formattedDuration(_ duration: TimeInterval) -> String {
+        let minutes = max(1, Int((duration / 60).rounded()))
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if hours == 0 { return "\(remainder)m" }
+        if remainder == 0 { return "\(hours)h" }
+        return "\(hours)h \(remainder)m"
     }
 
     private func nearbyIDeviceCandidates(
@@ -148,139 +745,6 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    private func knownDeviceRow(_ device: KnownDeviceSnapshot) -> some View {
-        DisclosureGroup(
-            isExpanded: Binding(
-                get: { expandedKnown.contains(device.id) },
-                set: { expanded in
-                    if expanded { expandedKnown.insert(device.id) }
-                    else { expandedKnown.remove(device.id) }
-                }
-            )
-        ) {
-            VStack(alignment: .leading, spacing: 9) {
-                if let group = airPodsGroup(device) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Battery components")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                        airPodsComponentRows(group)
-                    }
-                } else if let representative = representativeDevice(device) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        if representative.hasBattery {
-                            detailRow(
-                                "Battery",
-                                "\(representative.batteryLevel)%" +
-                                (representative.isCharging != 0 ? " · charging" : "")
-                            )
-                        }
-                        if let model = representative.deviceModel, !model.isEmpty {
-                            detailRow("Model", model)
-                        }
-                        detailRow(
-                            "Known sources",
-                            sortedSources(device.sources).map(\.rawValue).joined(separator: " · ")
-                        )
-                        if let source = representative.batterySource {
-                            detailRow("Last battery via", batterySourceLabel(source))
-                        }
-                        detailRow("Last update", relativeAge(representative.lastUpdate))
-                        if !representative.parentName.isEmpty {
-                            detailRow("Parent", representative.parentName)
-                        }
-                    }
-                } else {
-                    Text("Known from a saved Bluetooth policy; no retained battery reading.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                DisclosureGroup(
-                    isExpanded: Binding(
-                        get: { technicalExpandedKnown.contains(device.id) },
-                        set: { expanded in
-                            if expanded { technicalExpandedKnown.insert(device.id) }
-                            else { technicalExpandedKnown.remove(device.id) }
-                        }
-                    )
-                ) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        if let representative = representativeDevice(device) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                detailRow("Type", representative.deviceType)
-                                detailRow("Canonical ID", representative.deviceID)
-                                if let mobileID = representative.mobileDeviceID, !mobileID.isEmpty {
-                                    detailRow("Mobile UDID", mobileID)
-                                }
-                                if let bleID = representative.bleDeviceID, !bleID.isEmpty {
-                                    detailRow("Bluetooth ID", bleID)
-                                }
-                            }
-                        }
-
-                        if !device.iDeviceCandidates.isEmpty {
-                            Divider().opacity(0.5)
-                            Text("Apple device connections")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            ForEach(device.iDeviceCandidates) { candidate in
-                                iDeviceTechnicalDetails(candidate)
-                            }
-                        }
-
-                        if let ble = device.ble {
-                            if !ble.identities.isEmpty {
-                                Divider().opacity(0.5)
-                                Text("Bluetooth identities")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                ForEach(ble.identities) { candidate in
-                                    identityDetail(candidate, logicalPolicy: ble.policy)
-                                }
-                            } else if device.sources.contains(.bluetooth) {
-                                Text("Bluetooth device not observed during this launch.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if !ble.exactRules.isEmpty {
-                                Text("Identity overrides take precedence over the device battery-access policy.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .padding(.top, 5)
-                } label: {
-                    Label("Technical Details", systemImage: "wrench.and.screwdriver")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.top, 6)
-        } label: {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 5) {
-                        Text(device.name)
-                        ForEach(sortedSources(device.sources), id: \.self) { source in
-                            sourceBadge(source.rawValue)
-                        }
-                    }
-                    Text(knownDeviceSummary(device))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                if let ble = device.ble {
-                    logicalPolicyMenu(name: device.name, currentPolicy: ble.policy, hasOverrides: !ble.exactRules.isEmpty)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     private func nearbyIDeviceRow(_ candidate: IDeviceDiscoveryCandidate) -> some View {
         let rowID = "idevice:" + candidate.identifier
         DisclosureGroup(
@@ -310,6 +774,11 @@ struct DevicesView: View {
                     Label("Technical Details", systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleTechnicalNearby(rowID)
+                        }
                 }
             }
             .padding(.top, 5)
@@ -326,7 +795,11 @@ struct DevicesView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleNearby(rowID)
+                }
             }
         }
     }
@@ -364,6 +837,11 @@ struct DevicesView: View {
                     Label("Technical Details", systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleTechnicalNearby(rowID)
+                        }
                 }
             }
             .padding(.top, 5)
@@ -381,7 +859,11 @@ struct DevicesView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleNearby(rowID)
+                }
                 reviewMenu(candidate, suggested: suggested)
             }
         }
@@ -399,38 +881,6 @@ struct DevicesView: View {
     }
 
     @ViewBuilder
-    private func logicalPolicyMenu(
-        name: String,
-        currentPolicy: BLEDevicePolicy?,
-        hasOverrides: Bool
-    ) -> some View {
-        Menu {
-            ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
-                Button(policy.title) {
-                    policyStore.setLogicalPolicy(name: name, policy: policy)
-                }
-            }
-            Divider()
-            Button("Use discovery default") {
-                policyStore.clearLogicalPolicy(name: name)
-            }
-        } label: {
-            Text(
-                "Battery access: " +
-                (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
-            )
-            .font(.caption)
-            .frame(minWidth: 128, alignment: .trailing)
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .accessibilityLabel(
-            "Battery access policy: " +
-            (currentPolicy?.title ?? (hasOverrides ? "Per identity" : "Discovery default"))
-        )
-    }
-
-    @ViewBuilder
     private func reviewMenu(_ candidate: BLEDiscoveryCandidate, suggested: Bool) -> some View {
         Menu {
             Button("Allow queries") {
@@ -444,9 +894,10 @@ struct DevicesView: View {
             }
         } label: {
             Text(suggested ? "Review" : "Battery access")
-                .frame(minWidth: 82, alignment: .trailing)
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .fixedSize()
     }
 
@@ -489,7 +940,9 @@ struct DevicesView: View {
                         .font(.caption)
                     }
                 }
-                .menuStyle(.borderlessButton)
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .fixedSize()
             }
             candidateTechnicalDetails(candidate)
@@ -595,6 +1048,22 @@ struct DevicesView: View {
         }
     }
 
+    private func toggleNearby(_ id: String) {
+        if expandedNearby.contains(id) {
+            expandedNearby.remove(id)
+        } else {
+            expandedNearby.insert(id)
+        }
+    }
+
+    private func toggleTechnicalNearby(_ id: String) {
+        if technicalExpandedNearby.contains(id) {
+            technicalExpandedNearby.remove(id)
+        } else {
+            technicalExpandedNearby.insert(id)
+        }
+    }
+
     private func batterySourceLabel(_ source: DeviceObservationSource) -> String {
         switch source {
         case .ble: return "Bluetooth"
@@ -616,19 +1085,6 @@ struct DevicesView: View {
             return "Previously queried"
         }
         return "Stable nearby device"
-    }
-
-    private func knownDeviceSummary(_ device: KnownDeviceSnapshot) -> String {
-        if let group = airPodsGroup(device) {
-            return airPodsBatterySummary(group)
-        }
-        if let newest = representativeDevice(device) {
-            if newest.hasBattery {
-                return "Battery \(newest.batteryLevel)% · \(relativeAge(newest.lastUpdate))"
-            }
-            return "Known device · \(relativeAge(newest.lastUpdate))"
-        }
-        return "Known device · no retained battery reading"
     }
 
     private func iDevicePrimarySummary(_ candidate: IDeviceDiscoveryCandidate) -> String {
@@ -655,83 +1111,6 @@ struct DevicesView: View {
             return nil
         }
         return AirBatteryModel.airPodsGroup(for: representative, in: device.devices)
-    }
-
-    private func airPodsBatterySummary(_ group: AirPodsBatteryGroup) -> String {
-        var parts = ["\(group.componentCount) components"]
-        if let caseDevice = group.caseDevice {
-            parts.append("Case \(caseDevice.batteryLevel)%")
-        }
-
-        if let merged = group.mergedEarbudLevel(enabled: twsMergeEnabled, threshold: twsMerge) {
-            parts.append("Earbuds \(merged)%")
-        } else {
-            if let left = group.leftEarbud {
-                parts.append("L \(left.batteryLevel)%")
-            }
-            if let right = group.rightEarbud {
-                parts.append("R \(right.batteryLevel)%")
-            }
-            if group.leftEarbud == nil,
-               group.rightEarbud == nil,
-               let legacy = group.legacyMergedEarbuds {
-                parts.append("Earbuds \(legacy.batteryLevel)%")
-            }
-        }
-
-        return parts.joined(separator: " · ")
-    }
-
-    @ViewBuilder
-    private func airPodsComponentRows(_ group: AirPodsBatteryGroup) -> some View {
-        if let caseDevice = group.caseDevice {
-            batteryComponentRow("Case", device: caseDevice)
-        }
-
-        if let merged = group.mergedEarbudLevel(enabled: twsMergeEnabled, threshold: twsMerge) {
-            HStack {
-                Text("Earbuds")
-                    .frame(width: 82, alignment: .leading)
-                Text("\(merged)%")
-                if group.mergedEarbudCharging(enabled: twsMergeEnabled, threshold: twsMerge) != 0 {
-                    Image(systemName: "bolt.fill")
-                        .font(.caption2)
-                }
-                Text("merged")
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .font(.caption)
-        } else {
-            if let left = group.leftEarbud {
-                batteryComponentRow("Left", device: left)
-            }
-            if let right = group.rightEarbud {
-                batteryComponentRow("Right", device: right)
-            }
-            if group.leftEarbud == nil,
-               group.rightEarbud == nil,
-               let legacy = group.legacyMergedEarbuds {
-                batteryComponentRow("Earbuds", device: legacy)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func batteryComponentRow(_ label: String, device: Device) -> some View {
-        HStack {
-            Text(label)
-                .frame(width: 82, alignment: .leading)
-            Text("\(device.batteryLevel)%")
-            if device.isCharging != 0 {
-                Image(systemName: "bolt.fill")
-                    .font(.caption2)
-            }
-            Text(relativeAge(device.lastUpdate))
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-        .font(.caption)
     }
 
     private func candidatePrimarySummary(_ candidate: BLEDiscoveryCandidate) -> String {
@@ -787,3 +1166,41 @@ struct DevicesView: View {
     }
 }
 
+private struct DeviceDisclosureStyle: DisclosureGroupStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 2) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.14)) {
+                        configuration.isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: "chevron.right.circle")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(
+                            .degrees(configuration.isExpanded ? 90 : 0)
+                        )
+                        .frame(width: 28, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(configuration.isExpanded ? "Collapse" : "Expand")
+                .accessibilityLabel(
+                    configuration.isExpanded ? "Collapse" : "Expand"
+                )
+
+                configuration.label
+            }
+
+            if configuration.isExpanded {
+                configuration.content
+                    .transition(.opacity)
+            }
+        }
+        .animation(
+            .easeInOut(duration: 0.14),
+            value: configuration.isExpanded
+        )
+    }
+}

@@ -27,30 +27,18 @@ let bleBattery = BLEBattery()
 let btdBattery = BTDBattery()
 
 @main
-struct AirBatteryApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
-    init() {
-        registerNotificationCategory()
-    }
-    
-    var body: some Scene {
-        Settings {
-            SettingsView()
-        }
-        .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
-                    openSettingPanel()
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-        }
-    }
-}
-
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var keepAliveActivity: NSObjectProtocol?
+
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = AppDelegate()
+        application.delegate = delegate
+        withExtendedLifetime(delegate) {
+            application.run()
+        }
+    }
     var showOn: String {
         get { AppPreferences.showOn }
         set { AppPreferences.showOn = newValue }
@@ -96,7 +84,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var startTime = Date()
     let nc = NSWorkspace.shared.notificationCenter
     
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         
         if response.actionIdentifier == "DELAY_30_MIN" {
             let deviceName =
@@ -115,7 +103,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         hasVisibleWindows flag: Bool
     ) -> Bool {
         if showOn == "sbar" || showOn == "none" {
-            openSettingPanel()
+            presentSettings()
             return false
         }
 
@@ -124,6 +112,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        registerNotificationCategory()
+
+        installMainMenuIfNeeded()
+
         // default defaults (used if not set)
         UserDefaults.standard.register(
             defaults: [
@@ -148,8 +140,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()
         
-        menu.addItem(withTitle:"Settings...".local, action: #selector(openSetting), keyEquivalent: "")
-        menu.addItem(withTitle:"About AirBattery".local, action: #selector(openAbout), keyEquivalent: "")
+        let settingsItem = menu.addItem(
+            withTitle: "Settings...".local,
+            action: #selector(openSetting),
+            keyEquivalent: ""
+        )
+        settingsItem.target = self
+        let aboutItem = menu.addItem(
+            withTitle: "About AirBattery".local,
+            action: #selector(openAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
         
         //处理旧版偏好设置
         if let alertList = (UserDefaults.standard.object(forKey: "alertList") ?? []) as? [String] {
@@ -208,14 +210,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             WidgetCenter.shared.reloadAllTimelines()
         }
         
-        StatusBarController.shared.install()
-
-        SurfaceController.shared.apply(
-            showOn,
-            settingsVisible: false
-        )
-        NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
-        NSApp.dockTile.display()
         if nearCast {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 netcastService.refeshAll()
@@ -224,6 +218,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        StatusBarController.shared.install()
+        SurfaceController.shared.apply(
+            showOn,
+            settingsVisible: false
+        )
+        NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
+        NSApp.dockTile.display()
+
         let opts: ProcessInfo.ActivityOptions = [.automaticTerminationDisabled, .suddenTerminationDisabled]
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(options: opts, reason: "AirBattery menu bar monitoring")
 
@@ -259,13 +261,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         _ = process(path: "/usr/bin/killall", arguments: ["idevicesyslog"])
     }
     
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
                                     willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .list, .sound])
     }
     
-    @objc func onDisplayWake() {
+    @objc nonisolated func onDisplayWake() {
+        Task { @MainActor [weak self] in
+            self?.handleDisplayWake()
+        }
+    }
+
+    private func handleDisplayWake() {
         if readBTHID {
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
                 LogReader.shared.run(.wake)
@@ -273,20 +281,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    @objc func deviceIsConnected(
+    @objc nonisolated func deviceIsConnected(
         notification: IOBluetoothUserNotification,
         fromDevice device: IOBluetoothDevice
     ) {
-        guard readBTHID,
-              Date().timeIntervalSince(startTime) >= 10,
-              let name = device.name,
-              let address = device.addressString,
-              !AirBatteryModel.checkIfBlocked(name: name)
+        guard let name = device.name,
+              let address = device.addressString
         else {
             return
         }
 
         let isAppleDevice = device.isAppleDevice
+        Task { @MainActor [weak self] in
+            self?.handleDeviceConnected(
+                name: name,
+                address: address,
+                isAppleDevice: isAppleDevice
+            )
+        }
+    }
+
+    private func handleDeviceConnected(
+        name: String,
+        address: String,
+        isAppleDevice: Bool
+    ) {
+        guard readBTHID,
+              Date().timeIntervalSince(startTime) >= 10,
+              !AirBatteryModel.checkIfBlocked(name: name)
+        else {
+            return
+        }
+
         print("ℹ️ \(name) (\(address)) connected")
         DispatchQueue.global(qos: .utility).async {
             usleep(2_500_000)
@@ -312,21 +338,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    @objc func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
-        if let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
-           let url = URL(string: urlString) {
-            if url.scheme == "airbattery"{
-                switch url.host {
-                case "writedata" :
-                    print("Writing data to disk...")
-                    AirBatteryModel.writeData()
-                case "reloadwingets" :
-                    print("Reloading all widgets...")
-                    AirBatteryModel.writeData()
-                    WidgetCenter.shared.reloadAllTimelines()
-                default: print("Unknow command!")
-                }
-            }
+    @objc nonisolated func handleURLEvent(
+        _ event: NSAppleEventDescriptor,
+        replyEvent: NSAppleEventDescriptor
+    ) {
+        guard let urlString = event
+            .paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?
+            .stringValue
+        else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            self?.handleURL(urlString)
+        }
+    }
+
+    private func handleURL(_ urlString: String) {
+        guard let url = URL(string: urlString),
+              url.scheme == "airbattery"
+        else {
+            return
+        }
+
+        switch url.host {
+        case "writedata":
+            print("Writing data to disk...")
+            AirBatteryModel.writeData()
+        case "reloadwingets":
+            print("Reloading all widgets...")
+            AirBatteryModel.writeData()
+            WidgetCenter.shared.reloadAllTimelines()
+        case "settings":
+            presentSettings()
+        default:
+            print("Unknow command!")
         }
     }
      
@@ -334,10 +380,106 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     @objc func openAbout() {
         openAboutPanel()
     }
-    
+
     @MainActor
+    @objc func confirmQuit() {
+        let response = createAlert(
+            level: .warning,
+            title: "Quit AirBattery?",
+            message:
+                "AirBattery will stop monitoring device batteries until you launch it again.",
+            button1: "Quit",
+            button2: "Cancel"
+        ).runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
+    }
+    
     @objc func openSetting() {
-        openSettingPanel()
+        presentSettings()
+    }
+
+    func presentSettings() {
+        SettingsWindowController.shared.present()
+    }
+
+    private func installMainMenuIfNeeded() {
+        guard NSApp.mainMenu == nil else { return }
+
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu(title: "AirBattery")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        let aboutItem = NSMenuItem(
+            title: "About AirBattery".local,
+            action: #selector(openAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+        appMenu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(
+            title: "Settings...".local,
+            action: #selector(openSetting),
+            keyEquivalent: ","
+        )
+        settingsItem.keyEquivalentModifierMask = [.command]
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
+
+        let servicesMenu = NSMenu(title: "Services")
+        let servicesItem = NSMenuItem(
+            title: "Services",
+            action: nil,
+            keyEquivalent: ""
+        )
+        servicesItem.submenu = servicesMenu
+        appMenu.addItem(servicesItem)
+        NSApp.servicesMenu = servicesMenu
+        appMenu.addItem(.separator())
+
+        let hideItem = NSMenuItem(
+            title: "Hide AirBattery",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h"
+        )
+        hideItem.keyEquivalentModifierMask = [.command]
+        hideItem.target = NSApp
+        appMenu.addItem(hideItem)
+
+        let hideOthersItem = NSMenuItem(
+            title: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h"
+        )
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        hideOthersItem.target = NSApp
+        appMenu.addItem(hideOthersItem)
+
+        let showAllItem = NSMenuItem(
+            title: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: ""
+        )
+        showAllItem.target = NSApp
+        appMenu.addItem(showAllItem)
+        appMenu.addItem(.separator())
+
+        let quitItem = NSMenuItem(
+            title: "Quit AirBattery".local,
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        quitItem.target = NSApp
+        appMenu.addItem(quitItem)
+
+        NSApp.mainMenu = mainMenu
     }
     
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {

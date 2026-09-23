@@ -9,8 +9,13 @@ struct NearcastView: View {
 
     var body: some View {
         ScrollView {
-            SForm(noSpacer: true) {
-                SGroupBox(label: "Nearcast") {
+            SForm {
+                SettingsPageHeader(
+                    title: "Nearcast",
+                    subtitle: "Share battery information securely with other Macs on your local network."
+                )
+
+                SGroupBox(label: "Sharing") {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(
                             "Share AirBattery device information with other Macs " +

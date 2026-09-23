@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import WidgetKit
 import AppKit
 
 enum SettingsSection: String, Hashable {
@@ -62,6 +61,7 @@ struct SettingsView: View {
                     alignment: .topLeading
                 )
                 .background(Color(nsColor: .windowBackgroundColor))
+                .scrollEdgeEffectHidden(true, for: .top)
         }
         .navigationSplitViewStyle(.balanced)
         .frame(
@@ -142,4 +142,3 @@ struct SettingsView: View {
     }
 
 }
-

@@ -14,6 +14,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1841D44A2AA6071C0022A1BE"
+               BuildableName = "AirBattery.app"
+               BlueprintName = "AirBattery"
+               ReferencedContainer = "container:AirBattery.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "18F0B00B2F6F000100AB0001"
                BuildableName = "AirBatteryTests.xctest"
                BlueprintName = "AirBatteryTests"

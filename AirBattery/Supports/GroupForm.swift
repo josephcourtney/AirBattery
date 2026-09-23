@@ -5,20 +5,39 @@
 
 import SwiftUI
 
+private let settingsLabelWidth: CGFloat = 224
+
+struct SettingsPageHeader: View {
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.title2.weight(.semibold))
+            Text(subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct SForm<Content: View>: View {
-    var spacing: CGFloat = 30
-    var noSpacer = false
+    var spacing: CGFloat = 20
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
             content()
-            if !noSpacer {
-                Spacer(minLength: 0)
-            }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 18)
+        .frame(
+            maxWidth: 800,
+            alignment: .topLeading
+        )
     }
 }
 
@@ -27,24 +46,27 @@ struct SGroupBox<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        if let label {
-            GroupBox {
-                groupContent
-            } label: {
-                Text(label).font(.headline)
-            }
-        } else {
-            GroupBox {
-                groupContent
+        Group {
+            if let label {
+                GroupBox {
+                    groupContent
+                } label: {
+                    Text(label).font(.headline)
+                }
+            } else {
+                GroupBox {
+                    groupContent
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var groupContent: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             content()
         }
-        .padding(5)
+        .padding(.vertical, 2)
     }
 }
 
@@ -57,17 +79,18 @@ struct SInfoButton: View {
             isPresented = true
         } label: {
             Image(systemName: "info.circle")
-                .font(.system(size: 15, weight: .light))
-                .opacity(0.62)
-                .frame(width: 28, height: 28)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(.secondary)
+                .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("More information")
         .sheet(isPresented: $isPresented) {
-            VStack(alignment: .trailing) {
+            VStack(alignment: .trailing, spacing: 12) {
                 GroupBox {
-                    Text(tips).padding()
+                    Text(tips)
+                        .padding(12)
                 }
                 Button("OK") {
                     isPresented = false
@@ -76,6 +99,35 @@ struct SInfoButton: View {
             }
             .padding()
         }
+    }
+}
+
+private struct SettingsControlRow<Control: View>: View {
+    let title: LocalizedStringKey
+    let tips: LocalizedStringKey?
+    @ViewBuilder let control: () -> Control
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(spacing: 5) {
+                Spacer(minLength: 0)
+                Text(title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.88)
+                    .multilineTextAlignment(.trailing)
+                    .layoutPriority(1)
+                if let tips {
+                    SInfoButton(tips: tips)
+                }
+            }
+            .frame(width: settingsLabelWidth, alignment: .trailing)
+
+            control()
+                .frame(minWidth: 120, alignment: .leading)
+
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 26)
     }
 }
 
@@ -98,17 +150,9 @@ struct SButton: View {
     }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 4) {
-                if let tips {
-                    SInfoButton(tips: tips)
-                }
-                Button(buttonTitle, action: action)
-            }
-        } label: {
-            Text(title)
+        SettingsControlRow(title: title, tips: tips) {
+            Button(buttonTitle, action: action)
         }
-        .frame(minHeight: 28)
     }
 }
 
@@ -134,18 +178,10 @@ struct SField: View {
     }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 4) {
-                if let tips {
-                    SInfoButton(tips: tips)
-                }
-                TextField(placeholder, text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: width)
-            }
-        } label: {
-            Text(title)
+        SettingsControlRow(title: title, tips: tips) {
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: width)
         }
     }
 }
@@ -172,22 +208,14 @@ struct SPicker<T: Hashable, Content: View, Style: PickerStyle>: View {
     }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 4) {
-                if let tips {
-                    SInfoButton(tips: tips)
-                }
-                Picker("", selection: $selection) {
-                    content()
-                }
-                .labelsHidden()
-                .fixedSize()
-                .pickerStyle(style)
+        SettingsControlRow(title: title, tips: tips) {
+            Picker("", selection: $selection) {
+                content()
             }
-        } label: {
-            Text(title)
+            .labelsHidden()
+            .fixedSize()
+            .pickerStyle(style)
         }
-        .frame(minHeight: 28)
     }
 }
 
@@ -207,19 +235,11 @@ struct SToggle: View {
     }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 4) {
-                if let tips {
-                    SInfoButton(tips: tips)
-                }
-                Toggle("", isOn: $isOn)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
-        } label: {
-            Text(title)
+        SettingsControlRow(title: title, tips: tips) {
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
-        .frame(minHeight: 28)
     }
 }
 
@@ -255,11 +275,8 @@ struct SSteper: View {
     }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: 4) {
-                if let tips {
-                    SInfoButton(tips: tips)
-                }
+        SettingsControlRow(title: title, tips: tips) {
+            HStack(spacing: 6) {
                 TextField("", value: clampedValue, formatter: NumberFormatter())
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.trailing)
@@ -267,9 +284,6 @@ struct SSteper: View {
                 Stepper("", value: clampedValue, in: min...max)
                     .labelsHidden()
             }
-        } label: {
-            Text(title)
         }
-        .frame(minHeight: 28)
     }
 }

@@ -8,7 +8,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private init() {
         let hostingController = NSHostingController(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -16,28 +16,22 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
         window.title = "AirBattery Settings"
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.styleMask.insert(.fullSizeContentView)
+        window.titlebarAppearsTransparent = false
         window.contentViewController = hostingController
-        window.contentMinSize = NSSize(width: 720, height: 520)
+        window.contentMinSize = NSSize(width: 760, height: 540)
         window.contentMaxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
         )
+        window.contentResizeIncrements = NSSize(width: 1, height: 1)
         window.titlebarSeparatorStyle = .automatic
         window.tabbingMode = .disallowed
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("AirBatterySettingsWindow")
+        window.standardWindowButton(.zoomButton)?.isEnabled = true
 
         super.init(window: window)
         window.delegate = self
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        SurfaceController.shared.syncActivation(
-            surfaceSelection: AppPreferences.showOn,
-            settingsVisible: false
-        )
     }
 
     @available(*, unavailable)
@@ -48,14 +42,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func present() {
         guard let window else { return }
 
-        window.styleMask.insert([.resizable, .fullSizeContentView])
-        window.contentMinSize = NSSize(width: 720, height: 520)
-        window.contentMaxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        window.standardWindowButton(.zoomButton)?.isEnabled = true
-
         SurfaceController.shared.syncActivation(
             surfaceSelection: AppPreferences.showOn,
             settingsVisible: true
@@ -63,5 +49,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate()
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        SurfaceController.shared.syncActivation(
+            surfaceSelection: AppPreferences.showOn,
+            settingsVisible: false
+        )
     }
 }

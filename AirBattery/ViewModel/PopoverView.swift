@@ -20,6 +20,7 @@ struct popover: View {
     @State private var hidden2 = [Int]()
     @State private var alertList = UserDefaults.standard.get(objectType: [btAlert].self, forKey: "alertList") ?? []
     @State private var pinnedList = AppPreferences.pinnedNames
+    @State private var expandedAirPods = Set<String>()
     @State private var allNearcast = getFiles(withExtension: "json", in: ncFolder)
 
     private func hasFollowingVisibleRow(after index: Int) -> Bool {
@@ -78,15 +79,23 @@ struct popover: View {
         index: Int
     ) -> some View {
         if let presentation = airPodsPresentation(group) {
-            MenuDeviceRowContent(
+            let isExpanded = expandedAirPods.contains(presentation.id)
+
+            PopoverCompoundDeviceSurfaceContent(
                 presentation: presentation,
-                compactName: fromDock
+                compactName: fromDock,
+                isExpanded: isExpanded,
+                onToggle: {
+                    if isExpanded {
+                        expandedAirPods.remove(presentation.id)
+                    } else {
+                        expandedAirPods.insert(presentation.id)
+                    }
+                }
             )
-            .padding(.vertical, 4)
-            .padding(.horizontal, 10)
             .background(
                 overStack == index
-                    ? Color.blackWhite.opacity(0.15)
+                    ? Color.blackWhite.opacity(0.10)
                     : .clear
             )
             .contentShape(Rectangle())
@@ -228,17 +237,6 @@ struct popover: View {
         ZStack{
             if fromDock { Color.clear.background(BlurView(material: .menu)) }
             VStack(spacing: 0){
-                if !fromDock {
-                    Color.clear
-                        .frame(height: 8.5)
-                        .onHover { hovering in
-                            if hovering {
-                                overStack = -1
-                                overStack2 = -1
-                                overStackNC = -1
-                            }
-                        }
-                }
                 PopoverToolbarSurfaceContent(
                     fromDock: fromDock,
                     nearcastEnabled: nearCast,
@@ -248,11 +246,8 @@ struct popover: View {
                     onAbout: {
                         DockPopoverController.shared.hide()
                         StatusBarController.shared.cancelMenuTracking()
-                        openAboutPanel()
-                        DispatchQueue.main.asyncAfter(
-                            deadline: .now() + 0.2
-                        ) {
-                            NSApp.activate()
+                        DispatchQueue.main.async {
+                            openAboutPanel()
                         }
                     },
                     onSettings: {
@@ -261,16 +256,10 @@ struct popover: View {
                         openSettingPanel()
                     },
                     onQuit: {
-                        let response = createAlert(
-                            level: .warning,
-                            title: "Quit AirBattery?",
-                            message:
-                                "AirBattery will stop monitoring device batteries until you launch it again.",
-                            button1: "Quit",
-                            button2: "Cancel"
-                        ).runModal()
-                        if response == .alertFirstButtonReturn {
-                            NSApp.terminate(nil)
+                        DockPopoverController.shared.hide()
+                        StatusBarController.shared.cancelMenuTracking()
+                        DispatchQueue.main.async {
+                            (NSApp.delegate as? AppDelegate)?.confirmQuit()
                         }
                     },
                     onRefreshNearcast: {
@@ -481,20 +470,10 @@ struct popover: View {
                         }
                     }
                 }
-                if !fromDock {
-                    Color.clear
-                        .frame(height: 8.5)
-                        .onHover { hovering in
-                            if hovering {
-                                overStack = -1
-                                overStack2 = -1
-                                overStackNC = -1
-                            }
-                        }
-                }
             }
         }
         .frame(width: 352)
+        .fixedSize(horizontal: false, vertical: true)
         .modifier(PopoverHostSurfaceModifier(fromDock: fromDock))
         .onAppear { allDevices = allDevice }
         .onReceive(monitoring.$secondTick) { _ in
@@ -658,6 +637,6 @@ func openAboutPanel() {
 @MainActor
 func openSettingPanel() {
     DockPopoverController.shared.hide()
-    SettingsWindowController.shared.present()
+    (NSApp.delegate as? AppDelegate)?.presentSettings()
 }
 

@@ -22,7 +22,12 @@ struct DisplayView: View {
 
     var body: some View {
         ScrollView {
-            SForm(noSpacer: true) {
+            SForm {
+                SettingsPageHeader(
+                    title: "Display",
+                    subtitle: "Choose where AirBattery appears and how battery information is presented."
+                )
+
                 SGroupBox(label: "Surfaces") {
                     SPicker(
                         "Show AirBattery",
@@ -194,6 +199,7 @@ private struct DisplaySurfacePreview: View {
     @Environment(\.colorScheme) private var systemColorScheme
     @State private var widgetPreviewPercentages = true
     @State private var widgetPreviewLabels = true
+    @State private var showLargeWidgetPreview = false
     @State private var livePreviewDevices = [Device]()
     @State private var livePreviewInternalBattery = InternalBattery.status
     @ObservedObject private var monitoring = MonitoringCoordinator.shared
@@ -264,14 +270,6 @@ private struct DisplaySurfacePreview: View {
         } ?? widgetRingDevices.first
     }
 
-    private let familyColumns = [
-        GridItem(
-            .adaptive(minimum: 340, maximum: 360),
-            spacing: 16,
-            alignment: .top
-        )
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             previewSection("Menu Bar") {
@@ -293,8 +291,6 @@ private struct DisplaySurfacePreview: View {
 
             previewSection("Popover") {
                 VStack(spacing: 0) {
-                    Color.clear.frame(height: 8.5)
-
                     PopoverToolbarSurfaceContent(
                         fromDock: false,
                         nearcastEnabled: false,
@@ -307,11 +303,20 @@ private struct DisplaySurfacePreview: View {
 
                     VStack(spacing: 0) {
                         ForEach(presentations.indices, id: \.self) { index in
-                            MenuDeviceRowContent(
-                                presentation: presentations[index]
-                            )
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 10)
+                            let presentation = presentations[index]
+                            if presentation.components.count > 1 {
+                                PopoverCompoundDeviceSurfaceContent(
+                                    presentation: presentation,
+                                    isExpanded: true,
+                                    onToggle: {}
+                                )
+                            } else {
+                                MenuDeviceRowContent(
+                                    presentation: presentation
+                                )
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 10)
+                            }
 
                             if index != presentations.count - 1 {
                                 Divider()
@@ -322,7 +327,6 @@ private struct DisplaySurfacePreview: View {
                     .popoverDevicePanelSurface()
                     .offset(y: 2.5)
 
-                    Color.clear.frame(height: 8.5)
                 }
                 .frame(width: 352)
                 .liquidGlassEffect(
@@ -375,21 +379,31 @@ private struct DisplaySurfacePreview: View {
                     Spacer()
                 }
 
-                LazyVGrid(
-                    columns: familyColumns,
-                    alignment: .leading,
-                    spacing: 24
-                ) {
-                    widgetFamilyPreview(
-                        "Battery Overview — Small",
-                        family: .small
-                    ) {
-                        WidgetOverviewRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .small,
-                            showPercentages: widgetPreviewPercentages,
-                            showLabels: widgetPreviewLabels
-                        )
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack(alignment: .top, spacing: 20) {
+                        widgetFamilyPreview(
+                            "Battery Overview — Small",
+                            family: .small
+                        ) {
+                            WidgetOverviewRingsSurfaceContent(
+                                devices: widgetRingDevices,
+                                family: .small,
+                                showPercentages: widgetPreviewPercentages,
+                                showLabels: widgetPreviewLabels
+                            )
+                        }
+
+                        widgetFamilyPreview(
+                            "Single Battery — Small",
+                            family: .small
+                        ) {
+                            WidgetSingleBatterySurfaceContent(
+                                item: singleBatteryPreviewDevice,
+                                deviceName:
+                                    singleBatteryPreviewDevice?.deviceName ?? "",
+                                warningText: "Right click to configure"
+                            )
+                        }
                     }
 
                     widgetFamilyPreview(
@@ -404,29 +418,25 @@ private struct DisplaySurfacePreview: View {
                         )
                     }
 
-                    widgetFamilyPreview(
+                    DisclosureGroup(
                         "Battery Overview — Large",
-                        family: .large
+                        isExpanded: $showLargeWidgetPreview
                     ) {
-                        WidgetOverviewRingsSurfaceContent(
-                            devices: widgetRingDevices,
-                            family: .large,
-                            showPercentages: widgetPreviewPercentages,
-                            showLabels: widgetPreviewLabels
-                        )
+                        widgetFamilyPreview(
+                            "",
+                            family: .large
+                        ) {
+                            WidgetOverviewRingsSurfaceContent(
+                                devices: widgetRingDevices,
+                                family: .large,
+                                showPercentages: widgetPreviewPercentages,
+                                showLabels: widgetPreviewLabels
+                            )
+                        }
+                        .padding(.top, 6)
                     }
-
-                    widgetFamilyPreview(
-                        "Single Battery — Small",
-                        family: .small
-                    ) {
-                        WidgetSingleBatterySurfaceContent(
-                            item: singleBatteryPreviewDevice,
-                            deviceName:
-                                singleBatteryPreviewDevice?.deviceName ?? "",
-                            warningText: "Right click to configure"
-                        )
-                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
             }
@@ -471,9 +481,11 @@ private struct DisplaySurfacePreview: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+            if !title.isEmpty {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
 
             ZStack {
                 content()
