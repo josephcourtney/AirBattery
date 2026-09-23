@@ -5,14 +5,14 @@
 
 import SwiftUI
 
-private let settingsLabelWidth: CGFloat = 224
+private let settingsLabelWidth: CGFloat = 210
 
 struct SettingsPageHeader: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.title2.weight(.semibold))
             Text(subtitle)
@@ -25,17 +25,17 @@ struct SettingsPageHeader: View {
 }
 
 struct SForm<Content: View>: View {
-    var spacing: CGFloat = 20
+    var spacing: CGFloat = 14
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: spacing) {
             content()
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 18)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
         .frame(
-            maxWidth: 800,
+            maxWidth: 840,
             alignment: .topLeading
         )
     }
@@ -63,10 +63,10 @@ struct SGroupBox<Content: View>: View {
     }
 
     private var groupContent: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 3) {
             content()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 1)
     }
 }
 
@@ -108,7 +108,7 @@ private struct SettingsControlRow<Control: View>: View {
     @ViewBuilder let control: () -> Control
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
                 Text(title)
@@ -123,11 +123,11 @@ private struct SettingsControlRow<Control: View>: View {
             .frame(width: settingsLabelWidth, alignment: .trailing)
 
             control()
-                .frame(minWidth: 120, alignment: .leading)
+                .frame(minWidth: 116, alignment: .leading)
 
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 26)
+        .frame(minHeight: 24)
     }
 }
 
