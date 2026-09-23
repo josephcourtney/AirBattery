@@ -126,10 +126,23 @@ extension View {
 }
 
 private enum PopoverEstimateText {
+    private static let defaults =
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
+    private static let historyKey = "batteryHistory.v1"
+
     static func full(for device: Device, now: Date = Date()) -> String? {
         let charging = device.isCharging != 0 || device.acPowered
         if device.isCharged || (charging && device.batteryLevel >= 100) {
             return "Full while charging"
+        }
+
+        if device.deviceID != "@MacInternalBattery",
+           let estimate = historyEstimate(for: device, now: now) {
+            return fullText(
+                charging: estimate.kind == .charging,
+                endDate: estimate.endDate,
+                duration: estimate.duration
+            )
         }
 
         guard let stored = device.estimatedSecondsRemaining,
@@ -141,12 +154,43 @@ private enum PopoverEstimateText {
 
         let elapsed = max(0, now.timeIntervalSince1970 - device.lastUpdate)
         let remaining = max(0, stored - elapsed)
-        let target = now.addingTimeInterval(remaining).formatted(
-            date: .omitted,
-            time: .shortened
+        return fullText(
+            charging: charging,
+            endDate: now.addingTimeInterval(remaining),
+            duration: remaining
         )
+    }
+
+    private static func historyEstimate(
+        for device: Device,
+        now: Date
+    ) -> BatteryTimeEstimate? {
+        guard let data = defaults.data(forKey: historyKey),
+              let history = try? JSONDecoder().decode(
+                  [String: [BatteryHistorySample]].self,
+                  from: data
+              )
+        else {
+            return nil
+        }
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: device.deviceID,
+            deviceType: device.deviceType
+        )
+        return BatteryTimeEstimator.estimate(
+            samples: history[key] ?? [],
+            now: now
+        )
+    }
+
+    private static func fullText(
+        charging: Bool,
+        endDate: Date,
+        duration: TimeInterval
+    ) -> String {
+        let target = endDate.formatted(date: .omitted, time: .shortened)
         let verb = charging ? "Full" : "Empty"
-        return "\(verb) around \(target) (~\(durationString(remaining)))"
+        return "\(verb) around \(target) (~\(durationString(duration)))"
     }
 
     private static func durationString(_ seconds: TimeInterval) -> String {
