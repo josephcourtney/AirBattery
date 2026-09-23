@@ -368,6 +368,28 @@ private struct OverviewRingCell: View {
     }
 }
 
+// Settings uses the same cohesive ring renderer as widgets. The history-based
+// estimate is rendered separately by the settings detail views, so this adapter
+// intentionally accepts it only to preserve that call-site API while avoiding a
+// second ring implementation.
+struct BatteryRingSurfaceCell: View {
+    let item: Device
+    let diameter: CGFloat
+    let showPercentage: Bool
+    let showLabel: Bool
+    let estimate: BatteryTimeEstimate?
+
+    var body: some View {
+        OverviewRingCell(
+            item: item,
+            diameter: diameter,
+            showPercentage: showPercentage,
+            showLabel: showLabel,
+            showEstimate: false
+        )
+    }
+}
+
 struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
     let deviceName: String
