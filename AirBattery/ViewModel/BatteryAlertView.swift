@@ -239,8 +239,6 @@ func batteryAlert() {
     }
 }
 
-// Compatibility adapter for the recovered popover caller. Expansion is owned by
-// MenuDeviceRowContent in the cohesive surface implementation.
 struct PopoverCompoundDeviceSurfaceContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
@@ -250,7 +248,9 @@ struct PopoverCompoundDeviceSurfaceContent: View {
     var body: some View {
         MenuDeviceRowContent(
             presentation: presentation,
-            compactName: compactName
+            compactName: compactName,
+            expanded: isExpanded,
+            onToggleExpansion: onToggle
         )
         .padding(.vertical, 4)
         .padding(.horizontal, 10)
