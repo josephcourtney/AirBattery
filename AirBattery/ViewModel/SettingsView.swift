@@ -40,26 +40,43 @@ enum SettingsSection: String, Hashable {
 }
 
 struct SettingsView: View {
+    private static let sidebarWidth: CGFloat = 220
+
     @State private var selectedItem: SettingsSection? = .general
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: 220)
+        GeometryReader { proxy in
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(
+                        minWidth: Self.sidebarWidth,
+                        idealWidth: Self.sidebarWidth,
+                        maxWidth: Self.sidebarWidth,
+                        maxHeight: .infinity
+                    )
+                    .layoutPriority(10)
 
-            Divider()
+                Divider()
 
-            detailView
-                .id(selectedItem)
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity,
-                    alignment: .topLeading
-                )
-                .background(Color(nsColor: .windowBackgroundColor))
-                .clipped()
+                detailView
+                    .id(selectedItem)
+                    .frame(
+                        width: max(0, proxy.size.width - Self.sidebarWidth - 1),
+                        height: proxy.size.height,
+                        alignment: .topLeading
+                    )
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .clipped()
+                    .layoutPriority(0)
+            }
+            .frame(
+                width: proxy.size.width,
+                height: proxy.size.height,
+                alignment: .leading
+            )
+            .clipped()
         }
         .frame(
             minWidth: 760,
