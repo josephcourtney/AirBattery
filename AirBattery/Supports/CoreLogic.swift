@@ -97,9 +97,10 @@ enum DeviceDisplayNameStore {
     )
 
     private static let storageKey = "deviceDisplayNameOverrides.v1"
-    private static let defaults =
+    private static var defaults: UserDefaults {
         UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
-        .standard
+            .standard
+    }
 
     static func key(canonicalID: String, deviceType: String) -> String {
         canonicalID + "|" + deviceType
