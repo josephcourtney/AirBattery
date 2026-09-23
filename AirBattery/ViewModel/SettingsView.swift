@@ -45,14 +45,12 @@ struct SettingsView: View {
     @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             sidebar
-                .navigationSplitViewColumnWidth(
-                    min: 170,
-                    ideal: 190,
-                    max: 220
-                )
-        } detail: {
+                .frame(width: 220)
+
+            Divider()
+
             detailView
                 .id(selectedItem)
                 .frame(
@@ -61,9 +59,8 @@ struct SettingsView: View {
                     alignment: .topLeading
                 )
                 .background(Color(nsColor: .windowBackgroundColor))
-                .scrollEdgeEffectHidden(true, for: .top)
+                .clipped()
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(
             minWidth: 760,
             idealWidth: 960,
@@ -94,6 +91,7 @@ struct SettingsView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollDisabled(true)
         .accessibilityLabel("Settings sections")
     }
 
@@ -140,5 +138,4 @@ struct SettingsView: View {
         }
         .tag(section)
     }
-
 }
