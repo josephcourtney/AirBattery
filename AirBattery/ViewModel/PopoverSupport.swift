@@ -5,6 +5,7 @@ import SwiftUI
 final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
     private let contentWidth: CGFloat
     private var updatingFrame = false
+    private var resizeScheduled = false
 
     var onHeightChange: ((CGFloat) -> Void)?
 
@@ -27,7 +28,12 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
 
     override func layout() {
         super.layout()
-        resizeToFitContent()
+        scheduleResizeToFitContent()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        scheduleResizeToFitContent()
     }
 
     private func configureFrame() {
@@ -40,9 +46,21 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
         autoresizingMask = [.width]
     }
 
+    private func scheduleResizeToFitContent() {
+        guard !resizeScheduled else { return }
+        resizeScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            resizeScheduled = false
+            resizeToFitContent()
+        }
+    }
+
     func resizeToFitContent() {
         guard !updatingFrame else { return }
 
+        invalidateIntrinsicContentSize()
+        layoutSubtreeIfNeeded()
         let targetHeight = ceil(max(fittingSize.height, 1))
         guard abs(frame.height - targetHeight) > 0.5 else { return }
 
@@ -191,6 +209,7 @@ struct DeviceRowHoverControls: View {
             Text(infoText)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(infoColor)
+                .lineLimit(1)
 
             Spacer().frame(width: 1)
 
@@ -228,6 +247,7 @@ struct DeviceRowHoverControls: View {
                 }
             }
         }
+        .frame(height: 22)
     }
 }
 
@@ -254,4 +274,3 @@ private struct DeviceRowActionButton: View {
         .onHover { isHovered = $0 }
     }
 }
-
