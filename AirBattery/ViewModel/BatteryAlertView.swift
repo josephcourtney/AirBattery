@@ -47,9 +47,6 @@ struct AlertInputView: View {
     
     var body: some View {
         ZStack(alignment: Alignment(horizontal: .leading, vertical: .top)) {
-            /*Color.clear
-                .background(BlurView(material: .menu))
-                .cornerRadius(14)*/
             VStack {
                 Image(iconName)
                     .resizable()
@@ -180,18 +177,14 @@ final class AlertWindowController {
     private var window: BatteryAlertWindow?
 
     func showAlert(with alert: btAlert, iconName: String, onConfirm: @escaping (btAlert) -> Void, onCancel: @escaping () -> Void) {
-        // 创建 AlertInputView，传入可选的 btAlert 对象
         let alertView = AlertInputView(alert: alert, iconName: iconName, onConfirm: { newAlert in
-            // 确认操作后，关闭窗口并返回数据
             self.window?.close()
             onConfirm(newAlert)
         }, onCancel: {
-            // 取消操作，关闭窗口
             self.window?.close()
             onCancel()
         })
 
-        // 创建窗口
         let window = BatteryAlertWindow(contentViewController: NSHostingController(rootView: alertView))
         window.setContentSize(NSSize(width: 360, height: 334))
         window.title = "Create Battery Alert"
@@ -203,12 +196,8 @@ final class AlertWindowController {
         window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
         window.center()
-
-        // 显示窗口
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
-
-        // 保存窗口引用，避免窗口被销毁
         self.window = window
     }
 }
@@ -247,5 +236,23 @@ func batteryAlert() {
                 }
             }
         }
+    }
+}
+
+// Compatibility adapter for the recovered popover caller. Expansion is owned by
+// MenuDeviceRowContent in the cohesive surface implementation.
+struct PopoverCompoundDeviceSurfaceContent: View {
+    let presentation: LogicalDevicePresentation
+    var compactName = false
+    let isExpanded: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        MenuDeviceRowContent(
+            presentation: presentation,
+            compactName: compactName
+        )
+        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
     }
 }
