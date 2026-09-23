@@ -8,7 +8,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private init() {
         let hostingController = NSHostingController(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 680),
+            contentRect: NSRect(x: 0, y: 0, width: 960, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -18,7 +18,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = false
         window.contentViewController = hostingController
-        window.contentMinSize = NSSize(width: 760, height: 540)
+        window.contentMinSize = NSSize(width: 900, height: 540)
         window.contentMaxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
