@@ -5,8 +5,8 @@
 //  Created by apple on 2024/2/18.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 let ncFolder = AirBatteryModel.getNearcastURL()
 
@@ -16,7 +16,8 @@ struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
             date: Date(),
             data: [],
             mainApp: true,
-            deviceName: ""
+            deviceName: "",
+            showTimeEstimate: false
         )
     }
 
@@ -52,7 +53,8 @@ struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
             date: Date(),
             data: data,
             mainApp: mainApp,
-            deviceName: configuration.deviceName
+            deviceName: configuration.deviceName,
+            showTimeEstimate: configuration.showTimeEstimate
         )
     }
 }
@@ -62,6 +64,7 @@ struct SimpleEntry: TimelineEntry {
     let data: [Device]
     let mainApp: Bool
     let deviceName: String
+    let showTimeEstimate: Bool
 }
 
 struct BatteryOverviewEntry: TimelineEntry {
@@ -71,6 +74,7 @@ struct BatteryOverviewEntry: TimelineEntry {
     let mainApp: Bool
     let showPercentages: Bool
     let showLabels: Bool
+    let showTimeEstimates: Bool
 }
 
 struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
@@ -81,7 +85,8 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
             family: context.family,
             mainApp: true,
             showPercentages: true,
-            showLabels: true
+            showLabels: true,
+            showTimeEstimates: false
         )
     }
 
@@ -129,7 +134,8 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
             family: family,
             mainApp: mainApp,
             showPercentages: configuration.showPercentages,
-            showLabels: configuration.showLabels
+            showLabels: configuration.showLabels,
+            showTimeEstimates: configuration.showTimeEstimates
         )
     }
 }
@@ -151,7 +157,8 @@ struct BatteryOverviewEntryView: View {
                 devices: entry.data,
                 family: overviewFamily,
                 showPercentages: entry.showPercentages,
-                showLabels: entry.showLabels
+                showLabels: entry.showLabels,
+                showTimeEstimates: entry.showTimeEstimates
             )
         }
     }
@@ -185,7 +192,7 @@ struct BatteryOverviewWidget: Widget {
         }
         .configurationDisplayName("Battery Overview")
         .description(
-            "Displays device battery rings with optional percentages and labels."
+            "Displays device battery rings with optional percentages, labels, and time estimates."
         )
         .contentMarginsDisabled()
         .supportedFamilies([
