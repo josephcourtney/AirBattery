@@ -146,6 +146,8 @@ struct DiscoveryView: View {
                 }
             }
         }
+        .scrollEdgeEffectHidden(true, for: .top)
+        .clipped()
     }
 
     @ViewBuilder
@@ -163,7 +165,6 @@ struct DiscoveryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
 
 struct NameRulesEditor: View {
     @AppStorage("whitelistMode") private var whitelistMode = false
@@ -274,4 +275,3 @@ struct NameRulesEditor: View {
         }
     }
 }
-
