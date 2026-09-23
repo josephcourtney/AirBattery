@@ -140,24 +140,12 @@ struct WidgetOverviewRingsSurfaceContent: View {
         _ presentation: LogicalDevicePresentation
     ) -> some View {
         if presentation.components.count > 1 {
-            VStack(spacing: 0) {
-                OverviewRingCell(
-                    item: presentation.representative,
-                    diameter: showPercentages && showLabels ? 40 : 46,
-                    showPercentage: showPercentages,
-                    showLabel: showLabels,
-                    showEstimate: false,
-                    labelOverride: presentation.compactName
-                )
-                if showLabels {
-                    Text(componentSummary(presentation))
-                        .font(.system(size: 6.5, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .frame(width: 72)
-                }
-            }
+            CompactCompoundBatteryMeter(
+                presentation: presentation,
+                style: .overviewSmall,
+                showPercentages: showPercentages,
+                showLabel: showLabels
+            )
         } else if let component = presentation.components.first {
             OverviewRingCell(
                 item: component.device,
@@ -212,13 +200,14 @@ struct WidgetOverviewRingsSurfaceContent: View {
                 ForEach(group.components.prefix(3)) { component in
                     OverviewRingCell(
                         item: component.device,
-                        diameter: showPercentages && showLabels ? 38 : 44,
+                        diameter: showPercentages && showLabels ? 36 : 42,
                         showPercentage: showPercentages,
                         showLabel: showLabels,
                         showEstimate: showLabels
                     )
                 }
             }
+            .padding(.bottom, showLabels ? 4 : 0)
         }
         .padding(.vertical, 5)
     }
@@ -317,19 +306,217 @@ struct WidgetOverviewRingsSurfaceContent: View {
         let end = min(start + columns, flatItems.count)
         return Array(flatItems[start..<end])
     }
+}
 
-    private func componentSummary(_ presentation: LogicalDevicePresentation) -> String {
-        presentation.components.prefix(3).map { component in
-            let prefix: String
-            switch component.role {
-            case .caseBattery: prefix = "C"
-            case .leftEarbud: prefix = "L"
-            case .rightEarbud: prefix = "R"
-            case .earbuds: prefix = "E"
-            case .primary: prefix = ""
+private enum CompactCompoundMeterStyle {
+    case overviewSmall
+    case singleSmall
+
+    var caseDiameter: CGFloat {
+        switch self {
+        case .overviewSmall: return 24
+        case .singleSmall: return 50
+        }
+    }
+
+    var secondaryDiameter: CGFloat {
+        switch self {
+        case .overviewSmall: return 20
+        case .singleSmall: return 42
+        }
+    }
+
+    var horizontalSpacing: CGFloat {
+        switch self {
+        case .overviewSmall: return 5
+        case .singleSmall: return 14
+        }
+    }
+
+    var verticalSpacing: CGFloat {
+        switch self {
+        case .overviewSmall: return 0
+        case .singleSmall: return 2
+        }
+    }
+}
+
+private struct CompactCompoundBatteryMeter: View {
+    let presentation: LogicalDevicePresentation
+    let style: CompactCompoundMeterStyle
+    let showPercentages: Bool
+    let showLabel: Bool
+
+    private var caseComponent: BatteryComponentPresentation? {
+        presentation.components.first { $0.role == .caseBattery } ??
+            presentation.components.first
+    }
+
+    private var secondaryComponents: [BatteryComponentPresentation] {
+        Array(
+            presentation.components
+                .filter { component in
+                    guard let caseComponent else { return true }
+                    return component.id != caseComponent.id
+                }
+                .prefix(2)
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: style.verticalSpacing) {
+            if let caseComponent {
+                CompactComponentGauge(
+                    component: caseComponent,
+                    diameter: style.caseDiameter,
+                    showPercentage: showPercentages,
+                    showRole: style == .singleSmall
+                )
             }
-            return "\(prefix)\(component.level)"
-        }.joined(separator: " · ")
+
+            if !secondaryComponents.isEmpty {
+                HStack(spacing: style.horizontalSpacing) {
+                    ForEach(secondaryComponents) { component in
+                        CompactComponentGauge(
+                            component: component,
+                            diameter: style.secondaryDiameter,
+                            showPercentage: showPercentages,
+                            showRole: style == .singleSmall
+                        )
+                    }
+                }
+            }
+
+            if showLabel {
+                Text(
+                    style == .singleSmall
+                        ? presentation.displayName
+                        : presentation.compactName
+                )
+                .font(
+                    .system(
+                        size: style == .singleSmall ? 11 : 7.5,
+                        weight: style == .singleSmall ? .medium : .regular
+                    )
+                )
+                .foregroundColor(style == .singleSmall ? .primary : .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(width: style == .singleSmall ? 150 : 72)
+            }
+
+            if style == .singleSmall,
+               let caseComponent,
+               let estimate = WidgetEstimateText.compact(for: caseComponent.device) {
+                Text(estimate)
+                    .font(.system(size: 9.5))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+        }
+        .frame(
+            width: style == .singleSmall ? 154 : 72,
+            height: style == .singleSmall ? 150 : 70,
+            alignment: .center
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        let batteryValues = presentation.components.map { component in
+            "\(component.label) \(component.level) percent"
+        }
+        return ([presentation.displayName] + batteryValues).joined(separator: ", ")
+    }
+}
+
+private struct CompactComponentGauge: View {
+    let component: BatteryComponentPresentation
+    let diameter: CGFloat
+    let showPercentage: Bool
+    let showRole: Bool
+
+    private var lineWidth: CGFloat {
+        diameter >= 40 ? 6 : 3.5
+    }
+
+    private var fraction: Double { 0.76 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+                    .opacity(0.15)
+                    .rotationEffect(.degrees(133))
+
+                Circle()
+                    .trim(
+                        from: 0,
+                        to: Double(component.level) / 100 * fraction
+                    )
+                    .stroke(
+                        Color(getPowerColor(component.device)),
+                        style: StrokeStyle(
+                            lineWidth: lineWidth,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+                    .rotationEffect(.degrees(133))
+
+                Image(getDeviceIcon(component.device))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: diameter * 0.45, height: diameter * 0.45)
+            }
+            .frame(width: diameter, height: diameter)
+
+            if showPercentage {
+                HStack(spacing: 1) {
+                    Text("\(component.level)%")
+                        .monospacedDigit()
+                    if component.charging != 0 || component.device.acPowered {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: diameter >= 40 ? 6.5 : 4.5, weight: .bold))
+                            .foregroundColor(.myGreen)
+                    }
+                }
+                .font(
+                    .system(
+                        size: diameter >= 40 ? 9.5 : 6.5,
+                        weight: .medium
+                    )
+                )
+                .fixedSize()
+            }
+
+            if showRole {
+                Text(shortRole)
+                    .font(.system(size: 7.5))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var shortRole: String {
+        switch component.role {
+        case .caseBattery: return "Case"
+        case .leftEarbud: return "L"
+        case .rightEarbud: return "R"
+        case .earbuds: return "L/R"
+        case .primary: return component.label
+        }
     }
 }
 
@@ -356,8 +543,8 @@ private struct LargeLogicalDeviceCell: View {
                 if showLabel {
                     Text(presentation.displayName)
                         .font(.system(size: 10.5, weight: .semibold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
                 }
 
                 if showPercentage {
@@ -400,13 +587,9 @@ private struct OverviewRingCell: View {
         diameter >= 64 ? 7 : (diameter < 42 ? 5 : 6)
     }
 
-    private var ringFraction: Double {
-        showPercentage ? 0.78 : 1
-    }
+    private var ringFraction: Double { 0.78 }
 
-    private var ringRotation: Double {
-        showPercentage ? 129.6 : 270
-    }
+    private var ringRotation: Double { 129.6 }
 
     var body: some View {
         VStack(spacing: annotationSpacing) {
@@ -557,13 +740,49 @@ struct BatteryRingSurfaceCell: View {
 
 struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
+    var presentation: LogicalDevicePresentation? = nil
     let deviceName: String
     let warningText: String
 
     private let lineWidth = 10.0
 
-    var body: some View {
+    private var resolvedPresentation: LogicalDevicePresentation? {
+        if let presentation {
+            return presentation
+        }
+
+        let presentations = AirBatteryModel.widgetLogicalPresentations(
+            from: AirBatteryModel.readData()
+        )
+
         if let item {
+            return presentations.first { presentation in
+                presentation.components.contains { component in
+                    component.device.deviceID == item.deviceID &&
+                        component.device.deviceType == item.deviceType
+                }
+            }
+        }
+
+        guard !deviceName.isEmpty else { return nil }
+        return presentations.first { presentation in
+            presentation.displayName == deviceName ||
+                presentation.components.contains {
+                    $0.device.deviceName == deviceName
+                }
+        }
+    }
+
+    var body: some View {
+        if let resolvedPresentation,
+           resolvedPresentation.components.count > 1 {
+            CompactCompoundBatteryMeter(
+                presentation: resolvedPresentation,
+                style: .singleSmall,
+                showPercentages: true,
+                showLabel: true
+            )
+        } else if let item {
             VStack(spacing: 6) {
                 ZStack {
                     Group {
