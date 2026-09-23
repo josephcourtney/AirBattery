@@ -19,6 +19,7 @@ struct DisplayView: View {
     @AppStorage("deviceName") var deviceName = "Mac"
 
     @State private var levelList = [95, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+    @State private var showPreview = false
 
     var body: some View {
         ScrollView {
@@ -88,7 +89,7 @@ struct DisplayView: View {
                     .disabled(!intBattOnStatusBar || batteryPercent == "hide")
 
                     Text("Yellow continues to mean Low Power Mode (or a genuinely low battery), matching macOS battery semantics.")
-                        .font(.footnote)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -147,22 +148,46 @@ struct DisplayView: View {
                 }
 
                 SGroupBox(label: "Preview") {
-                    DisplaySurfacePreview(
-                        mergeEarbuds: twsMergeEnabled,
-                        mergeThreshold: twsMerge,
-                        reverseWidgetOrder: revListOnWidget,
-                        showMacInDock: showThisMac != "hidden",
-                        showMacAsPercent: showThisMac == "percent",
-                        menuBarShowsMac: intBattOnStatusBar,
-                        colorfulBattery: colorfulBattery,
-                        iosBatteryStyle: iosBatteryStyle,
-                        batteryPercent: batteryPercent,
-                        hideLevel: hideLevel,
-                        appearance: appearance
-                    )
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Live surfaces")
+                                .font(.subheadline.weight(.medium))
+                            Text("Uses current device data when available.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(showPreview ? "Hide" : "Show") {
+                            withAnimation(.easeInOut(duration: 0.16)) {
+                                showPreview.toggle()
+                            }
+                        }
+                        .controlSize(.small)
+                    }
+
+                    if showPreview {
+                        Divider().opacity(0.5)
+                        DisplaySurfacePreview(
+                            mergeEarbuds: twsMergeEnabled,
+                            mergeThreshold: twsMerge,
+                            reverseWidgetOrder: revListOnWidget,
+                            showMacInDock: showThisMac != "hidden",
+                            showMacAsPercent: showThisMac == "percent",
+                            menuBarShowsMac: intBattOnStatusBar,
+                            colorfulBattery: colorfulBattery,
+                            iosBatteryStyle: iosBatteryStyle,
+                            batteryPercent: batteryPercent,
+                            hideLevel: hideLevel,
+                            appearance: appearance
+                        )
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                    }
                 }
             }
         }
+        .scrollEdgeEffectHidden(true, for: .top)
+        .clipped()
     }
 
     private func applySurfaceSelection(_ newValue: String) {
@@ -178,9 +203,7 @@ struct DisplayView: View {
                 button1: "OK"
             ).runModal()
         }
-
     }
-
 }
 
 private struct DisplaySurfacePreview: View {
@@ -271,7 +294,7 @@ private struct DisplaySurfacePreview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 18) {
             previewSection("Menu Bar") {
                 HStack {
                     StatusBarBatteryContent(
@@ -320,7 +343,6 @@ private struct DisplaySurfacePreview: View {
                     .padding(.horizontal, 6)
                     .popoverDevicePanelSurface()
                     .offset(y: 2.5)
-
                 }
                 .frame(width: 352)
                 .liquidGlassEffect(
@@ -342,18 +364,13 @@ private struct DisplaySurfacePreview: View {
 
             Divider().opacity(0.35)
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Widgets")
                     .font(.headline)
 
-                Text(
-                    "Battery Overview replaces the historical Battery List " +
-                    "and Battery Rings variants for new widgets. Each placed " +
-                    "widget can independently show or hide percentages and labels."
-                )
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text("Preview options")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 18) {
                     Toggle(
@@ -373,7 +390,7 @@ private struct DisplaySurfacePreview: View {
                     Spacer()
                 }
 
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .top, spacing: 20) {
                         widgetFamilyPreview(
                             "Battery Overview — Small",
@@ -432,7 +449,6 @@ private struct DisplaySurfacePreview: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -449,7 +465,10 @@ private struct DisplaySurfacePreview: View {
         let internalBattery = InternalBattery.status
         var devices = AirBatteryModel.getAll()
         if internalBattery.hasBattery {
-            devices.insert(ib2ab(internalBattery), at: 0)
+            devices.insert(
+                AirBatteryModel.internalBatteryDevice(from: internalBattery),
+                at: 0
+            )
         }
         livePreviewInternalBattery = internalBattery
         livePreviewDevices = devices
@@ -528,7 +547,8 @@ private struct DisplaySurfacePreview: View {
                 batteryLevel: 69,
                 isCharging: 0,
                 lowPower: true,
-                lastUpdate: now
+                lastUpdate: now,
+                estimatedSecondsRemaining: 8_040
             ),
             Device(
                 deviceID: "preview-iphone",
@@ -538,7 +558,8 @@ private struct DisplaySurfacePreview: View {
                 batteryLevel: 86,
                 isCharging: 0,
                 lastUpdate: now,
-                batterySource: .ble
+                batterySource: .ble,
+                estimatedSecondsRemaining: 18_600
             ),
             Device(
                 deviceID: "preview-watch",
@@ -546,22 +567,25 @@ private struct DisplaySurfacePreview: View {
                 deviceName: "Joseph’s Apple Watch",
                 batteryLevel: 54,
                 isCharging: 1,
-                lastUpdate: now
+                lastUpdate: now,
+                estimatedSecondsRemaining: 3_600
             ),
             Device(
                 deviceID: "preview-airpods-case",
                 deviceType: "ap_case",
                 deviceName: "Joseph’s AirPods (Case)",
-                batteryLevel: 100,
+                batteryLevel: 83,
                 isCharging: 0,
-                lastUpdate: now
+                lastUpdate: now,
+                estimatedSecondsRemaining: 15_780
             ),
             Device(
                 deviceID: "preview-airpods-left",
                 deviceType: "ap_pod_left",
                 deviceName: "Joseph’s AirPods Left",
-                batteryLevel: 96,
+                batteryLevel: 100,
                 isCharging: 1,
+                isCharged: true,
                 parentName: "Joseph’s AirPods",
                 lastUpdate: now
             ),
@@ -569,8 +593,9 @@ private struct DisplaySurfacePreview: View {
                 deviceID: "preview-airpods-right",
                 deviceType: "ap_pod_right",
                 deviceName: "Joseph’s AirPods Right",
-                batteryLevel: 98,
+                batteryLevel: 100,
                 isCharging: 1,
+                isCharged: true,
                 parentName: "Joseph’s AirPods",
                 lastUpdate: now
             )
