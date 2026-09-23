@@ -91,6 +91,179 @@ enum DevicePresentationNaming {
     }
 }
 
+enum DeviceDisplayNameStore {
+    static let didChangeNotification = Notification.Name(
+        "AirBatteryDeviceDisplayNameDidChange"
+    )
+
+    private static let storageKey = "deviceDisplayNameOverrides.v1"
+    private static let defaults =
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
+        .standard
+
+    static func key(canonicalID: String, deviceType: String) -> String {
+        canonicalID + "|" + deviceType
+    }
+
+    static func override(forKey key: String) -> String? {
+        guard let value = overrides()[key]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+        return value
+    }
+
+    static func displayName(forKey key: String, fallback: String) -> String {
+        override(forKey: key) ?? fallback
+    }
+
+    static func setOverride(_ value: String?, forKey key: String) {
+        var values = overrides()
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if trimmed.isEmpty {
+            values.removeValue(forKey: key)
+        } else {
+            values[key] = trimmed
+        }
+        defaults.set(values, forKey: storageKey)
+        NotificationCenter.default.post(
+            name: didChangeNotification,
+            object: key
+        )
+    }
+
+    private static func overrides() -> [String: String] {
+        defaults.dictionary(forKey: storageKey) as? [String: String] ?? [:]
+    }
+}
+
+struct BatteryHistorySample: Codable, Equatable, Sendable {
+    let timestamp: TimeInterval
+    let level: Int
+    let charging: Bool
+}
+
+enum BatteryTimeEstimateKind: String, Codable, Equatable, Sendable {
+    case charging
+    case discharging
+}
+
+struct BatteryTimeEstimate: Equatable, Sendable {
+    let kind: BatteryTimeEstimateKind
+    let startDate: Date
+    let endDate: Date
+    let duration: TimeInterval
+    let confidence: Double
+}
+
+enum BatteryTimeEstimator {
+    private static let minimumSpan: TimeInterval = 10 * 60
+    private static let maximumSpan: TimeInterval = 6 * 60 * 60
+    private static let maximumPrediction: TimeInterval = 72 * 60 * 60
+
+    static func estimate(
+        samples: [BatteryHistorySample],
+        now: Date = Date()
+    ) -> BatteryTimeEstimate? {
+        guard let latest = samples.last,
+              (0...100).contains(latest.level),
+              latest.level > 0,
+              latest.level < 100
+        else {
+            return nil
+        }
+
+        let charging = latest.charging
+        var tail: [BatteryHistorySample] = []
+        for sample in samples.reversed() {
+            guard sample.charging == charging else { break }
+            if latest.timestamp - sample.timestamp > maximumSpan { break }
+            tail.append(sample)
+        }
+        tail.reverse()
+
+        guard tail.count >= 3,
+              let first = tail.first,
+              let last = tail.last,
+              last.timestamp - first.timestamp >= minimumSpan
+        else {
+            return nil
+        }
+
+        let levelDelta = last.level - first.level
+        guard abs(levelDelta) >= 2,
+              (charging ? levelDelta > 0 : levelDelta < 0)
+        else {
+            return nil
+        }
+
+        let origin = first.timestamp
+        let points = tail.map {
+            (
+                x: ($0.timestamp - origin) / 3600,
+                y: Double($0.level)
+            )
+        }
+        let meanX = points.map(\.x).reduce(0, +) / Double(points.count)
+        let meanY = points.map(\.y).reduce(0, +) / Double(points.count)
+        let covariance = points.reduce(0) {
+            $0 + ($1.x - meanX) * ($1.y - meanY)
+        }
+        let variance = points.reduce(0) {
+            $0 + pow($1.x - meanX, 2)
+        }
+        guard variance > 0 else { return nil }
+
+        let slope = covariance / variance
+        guard charging ? slope >= 0.5 : slope <= -0.2 else {
+            return nil
+        }
+
+        let directionChanges = zip(tail, tail.dropFirst()).compactMap {
+            pair -> Bool? in
+            let delta = pair.1.level - pair.0.level
+            guard delta != 0 else { return nil }
+            return charging ? delta > 0 : delta < 0
+        }
+        let directionConsistency = directionChanges.isEmpty
+            ? 0
+            : Double(directionChanges.filter { $0 }.count) /
+                Double(directionChanges.count)
+        guard directionConsistency >= 0.75 else { return nil }
+
+        let target = charging ? 100.0 : 0.0
+        let hours = (target - Double(latest.level)) / slope
+        let duration = hours * 3600
+        guard duration >= 3 * 60,
+              duration <= maximumPrediction
+        else {
+            return nil
+        }
+
+        let span = last.timestamp - first.timestamp
+        let spanConfidence = min(1, span / 3600)
+        let deltaConfidence = min(1, Double(abs(levelDelta)) / 6)
+        let confidence = min(
+            1,
+            0.35 * spanConfidence +
+                0.35 * deltaConfidence +
+                0.30 * directionConsistency
+        )
+        guard confidence >= 0.55 else { return nil }
+
+        let startDate = max(now, Date(timeIntervalSince1970: latest.timestamp))
+        return BatteryTimeEstimate(
+            kind: charging ? .charging : .discharging,
+            startDate: startDate,
+            endDate: startDate.addingTimeInterval(duration),
+            duration: duration,
+            confidence: confidence
+        )
+    }
+}
+
 enum NearcastCredentialFormat {
     static let groupPrefix = "ncg-"
     static let sharingKeyPrefix = "nck2-"
