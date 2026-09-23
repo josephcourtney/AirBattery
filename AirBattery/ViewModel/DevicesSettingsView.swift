@@ -445,34 +445,32 @@ struct DevicesView: View {
             }
 
             detailSection("Device Settings") {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("Display Name")
-                    Spacer()
-                    TextField(device.name, text: $displayNameDraft)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 150, idealWidth: 190, maxWidth: 230)
-                        .onChange(of: displayNameDraft) { _, value in
-                            saveDisplayName(value, for: device)
+                inspectorSettingRow("Display Name") {
+                    HStack(spacing: 6) {
+                        TextField(device.name, text: $displayNameDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minWidth: 130, idealWidth: 175, maxWidth: 205)
+                            .onChange(of: displayNameDraft) { _, value in
+                                saveDisplayName(value, for: device)
+                            }
+                        if DeviceDisplayNameStore.override(
+                            forKey: displayNameKey(for: device)
+                        ) != nil {
+                            Button("Reset") {
+                                DeviceDisplayNameStore.setOverride(
+                                    nil,
+                                    forKey: displayNameKey(for: device)
+                                )
+                                displayNameDraft = ""
+                            }
+                            .controlSize(.small)
                         }
-                    if DeviceDisplayNameStore.override(
-                        forKey: displayNameKey(for: device)
-                    ) != nil {
-                        Button("Reset") {
-                            DeviceDisplayNameStore.setOverride(
-                                nil,
-                                forKey: displayNameKey(for: device)
-                            )
-                            displayNameDraft = ""
-                        }
-                        .controlSize(.small)
                     }
                 }
 
                 if let ble = device.ble {
                     Divider().opacity(0.5)
-                    HStack {
-                        Text("Battery Access")
-                        Spacer()
+                    inspectorSettingRow("Battery Access") {
                         policyValueMenu(
                             name: device.name,
                             currentPolicy: ble.policy,
@@ -549,9 +547,7 @@ struct DevicesView: View {
             }
 
             detailSection("Device Settings") {
-                HStack {
-                    Text("Battery Access")
-                    Spacer()
+                inspectorSettingRow("Battery Access") {
                     reviewMenu(candidate, suggested: suggested)
                 }
             }
@@ -660,6 +656,22 @@ struct DevicesView: View {
                     .fill(Color.secondary.opacity(0.045))
             )
         }
+    }
+
+    @ViewBuilder
+    private func inspectorSettingRow<Content: View>(
+        _ label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(label)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(width: 110, alignment: .leading)
+            Spacer(minLength: 4)
+            content()
+        }
+        .frame(maxWidth: .infinity, minHeight: 28)
     }
 
     @ViewBuilder
@@ -863,6 +875,7 @@ struct DevicesView: View {
                 currentPolicy?.title ??
                     (hasOverrides ? "Per identity" : "Discovery default")
             )
+            .lineLimit(1)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
@@ -884,6 +897,7 @@ struct DevicesView: View {
             }
         } label: {
             Text(suggested ? "Review" : "Battery access")
+                .lineLimit(1)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
@@ -907,44 +921,43 @@ struct DevicesView: View {
         _ candidate: BLEDiscoveryCandidate,
         logicalPolicy: BLEDevicePolicy?
     ) -> some View {
+        let exactPolicy = policyStore.exactPolicy(identifier: candidate.identifier)
         VStack(alignment: .leading, spacing: 3) {
-            HStack {
+            HStack(spacing: 8) {
                 Text(shortIdentifier(candidate.identifier))
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
-                Spacer()
-                Menu {
-                    ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
-                        Button(policy.title) {
-                            policyStore.setPolicy(
-                                identifier: candidate.identifier,
-                                name: candidate.name,
-                                policy: policy
-                            )
+                Spacer(minLength: 6)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(exactPolicy == nil ? "Device policy" : "Identity override")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Menu {
+                        ForEach(BLEDevicePolicy.allCases, id: \.rawValue) { policy in
+                            Button(policy.title) {
+                                policyStore.setPolicy(
+                                    identifier: candidate.identifier,
+                                    name: candidate.name,
+                                    policy: policy
+                                )
+                            }
                         }
-                    }
-                    if policyStore.exactPolicy(identifier: candidate.identifier) != nil {
-                        Divider()
-                        Button("Use device policy") {
-                            policyStore.clearPolicy(identifier: candidate.identifier)
+                        if exactPolicy != nil {
+                            Divider()
+                            Button("Use device policy") {
+                                policyStore.clearPolicy(identifier: candidate.identifier)
+                            }
                         }
-                    }
-                } label: {
-                    if let override = policyStore.exactPolicy(identifier: candidate.identifier) {
-                        Text("Identity override: " + override.title)
+                    } label: {
+                        Text(exactPolicy?.title ?? logicalPolicy?.title ?? "Discovery default")
                             .font(.caption)
-                    } else {
-                        Text(
-                            "Uses device policy: " +
-                                (logicalPolicy?.title ?? "Discovery default")
-                        )
-                        .font(.caption)
+                            .lineLimit(1)
                     }
+                    .menuStyle(.button)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .fixedSize()
                 }
-                .menuStyle(.button)
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .fixedSize()
             }
             candidateTechnicalDetails(candidate)
         }
@@ -1026,9 +1039,14 @@ struct DevicesView: View {
                 .frame(width: 112, alignment: .leading)
             Text(value)
                 .foregroundColor(.primary)
+                .fontDesign(isIdentifierLabel(label) ? .monospaced : .default)
                 .textSelection(.enabled)
             Spacer()
         }
+    }
+
+    private func isIdentifierLabel(_ label: String) -> Bool {
+        label == "Identifier" || label.hasSuffix(" ID") || label.hasSuffix(" UDID")
     }
 
     private func knownDeviceListSummary(_ device: KnownDeviceSnapshot) -> String {
