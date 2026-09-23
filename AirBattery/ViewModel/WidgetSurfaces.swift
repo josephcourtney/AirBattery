@@ -286,7 +286,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
         VStack(spacing: 6) {
             ForEach(0..<rows, id: \.self) { row in
                 HStack(spacing: 14) {
-                    ForEach(rowDeviceItems(row: row, columns: columns)) { item in
+                    ForEach(rowDeviceItems(row: row, columns: columns), id: \.self) { item in
                         OverviewRingCell(
                             item: item,
                             diameter: diameter,
