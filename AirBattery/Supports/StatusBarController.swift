@@ -158,15 +158,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
         }
 
-        let host = NSHostingView(
+        let host = ContentFittingHostingView(
+            width: 352,
             rootView: popover(fromDock: false, allDevice: allDevices)
         )
         host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
-        host.layoutSubtreeIfNeeded()
-        host.frame.size.height = ceil(max(host.fittingSize.height, 1))
 
         let item = NSMenuItem()
         item.view = host
+        host.onHeightChange = { [weak self, weak host] height in
+            guard let self, let host else { return }
+            host.setFrameSize(NSSize(width: 352, height: height))
+            if self.isMenuOpen {
+                self.menu.update()
+            }
+        }
+
+        host.layoutSubtreeIfNeeded()
+        host.resizeToFitContent()
 
         menu.removeAllItems()
         menu.addItem(item)
