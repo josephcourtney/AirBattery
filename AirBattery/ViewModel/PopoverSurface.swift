@@ -125,6 +125,40 @@ extension View {
     }
 }
 
+private enum PopoverEstimateText {
+    static func full(for device: Device, now: Date = Date()) -> String? {
+        let charging = device.isCharging != 0 || device.acPowered
+        if device.isCharged || (charging && device.batteryLevel >= 100) {
+            return "Full while charging"
+        }
+
+        guard let stored = device.estimatedSecondsRemaining,
+              stored.isFinite,
+              stored >= 0
+        else {
+            return nil
+        }
+
+        let elapsed = max(0, now.timeIntervalSince1970 - device.lastUpdate)
+        let remaining = max(0, stored - elapsed)
+        let target = now.addingTimeInterval(remaining).formatted(
+            date: .omitted,
+            time: .shortened
+        )
+        let verb = charging ? "Full" : "Empty"
+        return "\(verb) around \(target) (~\(durationString(remaining)))"
+    }
+
+    private static func durationString(_ seconds: TimeInterval) -> String {
+        let totalMinutes = max(0, Int((seconds / 60).rounded()))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours == 0 { return "\(minutes)m" }
+        if minutes == 0 { return "\(hours)h" }
+        return "\(hours)h \(minutes)m"
+    }
+}
+
 struct MenuDeviceRowContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
@@ -191,10 +225,13 @@ struct MenuDeviceRowContent: View {
 
                 Spacer(minLength: 3)
 
-                HStack(spacing: 4) {
-                    ForEach(presentation.components.prefix(3)) { component in
-                        MenuBatteryComponentContent(component: component)
+                if !isExpanded {
+                    HStack(spacing: 4) {
+                        ForEach(presentation.components.prefix(3)) { component in
+                            MenuBatteryComponentContent(component: component)
+                        }
                     }
+                    .transition(.opacity)
                 }
             }
 
@@ -302,23 +339,15 @@ struct MenuDeviceRowContent: View {
     }
 
     private func fullEstimate(for device: Device) -> String? {
-        let secondsRemaining: Double?
-        if let estimate = device.estimatedSecondsRemaining {
-            secondsRemaining = estimate
-        } else if device.deviceID == "@MacInternalBattery" {
-            secondsRemaining = BatteryEstimateEngine.seconds(
+        var displayDevice = device
+        if displayDevice.estimatedSecondsRemaining == nil,
+           displayDevice.deviceID == "@MacInternalBattery" {
+            displayDevice.estimatedSecondsRemaining = BatteryEstimateEngine.seconds(
                 fromNativeTimeLeft: InternalBattery.status.timeLeft
             )
-        } else {
-            secondsRemaining = nil
         }
-
-        return BatteryEstimateFormatting.full(
-            level: device.batteryLevel,
-            charging: device.isCharging != 0 || device.acPowered,
-            charged: device.isCharged,
-            secondsRemaining: secondsRemaining,
-            lastUpdate: device.lastUpdate,
+        return PopoverEstimateText.full(
+            for: displayDevice,
             now: Date(timeIntervalSince1970: now)
         )
     }
@@ -439,13 +468,7 @@ private struct MenuBatteryComponentRow: View {
                 )
             }
 
-            if let estimate = BatteryEstimateFormatting.full(
-                level: component.device.batteryLevel,
-                charging: component.device.isCharging != 0 || component.device.acPowered,
-                charged: component.device.isCharged,
-                secondsRemaining: component.device.estimatedSecondsRemaining,
-                lastUpdate: component.device.lastUpdate
-            ) {
+            if let estimate = PopoverEstimateText.full(for: component.device) {
                 Text(estimate)
                     .font(.system(size: 9))
                     .foregroundColor(.secondary)
