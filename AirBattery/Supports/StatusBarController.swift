@@ -161,7 +161,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let host = NSHostingView(
             rootView: popover(fromDock: false, allDevice: allDevices)
         )
-        host.frame = NSRect(x: 0, y: 0, width: 420, height: 1)
+        host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
         host.layoutSubtreeIfNeeded()
         host.frame.size.height = ceil(max(host.fittingSize.height, 1))
 
