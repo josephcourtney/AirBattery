@@ -5,118 +5,58 @@ struct PopoverToolbarSurfaceContent: View {
     var fromDock = false
     var nearcastEnabled = false
     let onHide: () -> Void
-    let onAbout: () -> Void
+    let onMore: () -> Void
     let onSettings: () -> Void
-    let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
-    @State private var overflowExpanded = false
-
     var body: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            HStack(spacing: 7) {
-                if fromDock {
-                    PopoverToolbarSurfaceButton(
-                        systemName: "minus.circle",
-                        help: "Hide".local,
-                        hoverColor: .myYellow,
-                        action: onHide
-                    )
-                }
-
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 23, height: 23)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    )
-
-                Text("AirBattery")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-
-                Spacer(minLength: 8)
-
-                if nearcastEnabled {
-                    PopoverToolbarSurfaceButton(
-                        systemName:
-                            "antenna.radiowaves.left.and.right.circle",
-                        help: "Refresh Nearcast".local,
-                        action: onRefreshNearcast
-                    )
-                }
-
+        HStack(spacing: 7) {
+            if fromDock {
                 PopoverToolbarSurfaceButton(
-                    systemName: "gearshape",
-                    help: "Settings".local,
-                    action: onSettings
-                )
-
-                PopoverOverflowSurfaceButton(
-                    isExpanded: $overflowExpanded
+                    systemName: "minus.circle",
+                    help: "Hide".local,
+                    hoverColor: .myYellow,
+                    action: onHide
                 )
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 10)
 
-            if overflowExpanded {
-                overflowMenu
-                    .padding(.trailing, 10)
-                    .padding(.bottom, 7)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 23, height: 23)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+
+            Text("AirBattery")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 8)
+
+            if nearcastEnabled {
+                PopoverToolbarSurfaceButton(
+                    systemName:
+                        "antenna.radiowaves.left.and.right.circle",
+                    help: "Refresh Nearcast".local,
+                    action: onRefreshNearcast
+                )
             }
+
+            PopoverToolbarSurfaceButton(
+                systemName: "gearshape",
+                help: "Settings".local,
+                action: onSettings
+            )
+
+            PopoverToolbarSurfaceButton(
+                systemName: "ellipsis.circle",
+                help: "More".local,
+                action: onMore
+            )
         }
-    }
-
-    private var overflowMenu: some View {
-        VStack(spacing: 0) {
-            Button {
-                overflowExpanded = false
-                onAbout()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "info.circle")
-                        .frame(width: 16)
-                    Text("About AirBattery".local)
-                    Spacer(minLength: 12)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Divider()
-
-            Button {
-                overflowExpanded = false
-                onQuit()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "power")
-                        .frame(width: 16)
-                    Text("Quit AirBattery".local)
-                    Spacer(minLength: 12)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .frame(width: 174)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(
-                    Color(nsColor: .separatorColor).opacity(0.7),
-                    lineWidth: 0.75
-                )
-        )
-        .shadow(color: .black.opacity(0.14), radius: 7, y: 2)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
     }
 }
 
@@ -127,9 +67,12 @@ private struct PopoverToolbarSurfaceButton: View {
     let action: () -> Void
 
     @State private var isHovered = false
+    @State private var isPressed = false
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .regular))
                 .frame(width: 28, height: 28)
@@ -142,10 +85,19 @@ private struct PopoverToolbarSurfaceButton: View {
                         style: .continuous
                     )
                     .fill(
-                        isHovered
-                            ? hoverColor.opacity(0.12)
-                            : Color.clear
+                        isPressed
+                            ? hoverColor.opacity(0.18)
+                            : (isHovered
+                                ? hoverColor.opacity(0.12)
+                                : Color.primary.opacity(0.035))
                     )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .strokeBorder(
+                            Color(nsColor: .separatorColor).opacity(0.35),
+                            lineWidth: 0.5
+                        )
                 )
                 .contentShape(Rectangle())
         }
@@ -154,44 +106,11 @@ private struct PopoverToolbarSurfaceButton: View {
         .help(help)
         .accessibilityLabel(Text(help))
         .onHover { isHovered = $0 }
-    }
-}
-
-private struct PopoverOverflowSurfaceButton: View {
-    @Binding var isExpanded: Bool
-    @State private var isHovered = false
-
-    var body: some View {
-        Button {
-            isExpanded.toggle()
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(.system(size: 15, weight: .regular))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(.secondary)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(
-                            Color.primary.opacity(
-                                isExpanded ? 0.12 : (isHovered ? 0.09 : 0.045)
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(
-                            Color(nsColor: .separatorColor).opacity(0.45),
-                            lineWidth: 0.5
-                        )
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help("More".local)
-        .accessibilityLabel(Text("More".local))
-        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-        .onHover { isHovered = $0 }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
     }
 }
 
@@ -235,6 +154,25 @@ struct MenuDeviceRowContent: View {
     var pinned = false
     var showBatteryTrailing = true
     var now = Date().timeIntervalSince1970
+    var estimate: BatteryTimeEstimate?
+
+    init(
+        presentation: LogicalDevicePresentation,
+        compactName: Bool = false,
+        alerted: Bool = false,
+        pinned: Bool = false,
+        showBatteryTrailing: Bool = true,
+        now: Double = Date().timeIntervalSince1970,
+        estimate: BatteryTimeEstimate? = nil
+    ) {
+        self.presentation = presentation
+        self.compactName = compactName
+        self.alerted = alerted
+        self.pinned = pinned
+        self.showBatteryTrailing = showBatteryTrailing
+        self.now = now
+        self.estimate = estimate
+    }
 
     var body: some View {
         if presentation.components.count > 1 {
@@ -305,13 +243,24 @@ struct MenuDeviceRowContent: View {
             Spacer()
 
             if device.hasBattery && showBatteryTrailing {
-                Text("\(device.batteryLevel)%")
-                    .foregroundColor(
-                        device.batteryLevel <= 10 ? .darkMyRed : .primary
-                    )
-                    .font(.system(size: 11))
-                SurfaceBatteryGlyph(item: device)
-                    .scaleEffect(0.85)
+                VStack(alignment: .trailing, spacing: 0) {
+                    HStack(spacing: 4) {
+                        Text("\(device.batteryLevel)%")
+                            .foregroundColor(
+                                device.batteryLevel <= 10 ? .darkMyRed : .primary
+                            )
+                            .font(.system(size: 11))
+                        SurfaceBatteryGlyph(item: device)
+                            .scaleEffect(0.85)
+                    }
+                    if let estimate {
+                        Text(popoverEstimateText(estimate))
+                            .font(.system(size: 8.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .fixedSize()
+                    }
+                }
             }
         }
     }
@@ -337,6 +286,7 @@ struct MenuDeviceRowContent: View {
 struct PopoverCompoundDeviceSurfaceContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
+    var estimates: [String: BatteryTimeEstimate] = [:]
     let isExpanded: Bool
     let onToggle: () -> Void
 
@@ -364,11 +314,22 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                     Spacer(minLength: 4)
 
                     if let primary = presentation.components.first {
-                        Text("\(primary.level)%")
-                            .font(.system(size: 11, weight: .medium))
-                            .monospacedDigit()
-                        SurfaceBatteryGlyph(item: primary.device)
-                            .scaleEffect(0.85)
+                        VStack(alignment: .trailing, spacing: 0) {
+                            HStack(spacing: 4) {
+                                Text("\(primary.level)%")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .monospacedDigit()
+                                SurfaceBatteryGlyph(item: primary.device)
+                                    .scaleEffect(0.85)
+                            }
+                            if let estimate = estimates[primary.id] {
+                                Text(popoverEstimateText(estimate))
+                                    .font(.system(size: 8.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                    .fixedSize()
+                            }
+                        }
                     }
                 }
                 .padding(.vertical, 5)
@@ -382,14 +343,23 @@ struct PopoverCompoundDeviceSurfaceContent: View {
             )
 
             if isExpanded {
-                HStack(spacing: 18) {
+                HStack(alignment: .top, spacing: 18) {
                     ForEach(presentation.components.prefix(3)) { component in
-                        BatteryRingSurfaceCell(
-                            item: component.device,
-                            diameter: 42,
-                            showPercentage: true,
-                            showLabel: true
-                        )
+                        VStack(spacing: 2) {
+                            BatteryRingSurfaceCell(
+                                item: component.device,
+                                diameter: 42,
+                                showPercentage: true,
+                                showLabel: true
+                            )
+                            if let estimate = estimates[component.id] {
+                                Text(popoverEstimateText(estimate))
+                                    .font(.system(size: 8, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                    .fixedSize()
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -451,4 +421,21 @@ struct MenuBatteryComponentContent: View {
                 (component.charging != 0 ? ", charging" : "")
         )
     }
+}
+
+private func popoverEstimateText(_ estimate: BatteryTimeEstimate) -> String {
+    let totalMinutes = max(1, Int((estimate.duration / 60).rounded()))
+    let hours = totalMinutes / 60
+    let minutes = totalMinutes % 60
+    let duration: String
+    if hours > 0, minutes > 0 {
+        duration = "\(hours)h \(minutes)m"
+    } else if hours > 0 {
+        duration = "\(hours)h"
+    } else {
+        duration = "\(minutes)m"
+    }
+    return estimate.kind == .charging
+        ? "~\(duration) to full"
+        : "~\(duration) left"
 }
