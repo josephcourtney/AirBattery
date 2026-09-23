@@ -68,6 +68,8 @@ struct GeneralView: View {
                 }
             }
         }
+        .scrollEdgeEffectHidden(true, for: .top)
+        .clipped()
     }
     func updateCTL() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -75,4 +77,3 @@ struct GeneralView: View {
         }
     }
 }
-
