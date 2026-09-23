@@ -119,6 +119,21 @@ struct BatteryRingSurfaceCell: View {
     let diameter: CGFloat
     let showPercentage: Bool
     let showLabel: Bool
+    let estimate: BatteryTimeEstimate?
+
+    init(
+        item: Device,
+        diameter: CGFloat,
+        showPercentage: Bool,
+        showLabel: Bool,
+        estimate: BatteryTimeEstimate? = nil
+    ) {
+        self.item = item
+        self.diameter = diameter
+        self.showPercentage = showPercentage
+        self.showLabel = showLabel
+        self.estimate = estimate
+    }
 
     private var lineWidth: CGFloat {
         diameter >= 64 ? 7 : 6
@@ -162,12 +177,20 @@ struct BatteryRingSurfaceCell: View {
                     )
                     .rotationEffect(.degrees(ringRotation))
 
+                if let estimate {
+                    BatteryTimeSpiralView(estimate: estimate)
+                        .frame(
+                            width: diameter * 0.76,
+                            height: diameter * 0.76
+                        )
+                }
+
                 Image(getDeviceIcon(item))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(
-                        width: diameter * 0.45,
-                        height: diameter * 0.45
+                        width: diameter * 0.42,
+                        height: diameter * 0.42
                     )
 
                 if item.isCharging != 0 {
@@ -235,6 +258,14 @@ struct BatteryRingSurfaceCell: View {
     }
 
     private var shortLabel: String {
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: item.deviceID,
+            deviceType: item.deviceType
+        )
+        if let custom = DeviceDisplayNameStore.override(forKey: key) {
+            return custom
+        }
+
         if item.deviceID == "@MacInternalBattery" {
             return "Mac"
         }
@@ -261,10 +292,139 @@ struct BatteryRingSurfaceCell: View {
         if item.isCharging != 0 {
             values.append("charging")
         }
+        if let estimate {
+            values.append(estimateAccessibilityLabel(estimate))
+        }
         return values.joined(separator: ", ")
+    }
+
+    private func estimateAccessibilityLabel(
+        _ estimate: BatteryTimeEstimate
+    ) -> String {
+        let minutes = max(1, Int(estimate.duration / 60))
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        let durationText = hours > 0
+            ? "\(hours) hours \(remainder) minutes"
+            : "\(remainder) minutes"
+        return estimate.kind == .charging
+            ? "approximately \(durationText) to full"
+            : "approximately \(durationText) remaining"
     }
 }
 
+private struct BatteryTimeSpiralView: View {
+    let estimate: BatteryTimeEstimate
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+            let duration = max(1, estimate.duration)
+            let revolutions = max(duration / (12 * 60 * 60), 0.01)
+            let baseRadius = size * 0.33
+            let outerRadius = size * 0.47
+            let pitch = min(
+                size * 0.045,
+                (outerRadius - baseRadius) / max(revolutions, 1)
+            )
+            let strokeWidth = max(1.25, size * 0.035)
+            let startAngle = clockAngle(for: estimate.startDate)
+            let steps = min(
+                360,
+                max(24, Int(duration / (4 * 60)))
+            )
+            let startPoint = spiralPoint(
+                center: center,
+                baseRadius: baseRadius,
+                pitch: pitch,
+                startAngle: startAngle,
+                elapsed: 0
+            )
+            let endPoint = spiralPoint(
+                center: center,
+                baseRadius: baseRadius,
+                pitch: pitch,
+                startAngle: startAngle,
+                elapsed: duration
+            )
+
+            ZStack {
+                Path { path in
+                    for index in 0...steps {
+                        let elapsed = duration * Double(index) / Double(steps)
+                        let point = spiralPoint(
+                            center: center,
+                            baseRadius: baseRadius,
+                            pitch: pitch,
+                            startAngle: startAngle,
+                            elapsed: elapsed
+                        )
+                        if index == 0 {
+                            path.move(to: point)
+                        } else {
+                            path.addLine(to: point)
+                        }
+                    }
+                }
+                .stroke(
+                    spiralColor.opacity(0.78),
+                    style: StrokeStyle(
+                        lineWidth: strokeWidth,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+
+                Circle()
+                    .fill(Color(nsColor: .windowBackgroundColor))
+                    .overlay(
+                        Circle().stroke(spiralColor, lineWidth: strokeWidth * 0.8)
+                    )
+                    .frame(width: strokeWidth * 2.2, height: strokeWidth * 2.2)
+                    .position(startPoint)
+
+                Circle()
+                    .fill(spiralColor)
+                    .frame(width: strokeWidth * 2.2, height: strokeWidth * 2.2)
+                    .position(endPoint)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var spiralColor: Color {
+        estimate.kind == .charging ? .accentColor : .secondary
+    }
+
+    private func clockAngle(for date: Date) -> Double {
+        let components = Calendar.current.dateComponents(
+            [.hour, .minute, .second],
+            from: date
+        )
+        let hour = Double((components.hour ?? 0) % 12)
+        let minute = Double(components.minute ?? 0) / 60
+        let second = Double(components.second ?? 0) / 3600
+        return (hour + minute + second) / 12 * 2 * .pi - .pi / 2
+    }
+
+    private func spiralPoint(
+        center: CGPoint,
+        baseRadius: CGFloat,
+        pitch: CGFloat,
+        startAngle: Double,
+        elapsed: TimeInterval
+    ) -> CGPoint {
+        let revolutions = elapsed / (12 * 60 * 60)
+        let angle = startAngle + revolutions * 2 * .pi
+        let radius = baseRadius + pitch * revolutions
+        return CGPoint(
+            x: center.x + radius * cos(angle),
+            y: center.y + radius * sin(angle)
+        )
+    }
+}
 
 struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
@@ -342,7 +502,7 @@ struct WidgetSingleBatterySurfaceContent: View {
                 }
                 .compositingGroup()
 
-                Text(item.deviceName)
+                Text(singleBatteryDisplayName(item))
                     .font(.system(size: 12))
                     .frame(width: 144)
                     .lineLimit(1)
@@ -395,5 +555,15 @@ struct WidgetSingleBatterySurfaceContent: View {
                     : "Searching for \(deviceName)"
             )
         }
+    }
+
+    private func singleBatteryDisplayName(_ item: Device) -> String {
+        DeviceDisplayNameStore.displayName(
+            forKey: DeviceDisplayNameStore.key(
+                canonicalID: item.deviceID,
+                deviceType: item.deviceType
+            ),
+            fallback: item.deviceName
+        )
     }
 }
