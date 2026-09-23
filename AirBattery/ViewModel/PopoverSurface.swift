@@ -131,9 +131,15 @@ struct MenuDeviceRowContent: View {
     var alerted = false
     var pinned = false
     var showBatteryTrailing = true
+    var expanded: Bool? = nil
+    var onToggleExpansion: (() -> Void)? = nil
     var now = Date().timeIntervalSince1970
 
-    @State private var isExpanded = false
+    @State private var internalExpanded = false
+
+    private var isExpanded: Bool {
+        expanded ?? internalExpanded
+    }
 
     var body: some View {
         if presentation.components.count > 1 {
@@ -148,7 +154,11 @@ struct MenuDeviceRowContent: View {
             HStack(spacing: 7) {
                 Button {
                     withAnimation(.easeInOut(duration: 0.14)) {
-                        isExpanded.toggle()
+                        if let onToggleExpansion {
+                            onToggleExpansion()
+                        } else {
+                            internalExpanded.toggle()
+                        }
                     }
                 } label: {
                     Image(systemName: "chevron.right")
@@ -177,8 +187,9 @@ struct MenuDeviceRowContent: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.blackWhite)
                 .lineLimit(1)
+                .layoutPriority(1)
 
-                Spacer(minLength: 5)
+                Spacer(minLength: 3)
 
                 HStack(spacing: 4) {
                     ForEach(presentation.components.prefix(3)) { component in
@@ -234,12 +245,6 @@ struct MenuDeviceRowContent: View {
                                 .font(.system(size: 8))
                                 .foregroundColor(.secondary)
                         }
-
-                        if device.isCharging != 0 || device.acPowered {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundColor(.myGreen)
-                        }
                     }
 
                     if let secondary = secondaryName(for: device) {
@@ -253,7 +258,7 @@ struct MenuDeviceRowContent: View {
                 Spacer(minLength: 6)
 
                 if device.hasBattery && showBatteryTrailing {
-                    HStack(spacing: 7) {
+                    HStack(spacing: 5) {
                         Text("\(device.batteryLevel)%")
                             .foregroundColor(
                                 device.batteryLevel <= 10 ? .darkMyRed : .primary
@@ -262,12 +267,18 @@ struct MenuDeviceRowContent: View {
                             .monospacedDigit()
                             .frame(minWidth: 34, alignment: .trailing)
 
+                        if device.isCharging != 0 || device.acPowered {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundColor(.myGreen)
+                        }
+
                         LinearBatterySurface(item: device, width: 88, height: 7)
                     }
                 }
             }
 
-            if showBatteryTrailing, let estimate = fullEstimate(for: device) {
+            if let estimate = fullEstimate(for: device) {
                 Text(estimate)
                     .font(.system(size: 9.5))
                     .foregroundColor(.secondary)
@@ -405,12 +416,6 @@ private struct MenuBatteryComponentRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.primary)
 
-                if component.charging != 0 {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundColor(.myGreen)
-                }
-
                 Spacer(minLength: 5)
 
                 Text("\(component.level)%")
@@ -420,6 +425,12 @@ private struct MenuBatteryComponentRow: View {
                         component.level <= 10 ? .darkMyRed : .primary
                     )
                     .frame(minWidth: 34, alignment: .trailing)
+
+                if component.charging != 0 {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundColor(.myGreen)
+                }
 
                 LinearBatterySurface(
                     item: component.device,
