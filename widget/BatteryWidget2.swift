@@ -5,8 +5,8 @@
 //  Created by apple on 2024/2/20.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct SingleBatteryWidgetEntryView: View {
     let entry: SimpleEntry
@@ -29,7 +29,8 @@ struct SingleBatteryWidgetEntryView: View {
             WidgetSingleBatterySurfaceContent(
                 item: item,
                 deviceName: entry.deviceName,
-                warningText: "Right click to configure".local
+                warningText: "Right click to configure".local,
+                showTimeEstimate: entry.showTimeEstimate
             )
         }
     }
@@ -51,7 +52,9 @@ struct SingleBatteryWidget: Widget {
                 .widgetURL(URL(string: "airbattery://settings"))
         }
         .configurationDisplayName("Single Battery")
-        .description("Displays one selected device from AirBattery")
+        .description(
+            "Displays one selected device with an optional battery time estimate."
+        )
         .contentMarginsDisabled()
         .supportedFamilies([.systemSmall])
     }
