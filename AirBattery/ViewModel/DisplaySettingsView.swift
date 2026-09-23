@@ -302,23 +302,17 @@ private struct DisplaySurfacePreview: View {
                     )
 
                     VStack(spacing: 0) {
-                        ForEach(presentations.indices, id: \.self) { index in
-                            let presentation = presentations[index]
-                            if presentation.components.count > 1 {
-                                PopoverCompoundDeviceSurfaceContent(
-                                    presentation: presentation,
-                                    isExpanded: true,
-                                    onToggle: {}
-                                )
-                            } else {
-                                MenuDeviceRowContent(
-                                    presentation: presentation
-                                )
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 10)
-                            }
+                        ForEach(
+                            Array(presentations.enumerated()),
+                            id: \.offset
+                        ) { index, presentation in
+                            MenuDeviceRowContent(
+                                presentation: presentation
+                            )
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 10)
 
-                            if index != presentations.count - 1 {
+                            if index < presentations.count - 1 {
                                 Divider()
                             }
                         }
@@ -611,4 +605,3 @@ private enum WidgetPreviewFamily {
         }
     }
 }
-
