@@ -7,6 +7,28 @@ enum WidgetOverviewFamily {
     case large
 }
 
+private enum WidgetEstimateText {
+    static func compact(for item: Device, now: Date = Date()) -> String? {
+        let charging = item.isCharging != 0 || item.acPowered
+        if item.isCharged || (charging && item.batteryLevel >= 100) {
+            return "Full"
+        }
+        guard let stored = item.estimatedSecondsRemaining,
+              stored.isFinite,
+              stored >= 0
+        else {
+            return nil
+        }
+        let elapsed = max(0, now.timeIntervalSince1970 - item.lastUpdate)
+        let remaining = max(0, stored - elapsed)
+        let target = now.addingTimeInterval(remaining).formatted(
+            date: .omitted,
+            time: .shortened
+        )
+        return "\(charging ? "Full" : "Empty") \(target)"
+    }
+}
+
 struct WidgetOverviewRingsSurfaceContent: View {
     let devices: [Device]
     let family: WidgetOverviewFamily
@@ -25,133 +47,108 @@ struct WidgetOverviewRingsSurfaceContent: View {
         presentations.filter { $0.components.count == 1 }
     }
 
-    private var items: [Device] {
-        let limit: Int
-        switch family {
-        case .small:
-            limit = 4
-        case .medium:
-            limit = 8
-        case .large:
-            limit = 9
-        }
-        return Array(
+    private var flatItems: [Device] {
+        Array(
             presentations
                 .flatMap(\.components)
                 .map(\.device)
-                .prefix(limit)
+                .prefix(family == .medium ? 8 : 9)
         )
     }
 
-    private var usesGroupedLayout: Bool {
-        family != .small &&
+    private var usesMediumGroupedLayout: Bool {
+        family == .medium &&
             groupedPresentations.count == 1 &&
             singlePresentations.count <= 4 &&
             groupedPresentations[0].components.count <= 3
     }
 
-    private var columns: Int {
-        switch family {
-        case .small:
-            return 2
-        case .medium:
-            return 4
-        case .large:
-            return 3
-        }
-    }
-
-    private var rowCount: Int {
-        guard !items.isEmpty else { return 0 }
-        return (items.count + columns - 1) / columns
-    }
-
-    private var diameter: CGFloat {
-        switch family {
-        case .small:
-            if showPercentages && showLabels { return 46 }
-            if showPercentages || showLabels { return 52 }
-            return 58
-        case .medium:
-            if showPercentages && showLabels { return 42 }
-            if showPercentages || showLabels { return 48 }
-            return 54
-        case .large:
-            if showPercentages && showLabels { return 58 }
-            if showPercentages || showLabels { return 64 }
-            return 72
-        }
-    }
-
-    private var groupedDiameter: CGFloat {
-        switch family {
-        case .small:
-            return diameter
-        case .medium:
-            return showPercentages && showLabels ? 38 : 44
-        case .large:
-            return showPercentages && showLabels ? 54 : 62
-        }
-    }
-
-    private var horizontalSpacing: CGFloat {
-        switch family {
-        case .small:
-            return showPercentages || showLabels ? 13 : 17
-        case .medium:
-            return showPercentages || showLabels ? 14 : 18
-        case .large:
-            return showPercentages || showLabels ? 10 : 12
-        }
-    }
-
-    private var verticalSpacing: CGFloat {
-        switch family {
-        case .small:
-            return showPercentages && showLabels ? 5 : 9
-        case .medium:
-            return showPercentages && showLabels ? 5 : 9
-        case .large:
-            return showPercentages && showLabels ? 14 : 18
-        }
-    }
-
-    private var showsEstimates: Bool {
-        family != .small && showLabels
-    }
-
     var body: some View {
         Group {
-            if items.isEmpty {
+            if presentations.isEmpty {
                 Text("No battery devices")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
-            } else if usesGroupedLayout, let group = groupedPresentations.first {
-                groupedOverview(group)
             } else {
-                VStack(spacing: verticalSpacing) {
-                    ForEach(0..<rowCount, id: \.self) { row in
-                        overviewRow(start: row * columns)
+                switch family {
+                case .small:
+                    smallOverview
+                case .medium:
+                    if usesMediumGroupedLayout,
+                       let group = groupedPresentations.first {
+                        mediumGroupedOverview(group)
+                    } else {
+                        flatOverview(columns: 4, diameter: 42)
+                    }
+                case .large:
+                    largeOverview
+                }
+            }
+        }
+    }
+
+    private var smallOverview: some View {
+        let values = Array(presentations.prefix(4))
+        let rows = (values.count + 1) / 2
+
+        return VStack(spacing: showLabels ? 4 : 8) {
+            ForEach(0..<rows, id: \.self) { row in
+                HStack(spacing: showLabels ? 11 : 16) {
+                    ForEach(rowItems(values, row: row, columns: 2)) { presentation in
+                        smallLogicalCell(presentation)
                     }
                 }
-                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     @ViewBuilder
-    private func groupedOverview(_ group: LogicalDevicePresentation) -> some View {
-        VStack(spacing: family == .large ? 9 : 4) {
+    private func smallLogicalCell(
+        _ presentation: LogicalDevicePresentation
+    ) -> some View {
+        if presentation.components.count > 1 {
+            VStack(spacing: 0) {
+                OverviewRingCell(
+                    item: presentation.representative,
+                    diameter: showPercentages && showLabels ? 40 : 46,
+                    showPercentage: showPercentages,
+                    showLabel: showLabels,
+                    showEstimate: false,
+                    labelOverride: presentation.compactName
+                )
+                if showLabels {
+                    Text(componentSummary(presentation))
+                        .font(.system(size: 6.5, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .frame(width: 72)
+                }
+            }
+        } else if let component = presentation.components.first {
+            OverviewRingCell(
+                item: component.device,
+                diameter: showPercentages && showLabels ? 46 : 52,
+                showPercentage: showPercentages,
+                showLabel: showLabels,
+                showEstimate: false
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func mediumGroupedOverview(_ group: LogicalDevicePresentation) -> some View {
+        VStack(spacing: 4) {
             if !singlePresentations.isEmpty {
-                HStack(spacing: family == .large ? 18 : 14) {
+                HStack(spacing: 14) {
                     ForEach(singlePresentations.prefix(4)) { presentation in
                         if let component = presentation.components.first {
                             OverviewRingCell(
                                 item: component.device,
-                                diameter: diameter,
+                                diameter: showPercentages && showLabels ? 42 : 48,
                                 showPercentage: showPercentages,
                                 showLabel: showLabels,
-                                showEstimate: showsEstimates
+                                showEstimate: showLabels
                             )
                         }
                     }
@@ -160,7 +157,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
 
             Divider()
                 .opacity(0.45)
-                .padding(.horizontal, family == .large ? 18 : 12)
+                .padding(.horizontal, 12)
 
             HStack(spacing: 6) {
                 Image(getDeviceIcon(group.representative))
@@ -170,47 +167,191 @@ struct WidgetOverviewRingsSurfaceContent: View {
                     .foregroundColor(.secondary)
 
                 Text(group.displayName)
-                    .font(.system(size: family == .large ? 11 : 9.5, weight: .semibold))
+                    .font(.system(size: 9.5, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 Spacer()
-
-                Text("\(group.components.count) components")
-                    .font(.system(size: family == .large ? 9 : 8))
-                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal, family == .large ? 20 : 14)
+            .padding(.horizontal, 14)
 
-            HStack(spacing: family == .large ? 28 : 22) {
+            HStack(spacing: 22) {
                 ForEach(group.components.prefix(3)) { component in
                     OverviewRingCell(
                         item: component.device,
-                        diameter: groupedDiameter,
+                        diameter: showPercentages && showLabels ? 38 : 44,
                         showPercentage: showPercentages,
-                        showLabel: true,
-                        showEstimate: showsEstimates
+                        showLabel: showLabels,
+                        showEstimate: showLabels
                     )
                 }
             }
         }
-        .padding(.vertical, family == .large ? 8 : 5)
+        .padding(.vertical, 5)
+    }
+
+    private var largeOverview: some View {
+        let group = groupedPresentations.first
+        let singles = Array(singlePresentations.prefix(group == nil ? 8 : 4))
+        let rows = (singles.count + 1) / 2
+
+        return VStack(spacing: 13) {
+            VStack(spacing: 10) {
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: 12) {
+                        ForEach(rowItems(singles, row: row, columns: 2)) { presentation in
+                            LargeLogicalDeviceCell(
+                                presentation: presentation,
+                                showPercentage: showPercentages,
+                                showLabel: showLabels
+                            )
+                        }
+                        if rowItems(singles, row: row, columns: 2).count == 1 {
+                            Color.clear
+                                .frame(maxWidth: .infinity, minHeight: 62)
+                        }
+                    }
+                }
+            }
+
+            if let group {
+                Divider().opacity(0.45)
+
+                HStack(spacing: 7) {
+                    Image(getDeviceIcon(group.representative))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                        .foregroundColor(.secondary)
+                    Text(group.displayName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                    Spacer()
+                }
+
+                HStack(spacing: 26) {
+                    ForEach(group.components.prefix(3)) { component in
+                        OverviewRingCell(
+                            item: component.device,
+                            diameter: 58,
+                            showPercentage: showPercentages,
+                            showLabel: showLabels,
+                            showEstimate: showLabels
+                        )
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
-    private func overviewRow(start: Int) -> some View {
-        let end = min(start + columns, items.count)
-        HStack(spacing: horizontalSpacing) {
-            ForEach(start..<end, id: \.self) { index in
-                OverviewRingCell(
-                    item: items[index],
-                    diameter: diameter,
-                    showPercentage: showPercentages,
-                    showLabel: showLabels,
-                    showEstimate: showsEstimates
-                )
+    private func flatOverview(columns: Int, diameter: CGFloat) -> some View {
+        let rows = flatItems.isEmpty ? 0 : (flatItems.count + columns - 1) / columns
+        VStack(spacing: 6) {
+            ForEach(0..<rows, id: \.self) { row in
+                HStack(spacing: 14) {
+                    ForEach(rowDeviceItems(row: row, columns: columns)) { item in
+                        OverviewRingCell(
+                            item: item,
+                            diameter: diameter,
+                            showPercentage: showPercentages,
+                            showLabel: showLabels,
+                            showEstimate: showLabels
+                        )
+                    }
+                }
             }
         }
+    }
+
+    private func rowItems(
+        _ values: [LogicalDevicePresentation],
+        row: Int,
+        columns: Int
+    ) -> [LogicalDevicePresentation] {
+        let start = row * columns
+        guard start < values.count else { return [] }
+        let end = min(start + columns, values.count)
+        return Array(values[start..<end])
+    }
+
+    private func rowDeviceItems(row: Int, columns: Int) -> [Device] {
+        let start = row * columns
+        guard start < flatItems.count else { return [] }
+        let end = min(start + columns, flatItems.count)
+        return Array(flatItems[start..<end])
+    }
+
+    private func componentSummary(_ presentation: LogicalDevicePresentation) -> String {
+        presentation.components.prefix(3).map { component in
+            let prefix: String
+            switch component.role {
+            case .caseBattery: prefix = "C"
+            case .leftEarbud: prefix = "L"
+            case .rightEarbud: prefix = "R"
+            case .earbuds: prefix = "E"
+            case .primary: prefix = ""
+            }
+            return "\(prefix)\(component.level)"
+        }.joined(separator: " · ")
+    }
+}
+
+private struct LargeLogicalDeviceCell: View {
+    let presentation: LogicalDevicePresentation
+    let showPercentage: Bool
+    let showLabel: Bool
+
+    private var item: Device {
+        presentation.components.first?.device ?? presentation.representative
+    }
+
+    var body: some View {
+        HStack(spacing: 9) {
+            OverviewRingCell(
+                item: item,
+                diameter: 54,
+                showPercentage: false,
+                showLabel: false,
+                showEstimate: false
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                if showLabel {
+                    Text(presentation.displayName)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                if showPercentage {
+                    HStack(spacing: 2) {
+                        Text("\(item.batteryLevel)%")
+                            .monospacedDigit()
+                        if item.isCharging != 0 || item.acPowered {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundColor(.myGreen)
+                        }
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                }
+
+                if showLabel, let estimate = WidgetEstimateText.compact(for: item) {
+                    Text(estimate)
+                        .font(.system(size: 8.5))
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
     }
 }
 
@@ -220,6 +361,7 @@ private struct OverviewRingCell: View {
     let showPercentage: Bool
     let showLabel: Bool
     let showEstimate: Bool
+    var labelOverride: String? = nil
 
     private var lineWidth: CGFloat {
         diameter >= 64 ? 7 : (diameter < 42 ? 5 : 6)
@@ -288,12 +430,12 @@ private struct OverviewRingCell: View {
             }
 
             if showLabel {
-                Text(shortLabel)
+                Text(labelOverride ?? shortLabel)
                     .font(labelFont)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(width: diameter + 18)
+                    .frame(width: diameter + 22)
             }
 
             if showEstimate, let estimate = compactEstimate {
@@ -347,17 +489,11 @@ private struct OverviewRingCell: View {
     }
 
     private var compactEstimate: String? {
-        BatteryEstimateFormatting.compact(
-            level: item.batteryLevel,
-            charging: item.isCharging != 0 || item.acPowered,
-            charged: item.isCharged,
-            secondsRemaining: item.estimatedSecondsRemaining,
-            lastUpdate: item.lastUpdate
-        )
+        WidgetEstimateText.compact(for: item)
     }
 
     private var accessibilitySummary: String {
-        var values = [shortLabel, "\(item.batteryLevel) percent"]
+        var values = [labelOverride ?? shortLabel, "\(item.batteryLevel) percent"]
         if item.isCharging != 0 || item.acPowered {
             values.append("charging")
         }
@@ -368,10 +504,6 @@ private struct OverviewRingCell: View {
     }
 }
 
-// Settings uses the same cohesive ring renderer as widgets. The history-based
-// estimate is rendered separately by the settings detail views, so this adapter
-// intentionally accepts it only to preserve that call-site API while avoiding a
-// second ring implementation.
 struct BatteryRingSurfaceCell: View {
     let item: Device
     let diameter: CGFloat
@@ -454,13 +586,7 @@ struct WidgetSingleBatterySurfaceContent: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                if let estimate = BatteryEstimateFormatting.compact(
-                    level: item.batteryLevel,
-                    charging: item.isCharging != 0 || item.acPowered,
-                    charged: item.isCharged,
-                    secondsRemaining: item.estimatedSecondsRemaining,
-                    lastUpdate: item.lastUpdate
-                ) {
+                if let estimate = WidgetEstimateText.compact(for: item) {
                     Text(estimate)
                         .font(.system(size: 9.5))
                         .foregroundColor(.secondary)
