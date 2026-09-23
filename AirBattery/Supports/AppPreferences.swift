@@ -15,11 +15,6 @@ enum AppPreferences {
         UserDefaults.standard.string(forKey: key) ?? defaultValue
     }
 
-    private static var sharedDefaults: UserDefaults {
-        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ??
-            .standard
-    }
-
     static var showOn: String {
         get { string("showOn", default: "sbar") }
         set { UserDefaults.standard.set(newValue, forKey: "showOn") }
@@ -103,18 +98,6 @@ enum AppPreferences {
     static var widgetInterval: Int {
         get { integer("widgetInterval", default: 0) }
         set { UserDefaults.standard.set(newValue, forKey: "widgetInterval") }
-    }
-
-    static var widgetTimeEstimates: Bool {
-        get {
-            guard sharedDefaults.object(forKey: "widgetTimeEstimates") != nil else {
-                return false
-            }
-            return sharedDefaults.bool(forKey: "widgetTimeEstimates")
-        }
-        set {
-            sharedDefaults.set(newValue, forKey: "widgetTimeEstimates")
-        }
     }
 
     static var carouselMode: Bool {
