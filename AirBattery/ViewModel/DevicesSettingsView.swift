@@ -7,6 +7,7 @@ struct DevicesView: View {
     @ObservedObject private var monitoring = MonitoringCoordinator.shared
     @StateObject private var inventoryModel = DeviceInventoryModel()
     @State private var selectedKnownID: String?
+    @State private var displayNameDraft = ""
     @State private var expandedNearby: Set<String> = []
     @State private var technicalExpandedKnown: Set<String> = []
     @State private var technicalExpandedNearby: Set<String> = []
@@ -92,9 +93,13 @@ struct DevicesView: View {
         }
         .onAppear {
             refreshInventory()
+            syncDisplayNameDraft()
         }
         .onReceive(monitoring.$fiveSecondTick) { _ in
             refreshInventory()
+        }
+        .onChange(of: selectedKnownID) { _, _ in
+            syncDisplayNameDraft()
         }
         .onChange(of: policyStore.rules) { _, _ in
             refreshInventory()
@@ -185,7 +190,7 @@ struct DevicesView: View {
                 knownDeviceIcon(device, size: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(device.name)
+                    Text(displayName(for: device))
                         .lineLimit(1)
                         .foregroundStyle(selected ? .white : .primary)
 
@@ -226,7 +231,7 @@ struct DevicesView: View {
                 knownDeviceIcon(device, size: 40)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(device.name)
+                    Text(displayName(for: device))
                         .font(.title3.weight(.semibold))
                     Text(knownDeviceConnectionSummary(device))
                         .font(.caption)
@@ -240,20 +245,35 @@ struct DevicesView: View {
                 batteryComponentCard(group)
             } else if let representative = representativeDevice(device),
                       representative.hasBattery {
-                HStack {
-                    BatteryRingSurfaceCell(
-                        item: representative,
-                        diameter: 64,
-                        showPercentage: true,
-                        showLabel: false
-                    )
-                    Spacer()
-                }
-                .padding(.vertical, 4)
+                detailedBatteryView(representative)
             }
 
-            if let ble = device.ble {
-                detailSection("Device Settings") {
+            detailSection("Device Settings") {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Display Name")
+                    Spacer()
+                    TextField(device.name, text: $displayNameDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 150, idealWidth: 190, maxWidth: 230)
+                        .onChange(of: displayNameDraft) { _, value in
+                            saveDisplayName(value, for: device)
+                        }
+                    if DeviceDisplayNameStore.override(
+                        forKey: displayNameKey(for: device)
+                    ) != nil {
+                        Button("Reset") {
+                            DeviceDisplayNameStore.setOverride(
+                                nil,
+                                forKey: displayNameKey(for: device)
+                            )
+                            displayNameDraft = ""
+                        }
+                        .controlSize(.small)
+                    }
+                }
+
+                if let ble = device.ble {
+                    Divider().opacity(0.5)
                     HStack {
                         Text("Battery Access")
                         Spacer()
@@ -278,29 +298,77 @@ struct DevicesView: View {
                 deviceInformationRows(device)
             }
 
-            DisclosureGroup(
-                isExpanded: Binding(
-                    get: { technicalExpandedKnown.contains(device.id) },
-                    set: { expanded in
-                        if expanded {
-                            technicalExpandedKnown.insert(device.id)
-                        } else {
-                            technicalExpandedKnown.remove(device.id)
-                        }
-                    }
-                )
-            ) {
-                knownDeviceTechnicalDetails(device)
-                    .padding(.top, 8)
-            } label: {
-                Label(
-                    "Advanced Technical Details",
-                    systemImage: "wrench.and.screwdriver"
-                )
-                .font(.subheadline.weight(.medium))
-            }
+            advancedTechnicalDetails(device)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private func detailedBatteryView(_ device: Device) -> some View {
+        let estimate = BatteryHistoryStore.shared.estimate(for: device)
+        HStack(alignment: .center, spacing: 18) {
+            BatteryRingSurfaceCell(
+                item: device,
+                diameter: 86,
+                showPercentage: true,
+                showLabel: false,
+                estimate: estimate
+            )
+
+            if let estimate {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(estimateDurationText(estimate))
+                        .font(.headline)
+                    Text(estimateEndpointText(estimate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Estimated from recent battery history")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func advancedTechnicalDetails(
+        _ device: KnownDeviceSnapshot
+    ) -> some View {
+        let expanded = technicalExpandedKnown.contains(device.id)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                if expanded {
+                    technicalExpandedKnown.remove(device.id)
+                } else {
+                    technicalExpandedKnown.insert(device.id)
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    Image(systemName: "wrench.and.screwdriver")
+                    Text("Advanced Technical Details")
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                expanded
+                    ? "Collapse Advanced Technical Details"
+                    : "Expand Advanced Technical Details"
+            )
+
+            if expanded {
+                knownDeviceTechnicalDetails(device)
+                    .padding(.top, 8)
+            }
+        }
     }
 
     @ViewBuilder
@@ -332,14 +400,26 @@ struct DevicesView: View {
         ).first
 
         if let presentation {
-            HStack(spacing: 22) {
+            HStack(alignment: .top, spacing: 18) {
                 ForEach(presentation.components) { component in
-                    BatteryRingSurfaceCell(
-                        item: component.device,
-                        diameter: 58,
-                        showPercentage: true,
-                        showLabel: true
+                    let estimate = BatteryHistoryStore.shared.estimate(
+                        for: component.device
                     )
+                    VStack(spacing: 3) {
+                        BatteryRingSurfaceCell(
+                            item: component.device,
+                            diameter: 68,
+                            showPercentage: true,
+                            showLabel: true,
+                            estimate: estimate
+                        )
+                        if let estimate {
+                            Text(estimateShortText(estimate))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
                 }
             }
             .padding(14)
@@ -376,6 +456,7 @@ struct DevicesView: View {
         _ device: KnownDeviceSnapshot
     ) -> some View {
         if let representative = representativeDevice(device) {
+            detailRow("Detected name", device.name)
             detailRow("Product Type", humanReadableType(device))
             if let model = representative.deviceModel, !model.isEmpty {
                 detailRow("Model", model)
@@ -392,6 +473,7 @@ struct DevicesView: View {
                 relativeAge(representative.lastUpdate)
             )
         } else {
+            detailRow("Detected name", device.name)
             detailRow(
                 "Connected via",
                 sortedSources(device.sources)
@@ -419,6 +501,11 @@ struct DevicesView: View {
                 if let source = representative.batterySource {
                     detailRow("Last battery via", batterySourceLabel(source))
                 }
+
+                let sampleCount = BatteryHistoryStore.shared
+                    .samples(for: representative)
+                    .count
+                detailRow("ETA history", "\(sampleCount) recent samples")
             }
 
             if !device.iDeviceCandidates.isEmpty {
@@ -552,6 +639,80 @@ struct DevicesView: View {
         return representative.deviceType
     }
 
+    private func displayName(for device: KnownDeviceSnapshot) -> String {
+        DeviceDisplayNameStore.displayName(
+            forKey: displayNameKey(for: device),
+            fallback: device.name
+        )
+    }
+
+    private func displayNameKey(for device: KnownDeviceSnapshot) -> String {
+        if let representative = representativeDevice(device) {
+            return DeviceDisplayNameStore.key(
+                canonicalID: representative.deviceID,
+                deviceType: representative.deviceType
+            )
+        }
+        return DeviceDisplayNameStore.key(
+            canonicalID: "known:" + device.id,
+            deviceType: "logical"
+        )
+    }
+
+    private func syncDisplayNameDraft() {
+        guard let selectedKnownID,
+              let device = inventoryModel.devices.first(where: {
+                  $0.id == selectedKnownID
+              })
+        else {
+            displayNameDraft = ""
+            return
+        }
+        displayNameDraft = DeviceDisplayNameStore.override(
+            forKey: displayNameKey(for: device)
+        ) ?? ""
+    }
+
+    private func saveDisplayName(
+        _ value: String,
+        for device: KnownDeviceSnapshot
+    ) {
+        DeviceDisplayNameStore.setOverride(
+            value,
+            forKey: displayNameKey(for: device)
+        )
+    }
+
+    private func estimateShortText(_ estimate: BatteryTimeEstimate) -> String {
+        let duration = formattedDuration(estimate.duration)
+        return estimate.kind == .charging
+            ? "\(duration) to full"
+            : "\(duration) left"
+    }
+
+    private func estimateDurationText(_ estimate: BatteryTimeEstimate) -> String {
+        "~" + estimateShortText(estimate)
+    }
+
+    private func estimateEndpointText(_ estimate: BatteryTimeEstimate) -> String {
+        let time = estimate.endDate.formatted(
+            date: .omitted,
+            time: .shortened
+        )
+        return estimate.kind == .charging
+            ? "Full around \(time)"
+            : "Empty around \(time)"
+    }
+
+    private func formattedDuration(_ duration: TimeInterval) -> String {
+        let minutes = max(1, Int((duration / 60).rounded()))
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if hours == 0 { return "\(remainder)m" }
+        if remainder == 0 { return "\(hours)h" }
+        return "\(hours)h \(remainder)m"
+    }
+
     private func nearbyIDeviceCandidates(
         known: [KnownDeviceSnapshot]
     ) -> [IDeviceDiscoveryCandidate] {
@@ -582,7 +743,6 @@ struct DevicesView: View {
             !knownNames.contains(inventoryKey($0.name))
         }
     }
-
 
     @ViewBuilder
     private func nearbyIDeviceRow(_ candidate: IDeviceDiscoveryCandidate) -> some View {
@@ -1005,8 +1165,6 @@ struct DevicesView: View {
         return "\(identifier.prefix(8))…\(identifier.suffix(4))"
     }
 }
-
-
 
 private struct DeviceDisclosureStyle: DisclosureGroupStyle {
     func makeBody(configuration: Configuration) -> some View {
