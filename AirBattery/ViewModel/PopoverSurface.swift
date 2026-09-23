@@ -5,8 +5,9 @@ struct PopoverToolbarSurfaceContent: View {
     var fromDock = false
     var nearcastEnabled = false
     let onHide: () -> Void
-    let onMore: () -> Void
+    let onAbout: () -> Void
     let onSettings: () -> Void
+    let onQuit: () -> Void
     let onRefreshNearcast: () -> Void
 
     var body: some View {
@@ -49,11 +50,11 @@ struct PopoverToolbarSurfaceContent: View {
                 action: onSettings
             )
 
-            PopoverToolbarSurfaceButton(
-                systemName: "ellipsis.circle",
-                help: "More".local,
-                action: onMore
+            PopoverOverflowMenuButton(
+                onAbout: onAbout,
+                onQuit: onQuit
             )
+            .frame(width: 28, height: 28)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
@@ -67,12 +68,9 @@ private struct PopoverToolbarSurfaceButton: View {
     let action: () -> Void
 
     @State private var isHovered = false
-    @State private var isPressed = false
 
     var body: some View {
-        Button {
-            action()
-        } label: {
+        Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .regular))
                 .frame(width: 28, height: 28)
@@ -85,19 +83,10 @@ private struct PopoverToolbarSurfaceButton: View {
                         style: .continuous
                     )
                     .fill(
-                        isPressed
-                            ? hoverColor.opacity(0.18)
-                            : (isHovered
-                                ? hoverColor.opacity(0.12)
-                                : Color.primary.opacity(0.035))
+                        isHovered
+                            ? hoverColor.opacity(0.12)
+                            : Color.clear
                     )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(
-                            Color(nsColor: .separatorColor).opacity(0.35),
-                            lineWidth: 0.5
-                        )
                 )
                 .contentShape(Rectangle())
         }
@@ -106,11 +95,99 @@ private struct PopoverToolbarSurfaceButton: View {
         .help(help)
         .accessibilityLabel(Text(help))
         .onHover { isHovered = $0 }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
+    }
+}
+
+private struct PopoverOverflowMenuButton: NSViewRepresentable {
+    let onAbout: () -> Void
+    let onQuit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onAbout: onAbout, onQuit: onQuit)
+    }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(
+            image: NSImage(
+                systemSymbolName: "ellipsis.circle",
+                accessibilityDescription: "More".local
+            ) ?? NSImage(),
+            target: context.coordinator,
+            action: #selector(Coordinator.showMenu(_:))
         )
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.bezelStyle = .texturedRounded
+        button.controlSize = .small
+        button.setButtonType(.momentaryPushIn)
+        button.toolTip = "More".local
+        button.setAccessibilityLabel("More".local)
+        return button
+    }
+
+    func updateNSView(
+        _ nsView: NSButton,
+        context: Context
+    ) {
+        context.coordinator.onAbout = onAbout
+        context.coordinator.onQuit = onQuit
+    }
+
+    final class Coordinator: NSObject {
+        var onAbout: () -> Void
+        var onQuit: () -> Void
+
+        init(
+            onAbout: @escaping () -> Void,
+            onQuit: @escaping () -> Void
+        ) {
+            self.onAbout = onAbout
+            self.onQuit = onQuit
+        }
+
+        @objc func showMenu(_ sender: NSButton) {
+            let menu = NSMenu()
+
+            let aboutItem = NSMenuItem(
+                title: "About AirBattery".local,
+                action: #selector(showAbout),
+                keyEquivalent: ""
+            )
+            aboutItem.image = NSImage(
+                systemSymbolName: "info.circle",
+                accessibilityDescription: nil
+            )
+            aboutItem.target = self
+            menu.addItem(aboutItem)
+
+            menu.addItem(.separator())
+
+            let quitItem = NSMenuItem(
+                title: "Quit AirBattery".local,
+                action: #selector(quit),
+                keyEquivalent: ""
+            )
+            quitItem.image = NSImage(
+                systemSymbolName: "power",
+                accessibilityDescription: nil
+            )
+            quitItem.target = self
+            menu.addItem(quitItem)
+
+            menu.popUp(
+                positioning: nil,
+                at: NSPoint(x: sender.bounds.maxX, y: sender.bounds.minY),
+                in: sender
+            )
+        }
+
+        @objc private func showAbout() {
+            onAbout()
+        }
+
+        @objc private func quit() {
+            onQuit()
+        }
     }
 }
 
@@ -253,7 +330,7 @@ struct MenuDeviceRowContent: View {
                         SurfaceBatteryGlyph(item: device)
                             .scaleEffect(0.85)
                     }
-                    if let estimate {
+                    if let estimate = resolvedEstimate(for: device) {
                         Text(popoverEstimateText(estimate))
                             .font(.system(size: 8.5, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -263,6 +340,16 @@ struct MenuDeviceRowContent: View {
                 }
             }
         }
+    }
+
+    private func resolvedEstimate(for device: Device) -> BatteryTimeEstimate? {
+        if let estimate {
+            return estimate
+        }
+        return BatteryHistorySharedReader.estimate(
+            canonicalID: device.deviceID,
+            deviceType: device.deviceType
+        )
     }
 
     private var resolvedPresentationName: String {
@@ -322,7 +409,7 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                                 SurfaceBatteryGlyph(item: primary.device)
                                     .scaleEffect(0.85)
                             }
-                            if let estimate = estimates[primary.id] {
+                            if let estimate = estimate(for: primary) {
                                 Text(popoverEstimateText(estimate))
                                     .font(.system(size: 8.5, weight: .medium))
                                     .foregroundStyle(.secondary)
@@ -352,7 +439,7 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                                 showPercentage: true,
                                 showLabel: true
                             )
-                            if let estimate = estimates[component.id] {
+                            if let estimate = estimate(for: component) {
                                 Text(popoverEstimateText(estimate))
                                     .font(.system(size: 8, weight: .medium))
                                     .foregroundStyle(.secondary)
@@ -373,6 +460,18 @@ struct PopoverCompoundDeviceSurfaceContent: View {
                 .padding(.bottom, 7)
             }
         }
+    }
+
+    private func estimate(
+        for component: BatteryComponentPresentation
+    ) -> BatteryTimeEstimate? {
+        if let estimate = estimates[component.id] {
+            return estimate
+        }
+        return BatteryHistorySharedReader.estimate(
+            canonicalID: component.device.deviceID,
+            deviceType: component.device.deviceType
+        )
     }
 
     private var resolvedPresentationName: String {
