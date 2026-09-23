@@ -12,6 +12,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
     let family: WidgetOverviewFamily
     let showPercentages: Bool
     let showLabels: Bool
+    var showTimeEstimates = false
 
     private var items: [Device] {
         let limit: Int
@@ -116,7 +117,7 @@ struct WidgetOverviewRingsSurfaceContent: View {
     }
 
     private func widgetEstimate(for item: Device) -> BatteryTimeEstimate? {
-        guard AppPreferences.widgetTimeEstimates else { return nil }
+        guard showTimeEstimates else { return nil }
         return BatteryHistorySharedReader.estimate(
             canonicalID: item.deviceID,
             deviceType: item.deviceType
@@ -440,12 +441,13 @@ struct WidgetSingleBatterySurfaceContent: View {
     let item: Device?
     let deviceName: String
     let warningText: String
+    var showTimeEstimate = false
 
     private let lineWidth = 10.0
 
     var body: some View {
         if let item {
-            let estimate = AppPreferences.widgetTimeEstimates
+            let estimate = showTimeEstimate
                 ? BatteryHistorySharedReader.estimate(
                     canonicalID: item.deviceID,
                     deviceType: item.deviceType
