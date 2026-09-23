@@ -1,5 +1,12 @@
 import AppKit
+import Foundation
 import SwiftUI
+
+// Foundation's UserDefaults implementation synchronizes access internally, but
+// it is not yet annotated Sendable. AirBattery shares read-mostly app-group
+// defaults across its app and widget presentation helpers, so make that existing
+// thread-safety contract explicit for Swift 6 strict-concurrency checking.
+extension UserDefaults: @retroactive @unchecked Sendable {}
 
 private struct AirBatteryGlassEffectModifier<S: Shape>: ViewModifier {
     let shape: S
