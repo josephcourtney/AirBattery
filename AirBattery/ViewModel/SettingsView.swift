@@ -79,7 +79,7 @@ struct SettingsView: View {
             .clipped()
         }
         .frame(
-            minWidth: 760,
+            minWidth: 900,
             idealWidth: 960,
             maxWidth: .infinity,
             minHeight: 540,
