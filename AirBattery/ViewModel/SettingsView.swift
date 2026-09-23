@@ -61,6 +61,7 @@ struct SettingsView: View {
                     alignment: .topLeading
                 )
                 .background(Color(nsColor: .windowBackgroundColor))
+                .scrollEdgeEffectHidden(true, for: .top)
         }
         .navigationSplitViewStyle(.balanced)
         .frame(
