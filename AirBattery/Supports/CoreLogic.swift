@@ -352,6 +352,7 @@ struct BatteryEstimateState: Equatable {
 
 enum BatteryEstimateEngine {
     private static let minimumSampleInterval: TimeInterval = 120
+    private static let maximumSampleInterval: TimeInterval = 6 * 3600
     private static let minimumPlausibleRate = 0.1
     private static let maximumPlausibleRate = 100.0
     private static let smoothingWeight = 0.3
@@ -374,46 +375,88 @@ enum BatteryEstimateEngine {
         }
 
         if charging != previousCharging {
-            return BatteryEstimateState(ratePerHour: nil, secondsRemaining: nil)
+            return anchor(level: level, time: time)
+        }
+
+        if let anchor = decodedAnchor(
+            ratePerHour: previousRatePerHour,
+            secondsRemaining: previousSecondsRemaining
+        ) {
+            return updateFromAnchor(
+                anchorLevel: anchor.level,
+                anchorTime: anchor.time,
+                level: level,
+                charging: charging,
+                time: time
+            )
+        }
+
+        guard let previousRatePerHour,
+              previousRatePerHour > 0,
+              let previousSecondsRemaining,
+              previousSecondsRemaining >= 0
+        else {
+            return anchor(level: previousLevel, time: previousTime)
         }
 
         let elapsed = time - previousTime
         let delta = level - previousLevel
+        if delta == 0 {
+            return BatteryEstimateState(
+                ratePerHour: previousRatePerHour,
+                secondsRemaining: max(0, previousSecondsRemaining - elapsed)
+            )
+        }
+
         let movedInExpectedDirection = charging ? delta > 0 : delta < 0
-        var rate = previousRatePerHour
-
-        if movedInExpectedDirection, elapsed >= minimumSampleInterval {
-            let observed = abs(Double(delta)) / elapsed * 3600
-            if (minimumPlausibleRate...maximumPlausibleRate).contains(observed) {
-                if let previousRatePerHour {
-                    rate = previousRatePerHour * (1 - smoothingWeight) +
-                        observed * smoothingWeight
-                } else {
-                    rate = observed
-                }
-            }
-        } else if delta != 0, abs(delta) > 1 {
-            // A sizeable move opposite the current power direction usually
-            // means the power state changed before it was reported, or the
-            // source recalibrated. Re-learn instead of publishing a bad ETA.
-            rate = nil
+        guard movedInExpectedDirection else {
+            return anchor(level: level, time: time)
         }
 
-        guard let rate, rate > 0 else {
-            return BatteryEstimateState(ratePerHour: nil, secondsRemaining: nil)
+        let theoreticalPrevious = secondsToTarget(
+            level: previousLevel,
+            charging: charging,
+            ratePerHour: previousRatePerHour
+        )
+        let sincePreviousLevel = max(
+            0,
+            theoreticalPrevious - previousSecondsRemaining
+        ) + elapsed
+
+        guard sincePreviousLevel >= minimumSampleInterval,
+              sincePreviousLevel <= maximumSampleInterval
+        else {
+            return BatteryEstimateState(
+                ratePerHour: previousRatePerHour,
+                secondsRemaining: secondsToTarget(
+                    level: level,
+                    charging: charging,
+                    ratePerHour: previousRatePerHour
+                )
+            )
         }
 
-        let secondsRemaining: Double
-        if delta == 0, let previousSecondsRemaining {
-            secondsRemaining = max(0, previousSecondsRemaining - elapsed)
-        } else {
-            let pointsRemaining = charging ? max(0, 100 - level) : max(0, level)
-            secondsRemaining = Double(pointsRemaining) / rate * 3600
+        let observed = abs(Double(delta)) / sincePreviousLevel * 3600
+        guard (minimumPlausibleRate...maximumPlausibleRate).contains(observed) else {
+            return BatteryEstimateState(
+                ratePerHour: previousRatePerHour,
+                secondsRemaining: secondsToTarget(
+                    level: level,
+                    charging: charging,
+                    ratePerHour: previousRatePerHour
+                )
+            )
         }
 
+        let rate = previousRatePerHour * (1 - smoothingWeight) +
+            observed * smoothingWeight
         return BatteryEstimateState(
             ratePerHour: rate,
-            secondsRemaining: secondsRemaining
+            secondsRemaining: secondsToTarget(
+                level: level,
+                charging: charging,
+                ratePerHour: rate
+            )
         )
     }
 
@@ -429,6 +472,95 @@ enum BatteryEstimateEngine {
             return nil
         }
         return (hours * 60 + minutes) * 60
+    }
+
+    private static func updateFromAnchor(
+        anchorLevel: Int,
+        anchorTime: TimeInterval,
+        level: Int,
+        charging: Bool,
+        time: TimeInterval
+    ) -> BatteryEstimateState {
+        let elapsed = time - anchorTime
+        guard elapsed > 0 else {
+            return anchor(level: anchorLevel, time: anchorTime)
+        }
+
+        let delta = level - anchorLevel
+        if delta == 0 {
+            if elapsed > maximumSampleInterval {
+                return anchor(level: level, time: time)
+            }
+            return anchor(level: anchorLevel, time: anchorTime)
+        }
+
+        let movedInExpectedDirection = charging ? delta > 0 : delta < 0
+        guard movedInExpectedDirection else {
+            return anchor(level: level, time: time)
+        }
+
+        guard elapsed >= minimumSampleInterval,
+              elapsed <= maximumSampleInterval
+        else {
+            return elapsed > maximumSampleInterval
+                ? anchor(level: level, time: time)
+                : anchor(level: anchorLevel, time: anchorTime)
+        }
+
+        let observed = abs(Double(delta)) / elapsed * 3600
+        guard (minimumPlausibleRate...maximumPlausibleRate).contains(observed) else {
+            return anchor(level: level, time: time)
+        }
+
+        return BatteryEstimateState(
+            ratePerHour: observed,
+            secondsRemaining: secondsToTarget(
+                level: level,
+                charging: charging,
+                ratePerHour: observed
+            )
+        )
+    }
+
+    private static func secondsToTarget(
+        level: Int,
+        charging: Bool,
+        ratePerHour: Double
+    ) -> Double {
+        let pointsRemaining = charging ? max(0, 100 - level) : max(0, level)
+        return Double(pointsRemaining) / ratePerHour * 3600
+    }
+
+    // Before the first usable rate, the two optional estimate fields carry an
+    // internal negative sentinel. Formatting rejects the negative remaining
+    // value, so it is never exposed as an ETA. This lets frequent unchanged
+    // observations preserve the original level/time anchor without adding
+    // another serialized state field to Device.
+    private static func anchor(
+        level: Int,
+        time: TimeInterval
+    ) -> BatteryEstimateState {
+        BatteryEstimateState(
+            ratePerHour: -Double(level + 1),
+            secondsRemaining: -time
+        )
+    }
+
+    private static func decodedAnchor(
+        ratePerHour: Double?,
+        secondsRemaining: Double?
+    ) -> (level: Int, time: TimeInterval)? {
+        guard let ratePerHour,
+              let secondsRemaining,
+              ratePerHour < 0,
+              secondsRemaining < 0
+        else {
+            return nil
+        }
+
+        let level = Int((-ratePerHour - 1).rounded())
+        guard (0...100).contains(level) else { return nil }
+        return (level, -secondsRemaining)
     }
 }
 
