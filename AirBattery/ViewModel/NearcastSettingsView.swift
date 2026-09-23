@@ -163,6 +163,8 @@ struct NearcastView: View {
                 }
             }
         }
+        .scrollEdgeEffectHidden(true, for: .top)
+        .clipped()
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
@@ -215,4 +217,3 @@ struct NearcastView: View {
         ).runModal()
     }
 }
-
