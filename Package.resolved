@@ -1,5 +1,5 @@
 {
-  "originHash" : "ae12922b0d357456d6d86966484d755d7c3b4929250b576743e522f629188b7e",
+  "originHash" : "ff7a67688140d0d787d736a0e2e6509da905b8990c1ff7c8ae9e79756b42c35c",
   "pins" : [
     {
       "identity" : "multipeerkit",
@@ -13,10 +13,10 @@
     {
       "identity" : "sparkle",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sparkle-project/Sparkle",
+      "location" : "https://github.com/sparkle-project/Sparkle.git",
       "state" : {
-        "revision" : "41847a58cdef7506b257591fcca6f9495df591d4",
-        "version" : "2.6.2"
+        "revision" : "eef1a539a373c1f1a320624b1130fc5de7b2e100",
+        "version" : "2.10.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
       "state" : {
-        "revision" : "41982a3656a71c768319979febd796c6fd111d5c",
-        "version" : "1.5.0"
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
       }
     }
   ],

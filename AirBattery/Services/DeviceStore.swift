@@ -100,7 +100,7 @@ final class DeviceStore: @unchecked Sendable {
             ordered.append(contentsOf: list.filter { $0.parentName == device.deviceName })
         }
         ordered.append(contentsOf: list.filter { !ordered.contains($0) })
-        return ordered.filter { !isNameBlocked($0.deviceName) }
+        return ordered.filter { !isNameBlocked(name: $0.deviceName) }
     }
 
     func getByName(_ name: String) -> Device? {
@@ -111,7 +111,7 @@ final class DeviceStore: @unchecked Sendable {
         getAll(noFilter: true).first { $0.matchesIdentifier(id) }
     }
 
-    func isNameBlocked(_ name: String) -> Bool {
+    func isNameBlocked(name: String) -> Bool {
         let whitelistMode = AppPreferences.whitelistMode
         let filteredNames = AppPreferences.nameRules
         if whitelistMode {

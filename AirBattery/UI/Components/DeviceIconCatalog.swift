@@ -236,14 +236,14 @@ func getDeviceIcon(_ d: Device) -> String {
     case "mac", "applevirtualmachine1":
         return "display"
     case "macbook", "macbookpro", "macbookair","macbookneo":
-        if let icon = macBookList[macID] { return icon }
+        if let model = d.deviceModel, let icon = macBookList[model] { return icon }
         return "macbook"
     case "macmini":
         return "macmini.fill"
     case "macstudio":
         return "macstudio.fill"
     case "macpro":
-        if let icon = macProList[macID] { return icon }
+        if let model = d.deviceModel, let icon = macProList[model] { return icon }
         return "macpro.gen3.fill"
     case "imac", "imacpro":
         return "desktopcomputer"

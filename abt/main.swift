@@ -5,101 +5,64 @@
 //  Created by apple on 2025/5/19.
 //
 
+import AirBatteryKit
 import AppKit
 import ArgumentParser
+import Foundation
 
-let key = "com.lihaoyun6.AirBattery.widget"
-
-extension Device {
-    func toItem() -> item {
-        var status = "?"
-        if isCharged || acPowered || (isCharging != 0) {
-            status = "+"
-        } else if isPaused {
-            status = "="
-        } else {
-            status = "-"
-        }
-        let stamp = realUpdate != 0.0 ? realUpdate : lastUpdate
-        let min = Int((stamp - Double(Date().timeIntervalSince1970)) / 60)
-        return item(
-            device: deviceName,
-            level: batteryLevel,
-            status: status,
-            update: min
-        )
-    }
-}
-
-struct item: Codable, Equatable {
-    let device: String
-    let level: Int
-    let status: String
-    let update: Int
-}
-
-
-struct airbattery: ParsableCommand {
+struct AirBatteryCommand: ParsableCommand {
     static let configuration = CommandConfiguration(version: "0.1.0")
-    
+
     @Flag(name: .shortAndLong, help: "Including Nearcast devices")
-    var nearcast: Bool = false
-    
+    var nearcast = false
+
     @Flag(name: .shortAndLong, help: "Print in JSON format")
-    var json: Bool = false
-    
+    var json = false
+
     @Flag(name: .shortAndLong, help: "Print in CSV format")
-    var csv: Bool = false
-    
+    var csv = false
+
     mutating func validate() throws {
-        let arguments = [json, csv]
-        let activeCount = arguments.filter { $0 }.count
-        if activeCount > 1 {
+        guard [json, csv].filter({ $0 }).count <= 1 else {
             throw ValidationError("These options cannot be used together!")
         }
     }
 
     mutating func run() throws {
-        if let url = URL(string: "airbattery://writedata") {
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = false
-            NSWorkspace.shared.open(url, configuration: config)
-        }
-        usleep(500000)
-        var devices = BatterySnapshotStore.read()
-        if nearcast {
-            let allNearcast = getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory)
-            for jsonUrl in allNearcast {
-                devices += BatterySnapshotStore.nearcastDevices(at: jsonUrl, fromWidget: true)
-            }
-        }
-        let items: [item] = devices.map { $0.toItem() }
+        requestFreshSnapshot()
+        usleep(500_000)
+
+        let items = AirBatteryCLI.items(includeNearcast: nearcast)
         if json {
-            do {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                
-                let jsonData = try encoder.encode(items)
-                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                    print(jsonString)
-                }
-            } catch {
-                print("Get JSON error：\(error)")
-            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(items)
+            print(String(decoding: data, as: UTF8.self))
             return
         }
-        
-        var rows = items.map { "\($0.device)\t\(String(format: "%3d", $0.level))%\t\($0.status)" }
-        rows.insert("Device\tLevel\tStatus",at:0)
-        var joined = rows.joined(separator: "\n") + "\n"
-        
+
+        var rows = items.map {
+            "\($0.device)\t\(String(format: "%3d", $0.level))%\t\($0.status)"
+        }
+        rows.insert("Device\tLevel\tStatus", at: 0)
+
         if csv {
-            print(joined.replacingOccurrences(of: "\t", with: ","))
+            print(rows.joined(separator: "\n").replacingOccurrences(of: "\t", with: ","))
             return
         }
-        
-        rows.insert("-------\t------\t-------",at:1)
-        joined = rows.joined(separator: "\n") + "\n"
+
+        rows.insert("-------\t------\t-------", at: 1)
+        try printTable(rows.joined(separator: "\n") + "\n")
+    }
+
+    private func requestFreshSnapshot() {
+        guard let url = URL(string: "airbattery://writedata") else { return }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = false
+        NSWorkspace.shared.open(url, configuration: config)
+    }
+
+    private func printTable(_ input: String) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["column", "-t", "-s", "\t"]
@@ -110,18 +73,16 @@ struct airbattery: ParsableCommand {
         process.standardOutput = outputPipe
 
         try process.run()
-        guard let input = joined.data(using: .utf8) else {
+        guard let data = input.data(using: .utf8) else {
             throw ValidationError("Unable to encode command output")
         }
-        inputPipe.fileHandleForWriting.write(input)
+        inputPipe.fileHandleForWriting.write(data)
         inputPipe.fileHandleForWriting.closeFile()
 
         let result = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        if let output = String(data: result, encoding: .utf8) {
-            print(output.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
+        print(String(decoding: result, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 
-airbattery.main()
-
+AirBatteryCommand.main()

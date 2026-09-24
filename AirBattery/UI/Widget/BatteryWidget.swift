@@ -43,7 +43,7 @@ struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
 
         var data = BatterySnapshotStore.read()
         for file in getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory) {
-            data += BatterySnapshotStore.nearcastDevices(at: file, fromWidget: true)
+            data += BatterySnapshotStore.nearcastDevicesForWidget(at: file)
         }
         data = AirPodsPresentation.widgetPresentationOrder(from: data)
 
@@ -114,10 +114,7 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
 
         var data = BatterySnapshotStore.read()
         for file in getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory) {
-            data += BatterySnapshotStore.nearcastDevices(
-                at: file,
-                fromWidget: true
-            )
+            data += BatterySnapshotStore.nearcastDevicesForWidget(at: file)
         }
 
         data = AirPodsPresentation.widgetPresentationOrder(from: data)

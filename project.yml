@@ -1,0 +1,123 @@
+name: AirBattery
+developmentLanguage: en
+
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "26.0"
+  groupSortPosition: top
+  localPackagesGroup: Packages
+
+packages:
+  AirBatteryPackage:
+    path: .
+    group: Packages
+  ArgumentParser:
+    url: https://github.com/apple/swift-argument-parser.git
+    from: 1.8.2
+
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.6.3"
+    CURRENT_PROJECT_VERSION: "163"
+
+schemes:
+  AirBattery:
+    build:
+      targets:
+        AirBattery: all
+        AirBatteryWidgetExtension: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
+targets:
+  AirBattery:
+    type: application
+    platform: macOS
+    sources:
+      - path: Packaging/App
+      - path: AirBattery/Assets.xcassets
+        buildPhase: resources
+      - path: AirBattery/Base.lproj
+        buildPhase: resources
+      - path: AirBattery/en.lproj
+        buildPhase: resources
+      - path: AirBattery/Supports/logReader.sh
+        buildPhase: resources
+      - path: AirBattery/Supports/Scriptable.sdef
+        buildPhase: resources
+    dependencies:
+      - package: AirBatteryPackage
+        product: AirBatteryKit
+      - target: AirBatteryWidgetExtension
+        embed: true
+      - target: abt
+        link: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.josephcourtney.AirBattery
+        PRODUCT_NAME: AirBattery
+        INFOPLIST_FILE: AirBattery/Info.plist
+        GENERATE_INFOPLIST_FILE: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_LSUIElement: "YES"
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: AirBattery uses Bluetooth to collect battery information from peripheral devices.
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: AirBattery will collect battery information through the local network.
+        CODE_SIGN_ENTITLEMENTS: AirBattery/AirBattery.entitlements
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: "YES"
+
+  abt:
+    type: tool
+    platform: macOS
+    sources:
+      - path: abt/main.swift
+    dependencies:
+      - package: AirBatteryPackage
+        product: AirBatteryKit
+      - package: ArgumentParser
+        product: ArgumentParser
+    settings:
+      base:
+        PRODUCT_NAME: abt
+        CODE_SIGN_ENTITLEMENTS: abt/abt.entitlements
+        CODE_SIGN_STYLE: Automatic
+
+  AirBatteryWidgetExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: widget/widgetBundle.swift
+      - path: AirBattery/UI/Widget
+      - path: AirBattery/Domain
+      - path: AirBattery/Preferences/AppPreferences.swift
+      - path: AirBattery/Preferences/UserDefaultsSupport.swift
+      - path: AirBattery/Services/BatteryHistorySharedReader.swift
+      - path: AirBattery/Services/BatterySnapshotStore.swift
+      - path: AirBattery/Services/System/FileSystem.swift
+      - path: AirBattery/Shared/Extensions.swift
+      - path: AirBattery/UI/Components/BatteryColors.swift
+      - path: AirBattery/UI/Components/DeviceIconCatalog.swift
+      - path: AirBattery/UI/Components/WidgetSurfaces.swift
+      - path: AirBattery/Assets.xcassets
+        buildPhase: resources
+      - path: AirBattery/en.lproj
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.josephcourtney.AirBattery.widget
+        PRODUCT_NAME: AirBatteryWidgetExtension
+        INFOPLIST_FILE: widget/Info.plist
+        GENERATE_INFOPLIST_FILE: "YES"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME: WidgetBackground
+        CODE_SIGN_ENTITLEMENTS: widget/widget.entitlements
+        CODE_SIGN_STYLE: Automatic
+        APPLICATION_EXTENSION_API_ONLY: "YES"
+        SKIP_INSTALL: "YES"

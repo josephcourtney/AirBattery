@@ -1,3 +1,5 @@
+@testable import AirBatteryKit
+
 import Dispatch
 import Foundation
 import XCTest

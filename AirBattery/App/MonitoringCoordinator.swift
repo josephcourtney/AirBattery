@@ -81,7 +81,7 @@ final class MonitoringCoordinator: ObservableObject {
             makeTimer(every: TimeInterval(59 * interval)) { [weak self] in
                 self?.environment.btd.scanDevices()
             },
-            makeTimer(every: TimeInterval(24 * interval)) { [weak self] in
+            makeTimer(every: TimeInterval(24 * interval)) {
                 SPBluetoothDataModel.shared.refeshData(
                     completion: { _ in
                         DispatchQueue.global(qos: .background).async {

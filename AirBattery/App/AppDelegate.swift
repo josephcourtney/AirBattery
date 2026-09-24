@@ -11,7 +11,11 @@ import UserNotifications
 import IOBluetooth
 import Sparkle
 
-@main
+@MainActor
+public func runAirBatteryApplication() {
+    AppDelegate.main()
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let environment = AppEnvironment.shared
@@ -126,8 +130,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
         
         if AppPreferences.nearCast {
+            let nearcast = environment.nearcast
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                environment.nearcast.refeshAll()
+                nearcast.refeshAll()
             }
         }
     }
@@ -233,6 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         print("ℹ️ \(name) (\(address)) connected")
         let logReader = environment.logReader
         let magicBattery = environment.magicBattery
+        let deviceStore = environment.deviceStore
         DispatchQueue.global(qos: .utility).async {
             usleep(2_500_000)
 

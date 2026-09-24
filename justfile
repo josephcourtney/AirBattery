@@ -5,7 +5,7 @@ set no-exit-message
 project := "AirBattery.xcodeproj"
 scheme := "AirBattery"
 derived_data := ".build/xcode"
-logs_dir := ".build/logs"
+log_dir := ".build/logs"
 xcode_app := env("XCODE_APP", "/Applications/Xcode.app")
 signing_identity := env("SIGNING_IDENTITY", "")
 app_bundle_id := "com.josephcourtney.AirBattery"
@@ -15,8 +15,7 @@ host_arch := `uname -m`
 mac_destination := "platform=macOS,arch=" + host_arch
 
 # List available recipes.
-default:
-    just --list
+default: check
 
 # Run a command quietly. Successful commands print one line. Warnings print a
 # short excerpt and preserve the full log. Failures print the full captured log.
@@ -26,9 +25,9 @@ default:
 [private]
 run-quiet label +command:
     label="$1"; shift; \
-      mkdir -p "{{ logs_dir }}"; \
+      mkdir -p "{{ log_dir }}"; \
       slug="$(printf '%s' "$label" | /usr/bin/tr -cs '[:alnum:]._-' '_')"; \
-      log="{{ logs_dir }}/${slug}.log"; \
+      log="{{ log_dir }}/${slug}.log"; \
       tmp="${log}.tmp.$$"; \
       if [[ "${AIRBATTERY_VERBOSE:-0}" == "1" ]]; then \
         "$@"; \
@@ -63,9 +62,9 @@ run-quiet label +command:
 [private]
 _xcode label +args:
     label="$1"; shift; \
-      mkdir -p "{{ logs_dir }}"; \
+      mkdir -p "{{ log_dir }}"; \
       slug="$(printf '%s' "$label" | /usr/bin/tr -cs '[:alnum:]._-' '_')"; \
-      raw="{{ logs_dir }}/${slug}.xcodebuild.log"; \
+      raw="{{ log_dir }}/${slug}.xcodebuild.log"; \
       if [[ "${AIRBATTERY_VERBOSE:-0}" == "1" ]]; then \
         if command -v xcbeautify >/dev/null 2>&1; then \
           NSUnbufferedIO=YES xcodebuild "$@" 2>&1 | /usr/bin/tee "$raw" | xcbeautify; \
@@ -122,31 +121,30 @@ setup-xcode app=xcode_app:
 # Show and validate the active macOS/Xcode toolchain. This is intentionally
 # verbose because it is an explicit diagnostic command.
 doctor:
-    printf '%s\n' '--- macOS ---'
-    sw_vers
-    printf '%s\n' '--- Developer directory ---'
-    developer_dir="$(xcode-select -p 2>/dev/null || true)"; printf '%s\n' "$developer_dir"; [[ "$developer_dir" == */Contents/Developer ]] || { echo "A full Xcode installation is not selected." >&2; exit 1; }
-    printf '%s\n' '--- Xcode ---'
-    xcodebuild -version
-    printf '%s\n' '--- macOS SDK ---'
-    xcrun --sdk macosx --show-sdk-version
-    printf '%s\n' '--- Swift ---'
-    swift --version
-    printf '%s\n' '--- xcbeautify ---'
-    if command -v xcbeautify >/dev/null 2>&1; then xcbeautify --version; else echo 'not installed (xcodebuild -quiet fallback will be used)'; fi
-    printf '%s\n' '--- Project ---'
-    xcodebuild -list -project "{{ project }}"
+    @command -v swift >/dev/null || { echo "missing: swift" >&2; exit 1; }
+    @command -v xcodebuild >/dev/null || { echo "missing: xcodebuild" >&2; exit 1; }
+    @command -v xcodegen >/dev/null || { echo "missing: xcodegen (brew install xcodegen)" >&2; exit 1; }
+    @command -v xcbeautify >/dev/null || { echo "missing: xcbeautify" >&2; exit 1; }
+    @echo "✓ doctor"
 
-# Quiet health check used by `just check`.
+# Quiet health check used by `just check`. The generated Xcode project is not
+# required to exist yet; `resolve` creates it from project.yml.
 [private]
 _doctor-check:
     just -- run-quiet "doctor" bash -c '\
+      command -v swift >/dev/null || { echo "missing: swift" >&2; exit 1; }; \
+      command -v xcodebuild >/dev/null || { echo "missing: xcodebuild" >&2; exit 1; }; \
+      command -v xcodegen >/dev/null || { echo "missing: xcodegen (brew install xcodegen)" >&2; exit 1; }; \
+      command -v xcbeautify >/dev/null || { echo "missing: xcbeautify" >&2; exit 1; }; \
       developer_dir="$(xcode-select -p 2>/dev/null || true)"; \
       [[ "$developer_dir" == */Contents/Developer ]] || { echo "A full Xcode installation is not selected." >&2; exit 1; }; \
+      [[ -f Package.swift ]] || { echo "missing: Package.swift" >&2; exit 1; }; \
+      [[ -f project.yml ]] || { echo "missing: project.yml" >&2; exit 1; }; \
       xcodebuild -version; \
       xcrun --sdk macosx --show-sdk-version; \
       swift --version; \
-      xcodebuild -list -project "{{ project }}"'
+      swift package dump-package >/dev/null; \
+      xcodegen --version'
 
 # Initialize the pinned native source dependencies used for Apple mobile-device support.
 vendor-init:
@@ -225,17 +223,30 @@ vendor-mobile-clean:
     rm -f "AirBattery/libimobiledevice/MANIFEST.txt"
     printf '✓ vendor clean\n'
 
-# Resolve Swift package dependencies into the local derived-data directory.
+# Resolve SwiftPM dependencies, regenerate the disposable Xcode packaging
+# project, and resolve package references used by that generated project.
 resolve:
-    mkdir -p "{{ derived_data }}"
-    just -- _xcode "resolve" \
+    just -- run-quiet "swift resolve" swift package resolve
+    just -- run-quiet "xcodegen" xcodegen generate --spec project.yml
+    just -- _xcode "xcode resolve" \
       -resolvePackageDependencies \
       -project "{{ project }}" \
-      -scheme "{{ scheme }}" \
-      -derivedDataPath "{{ derived_data }}"
+      -scheme "{{ scheme }}"
+    printf '✓ resolve\n'
+
+# Run the hostless SwiftPM test suite.
+swift-test:
+    just -- run-quiet "swift test" swift test
+
+# Compatibility alias for callers that explicitly request an Xcode build.
+xcode-build: (build "Debug")
+
+# Run SwiftPM tests and an unsigned integration build of the app/widget package.
+test: resolve swift-test (build "Debug")
+    printf '✓ test\n'
 
 # Build AirBattery without code signing. Defaults to Debug.
-build configuration="Debug": vendor-mobile
+build configuration="Debug": resolve vendor-mobile
     mkdir -p "{{ derived_data }}"
     just -- _xcode "build {{ configuration }}" \
       -project "{{ project }}" \
@@ -345,7 +356,7 @@ build-signed configuration="Debug":
 
 # Build all products ad-hoc. This is the stable Xcode build path and the first
 # stage of build-signed. Do not install it directly for TCC-sensitive testing.
-build-adhoc configuration="Debug": vendor-mobile
+build-adhoc configuration="Debug": resolve vendor-mobile
     mkdir -p "{{ derived_data }}"
     just -- _xcode "build ad-hoc {{ configuration }}" \
       -project "{{ project }}" \
@@ -370,7 +381,13 @@ verify-signing configuration="Debug":
       test -d "$widget" || { echo "Missing embedded widget extension: $widget" >&2; exit 1; }; \
       codesign --verify --deep --strict --verbose=2 "$app"; \
       [[ "$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$app/Contents/Info.plist")" == "{{ app_bundle_id }}" ]] || { echo "Unexpected app bundle identifier." >&2; exit 1; }; \
-      [[ "$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$widget/Contents/Info.plist")" == "{{ widget_bundle_id }}" ]] || { echo "Unexpected widget bundle identifier." >&2; exit 1; }'
+      [[ "$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$widget/Contents/Info.plist")" == "{{ widget_bundle_id }}" ]] || { echo "Unexpected widget bundle identifier." >&2; exit 1; }; \
+      test -n "$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")" || { echo "Missing app marketing version." >&2; exit 1; }; \
+      test -n "$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$app/Contents/Info.plist")" || { echo "Missing app build number." >&2; exit 1; }; \
+      test -n "$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$app/Contents/Info.plist")" || { echo "Missing Sparkle feed URL." >&2; exit 1; }; \
+      test -n "$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$app/Contents/Info.plist")" || { echo "Missing Sparkle public key." >&2; exit 1; }; \
+      assets="$app/Contents/Resources/Assets.car"; \
+      test -f "$assets" || { echo "Missing compiled app asset catalog: $assets" >&2; exit 1; }'
 
 # Compute the semantic fingerprint of a locally installed build.
 # This intentionally hashes only build inputs, not documentation/tests or build caches.
@@ -396,12 +413,14 @@ install-fingerprint configuration="Debug":
           "swift=$(xcrun swiftc --version 2>/dev/null | /usr/bin/head -n 1)"; \
         printf '%s\n' '--- tracked build inputs ---'; \
         git ls-files -s -- \
-          AirBattery widget abt tools/mobile \
-          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
+          AirBattery widget abt Packaging tools/mobile \
+          Package.swift Package.resolved project.yml \
+          scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- worktree build-input diff ---'; \
         git diff --no-ext-diff --no-textconv --binary -- \
-          AirBattery widget abt tools/mobile \
-          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules; \
+          AirBattery widget abt Packaging tools/mobile \
+          Package.swift Package.resolved project.yml \
+          scripts/build-mobile-stack.sh justfile .gitmodules; \
         printf '%s\n' '--- untracked build inputs ---'; \
         while IFS= read -r -d '' path; do \
           if [[ -L "$path" ]]; then \
@@ -415,8 +434,9 @@ install-fingerprint configuration="Debug":
             printf 'missing\t%s\n' "$path"; \
           fi; \
         done < <(git ls-files -o --exclude-standard -z -- \
-          AirBattery widget abt tools/mobile \
-          AirBattery.xcodeproj scripts/build-mobile-stack.sh justfile .gitmodules); \
+          AirBattery widget abt Packaging tools/mobile \
+          Package.swift Package.resolved project.yml \
+          scripts/build-mobile-stack.sh justfile .gitmodules); \
         printf '%s\n' '--- submodules ---'; \
         git config -f .gitmodules --get-regexp path | /usr/bin/awk '{print $2}' | \
           while read -r path; do \
@@ -655,17 +675,8 @@ uninstall-local:
       rm -rf "{{ install_state_dir }}"; \
       printf '✓ uninstall\n'
 
-# Run deterministic hostless XCTest coverage.
-test:
-    mkdir -p "{{ derived_data }}"
-    just -- _xcode "test" \
-      -project "{{ project }}" \
-      -scheme AirBatteryTests \
-      -configuration Debug \
-      -destination "{{ mac_destination }}" \
-      -derivedDataPath "{{ derived_data }}" \
-      CODE_SIGNING_ALLOWED=NO \
-      test
+# The deterministic hostless test suite is owned by SwiftPM; see `swift-test`
+# and the combined `test` recipe above.
 
 # Silent structural/signing verification used by test-runtime.
 [private]
@@ -705,30 +716,31 @@ test-runtime: vendor-mobile
 test-hardware: vendor-mobile
     just -- run-quiet "hardware" bash scripts/test-mobile-hardware.sh
 
-# Run the normal local verification path. Dependencies run only once per just invocation.
-check: _doctor-check resolve test build test-runtime
+# Run the normal local verification path. `test` includes SwiftPM tests and
+# the unsigned Xcode packaging build; test-runtime verifies the staged native
+# mobile-device runtime. Dependencies run only once per just invocation.
+check: _doctor-check test test-runtime
     printf '✓ check\n'
 
-# Run the same unsigned build commands used by GitHub Actions.
-ci: vendor-mobile
-    just -- _xcode "ci resolve" \
-      -resolvePackageDependencies \
-      -project "{{ project }}" \
-      -scheme "{{ scheme }}"
+# Run the same SwiftPM tests and unsigned packaging build used by CI.
+ci: _doctor-check resolve swift-test vendor-mobile
     just -- _xcode "ci build" \
       -project "{{ project }}" \
       -scheme "{{ scheme }}" \
       -configuration Debug \
       -destination "{{ mac_destination }}" \
+      -derivedDataPath "{{ derived_data }}" \
       CODE_SIGNING_ALLOWED=NO \
+      CODE_SIGNING_REQUIRED=NO \
       build
 
 # Print the expected locally built application path.
 app-path configuration="Debug":
     printf '%s/%s\n' "$PWD" "{{ derived_data }}/Build/Products/{{ configuration }}/AirBattery.app"
 
-# Remove local Xcode build products, generated native vendor products, and package checkouts.
+# Remove SwiftPM/Xcode build products, the generated Xcode project, and staged
+# native runtime products. Package.resolved remains tracked/reproducible state.
 clean:
-    rm -rf "{{ derived_data }}" "{{ install_state_dir }}" "{{ logs_dir }}"
+    rm -rf ".build" ".swiftpm" "{{ project }}"
     just vendor-mobile-clean
     printf '✓ clean\n'

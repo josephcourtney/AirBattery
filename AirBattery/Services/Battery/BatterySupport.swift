@@ -13,18 +13,6 @@ func getPowerState() -> iBattery {
     return iBattery(hasBattery: false, isCharging: false, isCharged: false, acPowered: false, timeLeft: "", batteryLevel: 0)
 }
 
-func getPowerColor(_ device: Device) -> String {
-    if device.lowPower { return "my_yellow" }
-
-    var colorName = "my_green"
-    if device.batteryLevel <= 10 {
-        colorName = "my_red"
-    } else if device.batteryLevel <= 20 {
-        colorName = "my_yellow"
-    }
-    return colorName
-}
-
 func ib2ab(_ ib: iBattery) -> Device {
     Device(
         hasBattery: ib.hasBattery,

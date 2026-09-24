@@ -19,10 +19,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarAppearsTransparent = false
         window.contentViewController = hostingController
         window.contentMinSize = NSSize(width: 900, height: 540)
-        window.contentMaxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
+        window.contentMaxSize = NSSize(width: 1_180, height: 900)
         window.contentResizeIncrements = NSSize(width: 1, height: 1)
         window.titlebarSeparatorStyle = .automatic
         window.tabbingMode = .disallowed
