@@ -11,12 +11,12 @@
 # ============================================
 # Tag settings
 # ============================================
-include_tree_tags = "directory"
-include_file_tags = "files"
 exclude = [
+  "libimobiledevice",
+  "third_party",
+  "*.xcassets",
   "*.xcodeproj",
   ".build",
-  ".cache",
   ".import_linter_cache",
   ".ropeproject",
   ".grobl.toml",
@@ -105,7 +105,6 @@ tree_only = [
   "CODE_OF_CONDUCT.md",
   "CONTRIBUTING.md",
   "*.lproj",
-  "*.xcassets",
   "*.pdf",
   "*.png",
   "*.jpg",

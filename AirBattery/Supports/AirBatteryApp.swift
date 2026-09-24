@@ -111,30 +111,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         return true
     }
 
-    private func runLegacyMigrations() {
-        AirBatteryModel.migrateLegacySharedStorageIfNeeded()
-        migrateLegacyAlertPreferencesIfNeeded()
-        migrateLegacyNearcastCredentialsIfNeeded()
-    }
-
-    private func migrateLegacyAlertPreferencesIfNeeded() {
-        guard let names = UserDefaults.standard.object(forKey: "alertList") as? [String]
-        else { return }
-
-        let alerts = names.map { name in
-            btAlert(
-                name: name,
-                full: fullyLevel == 100 ? 99 : fullyLevel,
-                fullOn: true,
-                fullSound: alertSound,
-                low: alertLevel,
-                lowOn: true,
-                lowSound: alertSound
-            )
-        }
-        UserDefaults.standard.set(object: alerts, forKey: "alertList")
-    }
-
     func applicationWillFinishLaunching(_ notification: Notification) {
         registerNotificationCategory()
 
@@ -158,8 +134,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             ]
         )
         
-        runLegacyMigrations()
-
         machineType = getMacDeviceType()
         deviceName = getMacDeviceName()
         InternalBattery.status = getPowerState()

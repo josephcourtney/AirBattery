@@ -570,43 +570,6 @@ class AirBatteryModel {
         return now.timeIntervalSince(modified) <= maxAge
     }
 
-    static func migrateLegacySharedStorageIfNeeded() {
-        guard FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupIdentifier
-        ) != nil else {
-            return
-        }
-
-        let destination = sharedDataDirectory()
-        let legacy = FileManager.default.urls(
-            for: .libraryDirectory,
-            in: .userDomainMask
-        ).first!.appendingPathComponent(
-            "Containers/\(key)/Data/Documents",
-            isDirectory: true
-        )
-
-        let oldData = legacy.appendingPathComponent("data.json")
-        let newData = destination.appendingPathComponent("data.json")
-        if !FileManager.default.fileExists(atPath: newData.path),
-           FileManager.default.fileExists(atPath: oldData.path) {
-            try? FileManager.default.copyItem(at: oldData, to: newData)
-        }
-
-        let oldNearcast = legacy.appendingPathComponent(
-            "NearcastData",
-            isDirectory: true
-        )
-        let newNearcast = destination.appendingPathComponent(
-            "NearcastData",
-            isDirectory: true
-        )
-        if !FileManager.default.fileExists(atPath: newNearcast.path),
-           FileManager.default.fileExists(atPath: oldNearcast.path) {
-            try? FileManager.default.copyItem(at: oldNearcast, to: newNearcast)
-        }
-    }
-    
     static func widgetStoredDevices(
         from devices: [Device],
         internalBattery: Device?,

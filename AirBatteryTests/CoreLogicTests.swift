@@ -166,11 +166,9 @@ final class NearcastCredentialFormatTests: XCTestCase {
         XCTAssertEqual(parsed.sharingKey, sharingKey)
     }
 
-    func testLegacyCredentialRemainsValidForMigration() {
+    func testRejectsLegacyCredential() {
         let legacy = "nc-abcdefghijklmnopqrst"
-        XCTAssertEqual(legacy.count, 23)
-        XCTAssertTrue(NearcastCredentialFormat.isLegacySharingKey(legacy))
-        XCTAssertTrue(
+        XCTAssertFalse(
             NearcastCredentialFormat.isValid(
                 groupID: String(legacy.prefix(15)),
                 sharingKey: legacy
@@ -192,8 +190,9 @@ final class NearcastCredentialFormatTests: XCTestCase {
             )
         )
         XCTAssertFalse(
-            NearcastCredentialFormat.isLegacySharingKey(
-                "nc-contains_invalid_chars"
+            NearcastCredentialFormat.isValid(
+                groupID: "ncg-abcdefghijklmnop",
+                sharingKey: "nc-contains_invalid_chars"
             )
         )
     }

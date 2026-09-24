@@ -53,10 +53,6 @@ final class MultipeerService: ObservableObject {
                         print("Write JSON error：\(error)")
                     }
                     return
-                case "trans":
-                    // Legacy peers may still send this command. Its payload was
-                    // never consumed, so keep it as a no-op compatibility sink.
-                    return
                 case "notify":
                     print("Info received.")
                     if let jsonString = decryptNearcastString(message.content, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) {
