@@ -158,20 +158,44 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             )
         }
 
+        let rootView = popover(fromDock: false, allDevice: allDevices)
+            .transaction { transaction in
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
         let host = ContentFittingHostingView(
             width: 352,
-            rootView: popover(fromDock: false, allDevice: allDevices)
+            rootView: rootView
         )
         host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
 
         let item = NSMenuItem()
         item.view = host
-        host.onHeightChange = { [weak self, weak host] height in
-            guard let self, let host else { return }
-            host.setFrameSize(NSSize(width: 352, height: height))
-            if self.isMenuOpen {
+
+        var anchoredTopEdge: CGFloat?
+        host.onWillHeightChange = { [weak host] _ in
+            anchoredTopEdge = host?.window?.frame.maxY
+        }
+        host.onHeightChange = { [weak self, weak host] _ in
+            guard let self, let host, self.isMenuOpen else {
+                anchoredTopEdge = nil
+                return
+            }
+
+            let topEdge = anchoredTopEdge ?? host.window?.frame.maxY
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
                 self.menu.update()
             }
+
+            guard let topEdge else { return }
+            self.restoreMenuWindowTopEdge(host: host, topEdge: topEdge)
+            DispatchQueue.main.async { [weak self, weak host] in
+                guard let self, let host else { return }
+                self.restoreMenuWindowTopEdge(host: host, topEdge: topEdge)
+            }
+            anchoredTopEdge = nil
         }
 
         host.layoutSubtreeIfNeeded()
@@ -179,6 +203,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.removeAllItems()
         menu.addItem(item)
+    }
+
+    private func restoreMenuWindowTopEdge(
+        host: NSView,
+        topEdge: CGFloat
+    ) {
+        guard let window = host.window else { return }
+        var frame = window.frame
+        let targetY = topEdge - frame.height
+        guard abs(frame.origin.y - targetY) > 0.5 else { return }
+        frame.origin.y = targetY
+        window.setFrame(frame, display: true, animate: false)
     }
 }
 
