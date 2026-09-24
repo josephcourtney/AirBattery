@@ -1,0 +1,361 @@
+//
+//  MagicBattery.swift
+//  AirBattery
+//
+//  Created by apple on 2024/2/9.
+//
+import Foundation
+import IOBluetooth
+
+final class SPBluetoothDataModel: @unchecked Sendable {
+    static let shared = SPBluetoothDataModel()
+
+    private let dataLock = NSLock()
+    nonisolated(unsafe) private var storedData = "{}"
+
+    var data: String {
+        get {
+            dataLock.lock()
+            defer { dataLock.unlock() }
+            return storedData
+        }
+        set {
+            dataLock.lock()
+            storedData = newValue
+            dataLock.unlock()
+        }
+    }
+
+    func refeshData(completion: (String) -> Void, error: (() -> Void)? = nil) {
+        if let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType", "-json"]) {
+            data = result
+            completion(result)
+        } else {
+            error?()
+        }
+    }
+}
+
+final class MagicBattery: Sendable {
+    static let shared = MagicBattery()
+    
+    var readBTDevice: Bool { AppPreferences.readBTDevice }
+    var deviceName: String { AppPreferences.deviceName }
+    
+    func startScan() {
+        print("ℹ️ Start scanning Magic devices...")
+        scanDevices()
+    }
+
+    func scanDevices() {
+        guard readBTDevice else { return }
+        getIOBTBattery()
+        getOtherBTBattery()
+        getMagicBattery()
+        getOldMagicKeyboard()
+        getOldMagicTrackpad()
+        getOldMagicMouse()
+    }
+    
+    func findParentKey(forValue value: Any, in json: [String: Any]) -> String? {
+        for (key, subJson) in json {
+            if let subJsonDictionary = subJson as? [String: Any] {
+                if subJsonDictionary.values.contains(where: { $0 as? String == value as? String }) {
+                    return key
+                } else if let parentKey = findParentKey(forValue: value, in: subJsonDictionary) {
+                    return parentKey
+                }
+            } else if let subJsonArray = subJson as? [[String: Any]] {
+                for subJsonDictionary in subJsonArray {
+                    if subJsonDictionary.values.contains(where: { $0 as? String == value as? String }) {
+                        return key
+                    } else if let parentKey = findParentKey(forValue: value, in: subJsonDictionary) {
+                        return parentKey
+                    }
+                }
+            }
+        }
+        return nil
+    }
+    
+    func getDeviceName(_ mac: String, _ def: String) -> String {
+        if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any] {
+            if let parent = findParentKey(forValue: mac, in: json) {
+                return parent
+            }
+        }
+        return def
+    }
+    
+    func getDeviceType(_ mac: String, _ def: String) -> String {
+        if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
+           let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
+           let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+            if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
+                for device in device_connected{
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
+                    if let n = d.keys.first, let info = d[n] as? [String: Any] {
+                        if let id = info["device_address"] as? String,
+                           let type = info["device_minorType"] as? String{
+                            if id == mac { return type }
+                        }
+                    }
+                }
+            }
+        }
+        return def
+    }
+    
+    func readMagicBattery(object: io_object_t) {
+        var mac = ""
+        var type = "hid"
+        var status = 0
+        var percent = 0
+        var productName = ""
+        let lastUpdate = Date().timeIntervalSince1970
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "DeviceAddress" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? String {
+            mac = value.replacingOccurrences(of: "-", with: ":").uppercased()
+        }
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "BatteryStatusFlags" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? Int {
+            status = value == 4 ? 0 : value
+        }
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "BatteryPercent" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? Int {
+            percent = value
+        }
+        if let property = IORegistryEntryCreateCFProperty(
+            object,
+            "Product" as CFString,
+            kCFAllocatorDefault,
+            0
+        ),
+        let value = property.takeRetainedValue() as? String {
+            productName = value
+            if productName.contains("Trackpad") { type = "Trackpad" }
+            if productName.contains("Keyboard") { type = "Keyboard" }
+            if productName.contains("Mouse") { type = "MMouse" }
+            if type == "hid" {
+                type = getDeviceType(mac, type)
+                if type.contains("Trackpad") { type = "Trackpad" }
+                if type.contains("Keyboard") { type = "Keyboard" }
+                if type.contains("Mouse") { type = "MMouse" }
+            } else {
+                productName = getDeviceName(mac, productName)
+            }
+        }
+        if !productName.contains("Internal"){
+            DeviceStore.shared.update(Device(deviceID: mac, deviceType: type, deviceName: productName, batteryLevel: percent, isCharging: status, parentName: deviceName, lastUpdate: lastUpdate))
+        }
+    }
+
+    func getMagicBattery() {
+        var serialPortIterator = io_iterator_t()
+        var object : io_object_t
+        let masterPort: mach_port_t = kIOMainPortDefault
+        let matchingDict : CFDictionary = IOServiceMatching("AppleDeviceManagementHIDEventService")
+        let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        
+        if KERN_SUCCESS == kernResult {
+            repeat {
+                object = IOIteratorNext(serialPortIterator)
+                if object != 0 { readMagicBattery(object: object) }
+            } while object != 0
+            IOObjectRelease(object)
+        }
+        IOObjectRelease(serialPortIterator)
+    }
+    
+    func getOldMagicKeyboard() {
+        var serialPortIterator = io_iterator_t()
+        var object : io_object_t
+        let masterPort: mach_port_t = kIOMainPortDefault
+        let matchingDict : CFDictionary = IOServiceMatching("AppleBluetoothHIDKeyboard")
+        let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if KERN_SUCCESS == kernResult {
+            repeat {
+                object = IOIteratorNext(serialPortIterator)
+                if object != 0 { readMagicBattery(object: object) }
+            } while object != 0
+            IOObjectRelease(object)
+        }
+        IOObjectRelease(serialPortIterator)
+    }
+    
+    func getOldMagicTrackpad() {
+        var serialPortIterator = io_iterator_t()
+        var object : io_object_t
+        let masterPort: mach_port_t = kIOMainPortDefault
+        let matchingDict : CFDictionary = IOServiceMatching("BNBTrackpadDevice")
+        let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if KERN_SUCCESS == kernResult {
+            repeat {
+                object = IOIteratorNext(serialPortIterator)
+                if object != 0 { readMagicBattery(object: object) }
+            } while object != 0
+            IOObjectRelease(object)
+        }
+        IOObjectRelease(serialPortIterator)
+    }
+    
+    func getOldMagicMouse() {
+        var serialPortIterator = io_iterator_t()
+        var object : io_object_t
+        let masterPort: mach_port_t = kIOMainPortDefault
+        let matchingDict : CFDictionary = IOServiceMatching("BNBMouseDevice")
+        let kernResult = IOServiceGetMatchingServices(masterPort, matchingDict, &serialPortIterator)
+        if KERN_SUCCESS == kernResult {
+            repeat {
+                object = IOIteratorNext(serialPortIterator)
+                if object != 0 { readMagicBattery(object: object) }
+            } while object != 0
+            IOObjectRelease(object)
+        }
+        IOObjectRelease(serialPortIterator)
+    }
+    
+    func getAirpods() {
+        let now = Date().timeIntervalSince1970
+        if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
+        let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+            if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
+                for device in device_connected{
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
+                    if let n = d.keys.first, let info = d[n] as? [String: Any] {
+                        var productID = "200e"
+                        var mainDevice: Device?
+                        var subDevices: [Device] = []
+                        if let level = info["device_batteryLevelCase"] as? String {
+                            var id = n
+                            if let mac = info["device_address"] as? String { id = mac }
+                            if let pid = info["device_productID"] as? String { productID = pid.replacingOccurrences(of: "0x", with: "") }
+                            if let level = Int(level.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "%", with: "")) {
+                                if var apCase = DeviceStore.shared.getByName(n + " (Case)".local) {
+                                    apCase.batteryLevel = level
+                                    apCase.lastUpdate = now
+                                    mainDevice = apCase
+                                } else {
+                                    mainDevice = Device(deviceID: id, deviceType: "ap_case", deviceName: n + " (Case)".local, deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, lastUpdate: now)
+                                }
+                            }
+                        }
+                        if let level = info["device_batteryLevelLeft"] as? String {
+                            var id = n
+                            if let mac = info["device_address"] as? String { id = mac }
+                            if let pid = info["device_productID"] as? String { productID = pid.replacingOccurrences(of: "0x", with: "") }
+                            if let level = Int(level.replacingOccurrences(of: "%", with: "")) {
+                                if var apLeft = DeviceStore.shared.getByName(n + " 🄻") {
+                                    apLeft.batteryLevel = level
+                                    apLeft.lastUpdate = now
+                                    subDevices.append(apLeft)
+                                } else {
+                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_left", deviceName: n + " 🄻", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
+                                }
+                            }
+                            mainDevice?.deviceModel = getHeadphoneModel(productID)
+                        }
+                        if let level = info["device_batteryLevelRight"] as? String {
+                            var id = n
+                            if let mac = info["device_address"] as? String { id = mac }
+                            if let pid = info["device_productID"] as? String { productID = pid.replacingOccurrences(of: "0x", with: "") }
+                            if let level = Int(level.replacingOccurrences(of: "%", with: "")) {
+                                if var apRight = DeviceStore.shared.getByName(n + " 🅁") {
+                                    apRight.batteryLevel = level
+                                    apRight.lastUpdate = now
+                                    subDevices.append(apRight)
+                                } else {
+                                    subDevices.append(Device(deviceID: id, deviceType: "ap_pod_right", deviceName: n + " 🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: level, isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
+                                }
+                            }
+                            mainDevice?.deviceModel = getHeadphoneModel(productID)
+                        }
+                        if let apCase = mainDevice { DeviceStore.shared.update(apCase) }
+                        // Store physical earbud readings only. Merging is a presentation
+                        // concern handled by AirPodsPresentation.logicalPresentations.
+                        for pod in subDevices { DeviceStore.shared.update(pod) }
+                    }
+                }
+            }
+        }
+    }
+    
+    func getOtherBTBattery() {
+        if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
+        let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
+        let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
+            if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
+                for device in device_connected{
+                    guard let d = device as? [String: Any] else {
+                        continue
+                    }
+                    if let n = d.keys.first, let info = d[n] as? [String: Any] {
+                        if let level = info["device_batteryLevelMain"] as? String,
+                           let id = info["device_address"] as? String,
+                           let type = info["device_minorType"] as? String,
+                           (info["device_vendorID"] as? String) != "0x004C" {
+                            guard let batLevel = Int(
+                                level.replacingOccurrences(of: " ", with: "")
+                                    .replacingOccurrences(of: "%", with: "")
+                            ) else {
+                                continue
+                            }
+                            DeviceStore.shared.update(Device(deviceID: id, deviceType: type, deviceName: n, batteryLevel: batLevel, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    func getIOBTBattery() {
+        if let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] {
+            for device in devices {
+                let name = device.name
+                let address = device.addressString
+                let connected = device.isConnected()
+                
+                if connected && !device.isAppleDevice {
+                    if let battery = device.getValue(forKey: "batteryPercentSingle") as? Int, let name = name, let address = address, battery != 0 {
+                        let type = getDeviceType(address.replacingOccurrences(of: "-", with: ":").uppercased(),"")
+                        DeviceStore.shared.update(Device(deviceID: address, deviceType: type, deviceName: name, batteryLevel: battery, isCharging: 0, lastUpdate: Date().timeIntervalSince1970))
+                    }
+                }
+            }
+        }
+    }
+}
+
+extension IOBluetoothDevice {
+    func getValue(forKey: String) -> Any? {
+        if self.responds(to: Selector((forKey))) {
+            return self.value(forKey: forKey)
+        }
+        return nil
+    }
+    
+    var isAppleDevice: Bool {
+        return self.getValue(forKey: "isAppleDevice") as? Bool ?? false
+    }
+}
+

@@ -9,7 +9,6 @@ import AppKit
 import ArgumentParser
 
 let key = "com.lihaoyun6.AirBattery.widget"
-let ncFolder = AirBatteryModel.getNearcastURL()
 
 extension Device {
     func toItem() -> item {
@@ -67,11 +66,11 @@ struct airbattery: ParsableCommand {
             NSWorkspace.shared.open(url, configuration: config)
         }
         usleep(500000)
-        var devices = AirBatteryModel.readData()
+        var devices = BatterySnapshotStore.read()
         if nearcast {
-            let allNearcast = getFiles(withExtension: "json", in: ncFolder)
+            let allNearcast = getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory)
             for jsonUrl in allNearcast {
-                devices += AirBatteryModel.ncGetAll(url: jsonUrl, fromWidget: true)
+                devices += BatterySnapshotStore.nearcastDevices(at: jsonUrl, fromWidget: true)
             }
         }
         let items: [item] = devices.map { $0.toItem() }
@@ -125,3 +124,4 @@ struct airbattery: ParsableCommand {
 }
 
 airbattery.main()
+

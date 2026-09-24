@@ -18,7 +18,7 @@ struct SingleBatteryWidgetEntryView: View {
 
     private var presentation: LogicalDevicePresentation? {
         guard !entry.deviceName.isEmpty else { return nil }
-        let presentations = AirBatteryModel.widgetLogicalPresentations(
+        let presentations = AirPodsPresentation.widgetLogicalPresentations(
             from: entry.data
         )
 
@@ -79,3 +79,4 @@ struct SingleBatteryWidget: Widget {
         .supportedFamilies([.systemSmall])
     }
 }
+

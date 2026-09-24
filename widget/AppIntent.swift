@@ -54,3 +54,4 @@ struct BatteryOverviewConfigurationIntent: WidgetConfigurationIntent {
         self.showLabels = true
     }
 }
+

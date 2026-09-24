@@ -15,3 +15,4 @@ struct widgetBundle: WidgetBundle {
         SingleBatteryWidget()
     }
 }
+

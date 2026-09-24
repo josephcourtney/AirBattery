@@ -575,3 +575,4 @@ final class EarbudMergePolicyTests: XCTestCase {
         )
     }
 }
+

@@ -8,7 +8,6 @@
 import WidgetKit
 import SwiftUI
 
-let ncFolder = AirBatteryModel.getNearcastURL()
 
 struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -40,13 +39,13 @@ struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
     private func makeEntry(
         configuration: SingleBatteryConfigurationIntent
     ) -> SimpleEntry {
-        let mainApp = AirBatteryModel.snapshotIsFresh()
+        let mainApp = BatterySnapshotStore.isFresh()
 
-        var data = AirBatteryModel.readData()
-        for file in getFiles(withExtension: "json", in: ncFolder) {
-            data += AirBatteryModel.ncGetAll(url: file, fromWidget: true)
+        var data = BatterySnapshotStore.read()
+        for file in getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory) {
+            data += BatterySnapshotStore.nearcastDevices(at: file, fromWidget: true)
         }
-        data = AirBatteryModel.widgetPresentationOrder(from: data)
+        data = AirPodsPresentation.widgetPresentationOrder(from: data)
 
         return SimpleEntry(
             date: Date(),
@@ -111,17 +110,17 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         configuration: BatteryOverviewConfigurationIntent,
         family: WidgetFamily
     ) -> BatteryOverviewEntry {
-        let mainApp = AirBatteryModel.snapshotIsFresh()
+        let mainApp = BatterySnapshotStore.isFresh()
 
-        var data = AirBatteryModel.readData()
-        for file in getFiles(withExtension: "json", in: ncFolder) {
-            data += AirBatteryModel.ncGetAll(
-                url: file,
+        var data = BatterySnapshotStore.read()
+        for file in getFiles(withExtension: "json", in: BatterySnapshotStore.nearcastDirectory) {
+            data += BatterySnapshotStore.nearcastDevices(
+                at: file,
                 fromWidget: true
             )
         }
 
-        data = AirBatteryModel.widgetPresentationOrder(from: data)
+        data = AirPodsPresentation.widgetPresentationOrder(from: data)
 
         return BatteryOverviewEntry(
             date: Date(),
@@ -195,3 +194,4 @@ struct BatteryOverviewWidget: Widget {
         ])
     }
 }
+
