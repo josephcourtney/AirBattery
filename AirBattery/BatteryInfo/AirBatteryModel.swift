@@ -7,16 +7,6 @@
 
 import Foundation
 
-struct btdDevice: Codable, Equatable {
-    let time: Date
-    let vid: String
-    let pid: String
-    let type: String
-    let mac: String
-    let name: String
-    let level: Int
-}
-
 struct Device: Hashable, Codable {
     var hasBattery: Bool = true
     var deviceID: String

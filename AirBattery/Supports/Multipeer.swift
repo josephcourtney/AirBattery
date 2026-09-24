@@ -17,7 +17,6 @@ final class MultipeerService: ObservableObject {
     let transceiver: MultipeerTransceiver
 
     init(serviceType: String) {
-        migrateLegacyNearcastCredentialsIfNeeded()
         let configuration = MultipeerConfiguration(
             serviceType: serviceType,
             peerName: getMacDeviceName(),
@@ -55,7 +54,8 @@ final class MultipeerService: ObservableObject {
                     }
                     return
                 case "trans":
-                    print("Device received.")
+                    // Legacy peers may still send this command. Its payload was
+                    // never consumed, so keep it as a no-op compatibility sink.
                     return
                 case "notify":
                     print("Info received.")
@@ -133,25 +133,10 @@ final class MultipeerService: ObservableObject {
         self.sendMessage(message)
     }
     
-    func transDevice(device: Device, to name: String) {
-        do {
-            let btd = btdDevice(time: Date(), vid: "", pid: "", type: device.deviceType, mac: device.deviceID.replacingOccurrences(of: ":", with: "-").lowercased(), name: device.deviceName, level: device.batteryLevel)
-            let jsonData = try JSONEncoder().encode(btd)
-            guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-            guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return }
-            let message = NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "trans", content: data)
-            for peer in transceiver.availablePeers.filter({ $0.name == name }) {
-                self.sendMessage(message, peerID: peer.id)
-            }
-        } catch {
-            print("Write JSON error：\(error)")
-        }
-    }
-    
     func createInfo(type: Int = 0, title: String, info: String, atta: String = "") -> NCMessage? {
         do {
-            let error = NCNotification(type: 0, title: title, info: info, atta: atta)
-            let jsonData = try JSONEncoder().encode(error)
+            let notification = NCNotification(type: type, title: title, info: info, atta: atta)
+            let jsonData = try JSONEncoder().encode(notification)
             guard let jsonString = String(data: jsonData, encoding: .utf8) else { return nil }
             guard let data = encryptNearcastString(jsonString, groupID: self.nearcastGroupID, sharingKey: self.nearcastSharingKey) else { return nil }
             return NCMessage(id: String(self.nearcastGroupID), sender: systemUUID ?? self.deviceName, command: "notify", content: data)

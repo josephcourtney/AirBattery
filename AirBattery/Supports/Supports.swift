@@ -288,12 +288,6 @@ func pasteFromClipboard() -> String? {
     return nil
 }
 
-func isGroudIDValid(id: String) -> Bool {
-    let pre = NSPredicate(format: "SELF MATCHES %@", "^[a-zA-Z0-9\\-]+$")
-    let pasd = pre.evaluate(with: id)
-    return (id.count == 23 && String(id.prefix(3)) == "nc-" && pasd)
-}
-
 func getMacDeviceType() -> String {
     guard let result = process(path: "/usr/sbin/system_profiler", arguments: ["SPHardwareDataType", "-json"]) else { return "Mac" }
     if let json = try? JSONSerialization.jsonObject(with: Data(result.utf8), options: []) as? [String: Any],
@@ -392,10 +386,11 @@ func migrateLegacyNearcastCredentialsIfNeeded() {
     guard currentGroupID.isEmpty || currentSharingKey.isEmpty else { return }
 
     let legacy = UserDefaults.standard.string(forKey: "ncGroupID") ?? ""
-    guard isGroudIDValid(id: legacy) else { return }
+    guard NearcastCredentialFormat.isLegacySharingKey(legacy) else { return }
 
     UserDefaults.standard.set(String(legacy.prefix(15)), forKey: groupKey)
     UserDefaults.standard.set(legacy, forKey: sharingKeyKey)
+    UserDefaults.standard.removeObject(forKey: "ncGroupID")
 }
 
 func isNearcastCredentialValid(groupID: String, sharingKey: String) -> Bool {
