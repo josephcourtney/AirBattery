@@ -748,8 +748,41 @@ enum BatteryEstimateEngine {
     }
 }
 
+enum BatteryHistorySharedReader {
+    private static let storageKey = "batteryHistory.v1"
+    private static var defaults: UserDefaults {
+        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
+    }
+
+    static func estimate(
+        canonicalID: String,
+        deviceType: String,
+        now: Date = Date()
+    ) -> BatteryTimeEstimate? {
+        guard let data = defaults.data(forKey: storageKey),
+              let history = try? JSONDecoder().decode(
+                  [String: [BatteryHistorySample]].self,
+                  from: data
+              )
+        else {
+            return nil
+        }
+
+        let key = DeviceDisplayNameStore.key(
+            canonicalID: canonicalID,
+            deviceType: deviceType
+        )
+        return BatteryTimeEstimator.estimate(
+            samples: history[key] ?? [],
+            now: now
+        )
+    }
+}
+
 enum BatteryEstimateFormatting {
     static func full(
+        canonicalID: String,
+        deviceType: String,
         level: Int,
         charging: Bool,
         charged: Bool,
@@ -760,6 +793,20 @@ enum BatteryEstimateFormatting {
         if charged || (charging && level >= 100) {
             return "Full while charging"
         }
+
+        if canonicalID != "@MacInternalBattery",
+           let estimate = BatteryHistorySharedReader.estimate(
+               canonicalID: canonicalID,
+               deviceType: deviceType,
+               now: now
+           ) {
+            return fullText(
+                charging: estimate.kind == .charging,
+                endDate: estimate.endDate,
+                duration: estimate.duration
+            )
+        }
+
         guard let remaining = adjustedRemaining(
             secondsRemaining,
             lastUpdate: lastUpdate,
@@ -767,13 +814,16 @@ enum BatteryEstimateFormatting {
         ) else {
             return nil
         }
-
-        let verb = charging ? "Full" : "Empty"
-        let target = clockString(now.addingTimeInterval(remaining))
-        return "\(verb) around \(target) (~\(durationString(remaining)))"
+        return fullText(
+            charging: charging,
+            endDate: now.addingTimeInterval(remaining),
+            duration: remaining
+        )
     }
 
     static func compact(
+        canonicalID: String,
+        deviceType: String,
         level: Int,
         charging: Bool,
         charged: Bool,
@@ -784,6 +834,19 @@ enum BatteryEstimateFormatting {
         if charged || (charging && level >= 100) {
             return "Full"
         }
+
+        if canonicalID != "@MacInternalBattery",
+           let estimate = BatteryHistorySharedReader.estimate(
+               canonicalID: canonicalID,
+               deviceType: deviceType,
+               now: now
+           ) {
+            return compactText(
+                charging: estimate.kind == .charging,
+                endDate: estimate.endDate
+            )
+        }
+
         guard let remaining = adjustedRemaining(
             secondsRemaining,
             lastUpdate: lastUpdate,
@@ -791,8 +854,10 @@ enum BatteryEstimateFormatting {
         ) else {
             return nil
         }
-        let verb = charging ? "Full" : "Empty"
-        return "\(verb) \(clockString(now.addingTimeInterval(remaining)))"
+        return compactText(
+            charging: charging,
+            endDate: now.addingTimeInterval(remaining)
+        )
     }
 
     private static func adjustedRemaining(
@@ -800,30 +865,39 @@ enum BatteryEstimateFormatting {
         lastUpdate: TimeInterval,
         now: Date
     ) -> Double? {
-        guard let secondsRemaining, secondsRemaining.isFinite, secondsRemaining >= 0 else {
+        guard let secondsRemaining,
+              secondsRemaining.isFinite,
+              secondsRemaining >= 0
+        else {
             return nil
         }
         let elapsed = max(0, now.timeIntervalSince1970 - lastUpdate)
         return max(0, secondsRemaining - elapsed)
     }
 
+    private static func fullText(
+        charging: Bool,
+        endDate: Date,
+        duration: TimeInterval
+    ) -> String {
+        let verb = charging ? "Full" : "Empty"
+        return "\(verb) around \(clockString(endDate)) (~\(durationString(duration)))"
+    }
+
+    private static func compactText(charging: Bool, endDate: Date) -> String {
+        "\(charging ? "Full" : "Empty") \(clockString(endDate))"
+    }
+
     private static func clockString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
+        date.formatted(date: .omitted, time: .shortened)
     }
 
     private static func durationString(_ seconds: Double) -> String {
         let totalMinutes = max(0, Int((seconds / 60).rounded()))
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        if hours == 0 {
-            return "\(minutes)m"
-        }
-        if minutes == 0 {
-            return "\(hours)h"
-        }
+        if hours == 0 { return "\(minutes)m" }
+        if minutes == 0 { return "\(hours)h" }
         return "\(hours)h \(minutes)m"
     }
 }

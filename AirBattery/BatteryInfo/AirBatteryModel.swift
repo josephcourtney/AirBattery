@@ -28,7 +28,6 @@ struct Device: Hashable, Codable {
     var isCharged: Bool = false
     var isPaused: Bool = false
     var acPowered: Bool = false
-    var isHidden: Bool = false
     var lowPower: Bool = false
     var parentName: String = ""
     var lastUpdate: Double
@@ -50,7 +49,6 @@ struct Device: Hashable, Codable {
         hasher.combine(isCharged)
         hasher.combine(isPaused)
         hasher.combine(acPowered)
-        hasher.combine(isHidden)
         hasher.combine(lowPower)
         hasher.combine(lastUpdate)
         hasher.combine(realUpdate)
@@ -87,7 +85,6 @@ struct Device: Hashable, Codable {
     }
 }
 
-
 struct AirPodsBatteryGroup: Hashable {
     let name: String
     let caseDevice: Device?
@@ -101,10 +98,6 @@ struct AirPodsBatteryGroup: Hashable {
             result.append(legacyMergedEarbuds)
         }
         return result
-    }
-
-    var componentCount: Int {
-        components.count
     }
 
     func mergedEarbudLevel(enabled: Bool, threshold: Int) -> Int? {
@@ -156,17 +149,6 @@ struct LogicalDevicePresentation: Identifiable, Hashable {
     let components: [BatteryComponentPresentation]
     let newestUpdate: Double
 
-    var latestBatterySource: DeviceObservationSource? {
-        components
-            .map(\.device)
-            .filter { $0.batterySource != nil }
-            .max(by: { $0.lastUpdate < $1.lastUpdate })?
-            .batterySource
-    }
-
-    var primaryLevel: Int {
-        components.first?.level ?? representative.batteryLevel
-    }
 }
 
 class AirBatteryModel {
@@ -183,13 +165,6 @@ class AirBatteryModel {
         presenceLock.lock()
         lastBLEPresence[key] = Date().timeIntervalSince1970
         presenceLock.unlock()
-    }
-
-    static func batteryDevices(observedAs name: String) -> [Device] {
-        let key = normalizedObservationName(name)
-        return getAll(noFilter: true).filter {
-            $0.hasBattery && normalizedObservationName(observationName(for: $0)) == key
-        }
     }
 
     private static func isRecentlyBLEObserved(_ device: Device, now: Double) -> Bool {
@@ -458,17 +433,6 @@ class AirBatteryModel {
         )
     }
 
-    static func groupedDisplayRowCount(_ devices: [Device]) -> Int {
-        devices.filter { !isAirPodsSecondaryRow($0, in: devices) }.count
-    }
-
-    static func groupedAirPodsRowCount(_ devices: [Device]) -> Int {
-        Set(
-            devices.compactMap { device in
-                airPodsBaseName(for: device).map(normalizedObservationName)
-            }
-        ).count
-    }
     
     static func deviceSnapshot() -> [Device] {
         devicesLock.lock()
@@ -504,23 +468,6 @@ class AirBatteryModel {
         }
     }
 
-    static func hideDevice(_ name: String) {
-        devicesLock.lock()
-        defer { devicesLock.unlock() }
-
-        for index in devices.indices where devices[index].deviceName == name {
-            devices[index].isHidden = true
-        }
-    }
-
-    static func unhideDevice(_ name: String) {
-        devicesLock.lock()
-        defer { devicesLock.unlock() }
-
-        for index in devices.indices where devices[index].deviceName == name {
-            devices[index].isHidden = false
-        }
-    }
     
     static func getBlackList() -> [Device] {
         let blackList = AppPreferences.hiddenDeviceNames
@@ -538,7 +485,7 @@ class AirBatteryModel {
             now - $0.lastUpdate < Double(disappearTime * 60) ||
                 isRecentlyBLEObserved($0, now: now)
         }
-        if !noFilter { list = list.filter { !blackList.contains($0.deviceName) && !$0.isHidden } }
+        if !noFilter { list = list.filter { !blackList.contains($0.deviceName) } }
         var newList: [Device] = list.filter({ $0.parentName == thisMac })
         for d in list {
             if d.parentName == "" && d.parentName != thisMac {

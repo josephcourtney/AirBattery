@@ -7,61 +7,6 @@ enum WidgetOverviewFamily {
     case large
 }
 
-private enum WidgetEstimateText {
-    private static let defaults =
-        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
-    private static let historyKey = "batteryHistory.v1"
-
-    static func compact(for item: Device, now: Date = Date()) -> String? {
-        let charging = item.isCharging != 0 || item.acPowered
-        if item.isCharged || (charging && item.batteryLevel >= 100) {
-            return "Full"
-        }
-
-        if item.deviceID != "@MacInternalBattery",
-           let estimate = historyEstimate(for: item, now: now) {
-            return "\(estimate.kind == .charging ? "Full" : "Empty") " +
-                estimate.endDate.formatted(date: .omitted, time: .shortened)
-        }
-
-        guard let stored = item.estimatedSecondsRemaining,
-              stored.isFinite,
-              stored >= 0
-        else {
-            return nil
-        }
-        let elapsed = max(0, now.timeIntervalSince1970 - item.lastUpdate)
-        let remaining = max(0, stored - elapsed)
-        let target = now.addingTimeInterval(remaining).formatted(
-            date: .omitted,
-            time: .shortened
-        )
-        return "\(charging ? "Full" : "Empty") \(target)"
-    }
-
-    private static func historyEstimate(
-        for device: Device,
-        now: Date
-    ) -> BatteryTimeEstimate? {
-        guard let data = defaults.data(forKey: historyKey),
-              let history = try? JSONDecoder().decode(
-                  [String: [BatteryHistorySample]].self,
-                  from: data
-              )
-        else {
-            return nil
-        }
-        let key = DeviceDisplayNameStore.key(
-            canonicalID: device.deviceID,
-            deviceType: device.deviceType
-        )
-        return BatteryTimeEstimator.estimate(
-            samples: history[key] ?? [],
-            now: now
-        )
-    }
-}
-
 struct WidgetOverviewRingsSurfaceContent: View {
     let devices: [Device]
     let family: WidgetOverviewFamily
@@ -407,7 +352,15 @@ private struct CompactCompoundBatteryMeter: View {
 
             if style == .singleSmall,
                let caseComponent,
-               let estimate = WidgetEstimateText.compact(for: caseComponent.device) {
+               let estimate = BatteryEstimateFormatting.compact(
+                   canonicalID: caseComponent.device.deviceID,
+                   deviceType: caseComponent.device.deviceType,
+                   level: caseComponent.device.batteryLevel,
+                   charging: caseComponent.device.isCharging != 0 || caseComponent.device.acPowered,
+                   charged: caseComponent.device.isCharged,
+                   secondsRemaining: caseComponent.device.estimatedSecondsRemaining,
+                   lastUpdate: caseComponent.device.lastUpdate
+               ) {
                 Text(estimate)
                     .font(.system(size: 9.5))
                     .foregroundColor(.secondary)
@@ -560,7 +513,15 @@ private struct LargeLogicalDeviceCell: View {
                     .font(.system(size: 11, weight: .medium))
                 }
 
-                if showLabel, let estimate = WidgetEstimateText.compact(for: item) {
+                if showLabel, let estimate = BatteryEstimateFormatting.compact(
+                    canonicalID: item.deviceID,
+                    deviceType: item.deviceType,
+                    level: item.batteryLevel,
+                    charging: item.isCharging != 0 || item.acPowered,
+                    charged: item.isCharged,
+                    secondsRemaining: item.estimatedSecondsRemaining,
+                    lastUpdate: item.lastUpdate
+                ) {
                     Text(estimate)
                         .font(.system(size: 8.5))
                         .foregroundColor(.secondary)
@@ -705,7 +666,15 @@ private struct OverviewRingCell: View {
     }
 
     private var compactEstimate: String? {
-        WidgetEstimateText.compact(for: item)
+        BatteryEstimateFormatting.compact(
+            canonicalID: item.deviceID,
+            deviceType: item.deviceType,
+            level: item.batteryLevel,
+            charging: item.isCharging != 0 || item.acPowered,
+            charged: item.isCharged,
+            secondsRemaining: item.estimatedSecondsRemaining,
+            lastUpdate: item.lastUpdate
+        )
     }
 
     private var accessibilitySummary: String {
@@ -838,7 +807,15 @@ struct WidgetSingleBatterySurfaceContent: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                if let estimate = WidgetEstimateText.compact(for: item) {
+                if let estimate = BatteryEstimateFormatting.compact(
+                    canonicalID: item.deviceID,
+                    deviceType: item.deviceType,
+                    level: item.batteryLevel,
+                    charging: item.isCharging != 0 || item.acPowered,
+                    charged: item.isCharged,
+                    secondsRemaining: item.estimatedSecondsRemaining,
+                    lastUpdate: item.lastUpdate
+                ) {
                     Text(estimate)
                         .font(.system(size: 9.5))
                         .foregroundColor(.secondary)

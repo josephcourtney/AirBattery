@@ -12,35 +12,13 @@ import UserNotifications
 let macID = getMacModelIdentifier()
 @MainActor var lowPowerNoteDelay = [String: Double]()
 
-extension View {
-    func roundedCorners(radius: CGFloat, corners: RectCorner) -> some View {
-        clipShape( RoundedCornersShape(radius: radius, corners: corners) )
-    }
-}
-
 extension String {
-    var boolValue: Bool { return (self as NSString).boolValue }
-    var local: String { return NSLocalizedString(self, comment: "") }
-}
-
-extension NSMenuItem {
-    func performAction() {
-        guard let menu else {
-            return
-        }
-        menu.performActionForItem(at: menu.index(of: self))
-    }
+    var local: String { NSLocalizedString(self, comment: "") }
 }
 
 extension Data {
-    struct HexEncodingOptions: OptionSet {
-        let rawValue: Int
-        static let upperCase = HexEncodingOptions(rawValue: 1 << 0)
-    }
-
-    func hexEncodedString(options: HexEncodingOptions = []) -> String {
-        let format = options.contains(.upperCase) ? "%02hhX" : "%02hhx"
-        return self.map { String(format: format, $0) }.joined()
+    func hexEncodedString() -> String {
+        map { String(format: "%02hhx", $0) }.joined()
     }
     
     func ascii() -> String? {
@@ -200,15 +178,6 @@ func process(path: String, arguments: [String], timeout: Int = 0) -> String? {
     return output.trimmingCharacters(in: .newlines)
 }
 
-func getMenuBarHeight() -> CGFloat {
-    let mouseLocation = NSEvent.mouseLocation
-    let screen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) })
-    if let screen = screen {
-        return screen.frame.height - screen.visibleFrame.height - (screen.visibleFrame.origin.y - screen.frame.origin.y) - 1
-    }
-    return 0.0
-}
-
 @MainActor
 func createAlert(level: NSAlert.Style = .warning, title: String, message: String, button1: String, button2: String = "") -> NSAlert {
     let alert = NSAlert()
@@ -255,27 +224,6 @@ func createNotification(title: String, message: String, alertSound: Bool = true,
     }
 }
 
-func findParentKey(forValue value: Any, in json: [String: Any]) -> String? {
-    for (key, subJson) in json {
-        if let subJsonDictionary = subJson as? [String: Any] {
-            if subJsonDictionary.values.contains(where: { $0 as? String == value as? String }) {
-                return key
-            } else if let parentKey = findParentKey(forValue: value, in: subJsonDictionary) {
-                return parentKey
-            }
-        } else if let subJsonArray = subJson as? [[String: Any]] {
-            for subJsonDictionary in subJsonArray {
-                if subJsonDictionary.values.contains(where: { $0 as? String == value as? String }) {
-                    return key
-                } else if let parentKey = findParentKey(forValue: value, in: subJsonDictionary) {
-                    return parentKey
-                }
-            }
-        }
-    }
-    return nil
-}
-
 func randomString(length: Int) -> String {
     let characters = Array("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
     var randomString = ""
@@ -311,14 +259,6 @@ func getPowerColor(_ device: Device) -> String {
         colorName = "my_yellow"
     }
     return colorName
-}
-
-@MainActor
-func getDarkMode() -> Bool {
-    let appearance = AppPreferences.appearance
-    return (appearance == "auto")
-        ? NSApp.effectiveAppearance == NSAppearance(named: .darkAqua)
-        : appearance.boolValue
 }
 
 func ib2ab(_ ib: iBattery) -> Device {
@@ -396,13 +336,6 @@ func getMacDeviceName() -> String {
     }
     if let name = computerName as String? { return name }
     return AppPreferences.machineType
-}
-
-func getFirstNCharacters(of string: String, count: Int) -> String? {
-    guard string.count >= count else { return nil }
-    let index = string.index(string.startIndex, offsetBy: count)
-    let substring = string[string.startIndex..<index]
-    return String(substring)
 }
 
 func generateSymmetricKey(password: String) -> SymmetricKey {

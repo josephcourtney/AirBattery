@@ -108,27 +108,6 @@ final class MagicBattery: Sendable {
         return def
     }
     
-    func getDeviceTypeWithPID(_ pid: String, _ def: String) -> String {
-        if let json = try? JSONSerialization.jsonObject(with: Data(SPBluetoothDataModel.shared.data.utf8), options: []) as? [String: Any],
-           let SPBluetoothDataTypeRaw = json["SPBluetoothDataType"] as? [Any],
-           let SPBluetoothDataType = SPBluetoothDataTypeRaw[0] as? [String: Any]{
-            if let device_connected = SPBluetoothDataType["device_connected"] as? [Any]{
-                for device in device_connected{
-                    guard let d = device as? [String: Any] else {
-                        continue
-                    }
-                    if let n = d.keys.first, let info = d[n] as? [String: Any] {
-                        if let id = info["device_productID"] as? String,
-                           let type = info["device_minorType"] as? String{
-                            if id == pid { return type }
-                        }
-                    }
-                }
-            }
-        }
-        return def
-    }
-    
     func readMagicBattery(object: io_object_t) {
         var mac = ""
         var type = "hid"
@@ -312,18 +291,9 @@ final class MagicBattery: Sendable {
                             mainDevice?.deviceModel = getHeadphoneModel(productID)
                         }
                         if let apCase = mainDevice { AirBatteryModel.updateDevice(apCase) }
-                        if subDevices.count != 0 {
-                            if subDevices.count == 2 {
-                                if abs(Int(subDevices[0].batteryLevel) - Int(subDevices[1].batteryLevel)) < 3 {
-                                    AirBatteryModel.hideDevice(n + " 🄻")
-                                    AirBatteryModel.hideDevice(n + " 🅁")
-                                    AirBatteryModel.updateDevice(Device(deviceID: n + "_All", deviceType: "ap_pod_all", deviceName: n + " 🄻🅁", deviceModel: getHeadphoneModel(productID), batteryLevel: Int(min(subDevices[0].batteryLevel, subDevices[1].batteryLevel)), isCharging: 0, parentName: n + " (Case)".local, lastUpdate: now))
-                                }
-                            } else {
-                                AirBatteryModel.hideDevice(n + " 🄻🅁")
-                                for pod in subDevices { AirBatteryModel.updateDevice(pod) }
-                            }
-                        }
+                        // Store physical earbud readings only. Merging is a presentation
+                        // concern handled by AirBatteryModel.logicalPresentations.
+                        for pod in subDevices { AirBatteryModel.updateDevice(pod) }
                     }
                 }
             }

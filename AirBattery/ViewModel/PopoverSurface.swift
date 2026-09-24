@@ -125,84 +125,6 @@ extension View {
     }
 }
 
-private enum PopoverEstimateText {
-    private static let defaults =
-        UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
-    private static let historyKey = "batteryHistory.v1"
-
-    static func full(for device: Device, now: Date = Date()) -> String? {
-        let charging = device.isCharging != 0 || device.acPowered
-        if device.isCharged || (charging && device.batteryLevel >= 100) {
-            return "Full while charging"
-        }
-
-        if device.deviceID != "@MacInternalBattery",
-           let estimate = historyEstimate(for: device, now: now) {
-            return fullText(
-                charging: estimate.kind == .charging,
-                endDate: estimate.endDate,
-                duration: estimate.duration
-            )
-        }
-
-        guard let stored = device.estimatedSecondsRemaining,
-              stored.isFinite,
-              stored >= 0
-        else {
-            return nil
-        }
-
-        let elapsed = max(0, now.timeIntervalSince1970 - device.lastUpdate)
-        let remaining = max(0, stored - elapsed)
-        return fullText(
-            charging: charging,
-            endDate: now.addingTimeInterval(remaining),
-            duration: remaining
-        )
-    }
-
-    private static func historyEstimate(
-        for device: Device,
-        now: Date
-    ) -> BatteryTimeEstimate? {
-        guard let data = defaults.data(forKey: historyKey),
-              let history = try? JSONDecoder().decode(
-                  [String: [BatteryHistorySample]].self,
-                  from: data
-              )
-        else {
-            return nil
-        }
-        let key = DeviceDisplayNameStore.key(
-            canonicalID: device.deviceID,
-            deviceType: device.deviceType
-        )
-        return BatteryTimeEstimator.estimate(
-            samples: history[key] ?? [],
-            now: now
-        )
-    }
-
-    private static func fullText(
-        charging: Bool,
-        endDate: Date,
-        duration: TimeInterval
-    ) -> String {
-        let target = endDate.formatted(date: .omitted, time: .shortened)
-        let verb = charging ? "Full" : "Empty"
-        return "\(verb) around \(target) (~\(durationString(duration)))"
-    }
-
-    private static func durationString(_ seconds: TimeInterval) -> String {
-        let totalMinutes = max(0, Int((seconds / 60).rounded()))
-        let hours = totalMinutes / 60
-        let minutes = totalMinutes % 60
-        if hours == 0 { return "\(minutes)m" }
-        if minutes == 0 { return "\(hours)h" }
-        return "\(hours)h \(minutes)m"
-    }
-}
-
 struct MenuDeviceRowContent: View {
     let presentation: LogicalDevicePresentation
     var compactName = false
@@ -390,8 +312,14 @@ struct MenuDeviceRowContent: View {
                 fromNativeTimeLeft: InternalBattery.status.timeLeft
             )
         }
-        return PopoverEstimateText.full(
-            for: displayDevice,
+        return BatteryEstimateFormatting.full(
+            canonicalID: displayDevice.deviceID,
+            deviceType: displayDevice.deviceType,
+            level: displayDevice.batteryLevel,
+            charging: displayDevice.isCharging != 0 || displayDevice.acPowered,
+            charged: displayDevice.isCharged,
+            secondsRemaining: displayDevice.estimatedSecondsRemaining,
+            lastUpdate: displayDevice.lastUpdate,
             now: Date(timeIntervalSince1970: now)
         )
     }
@@ -512,7 +440,15 @@ private struct MenuBatteryComponentRow: View {
                 )
             }
 
-            if let estimate = PopoverEstimateText.full(for: component.device) {
+            if let estimate = BatteryEstimateFormatting.full(
+                canonicalID: component.device.deviceID,
+                deviceType: component.device.deviceType,
+                level: component.device.batteryLevel,
+                charging: component.device.isCharging != 0 || component.device.acPowered,
+                charged: component.device.isCharged,
+                secondsRemaining: component.device.estimatedSecondsRemaining,
+                lastUpdate: component.device.lastUpdate
+            ) {
                 Text(estimate)
                     .font(.system(size: 9))
                     .foregroundColor(.secondary)

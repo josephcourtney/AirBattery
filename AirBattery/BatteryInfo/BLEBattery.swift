@@ -840,7 +840,6 @@ final class BLEBattery: NSObject,
                 
                 // Keep the physical component readings as the source of truth.
                 // Earbud merging is a presentation choice and must never discard L/R values.
-                AirBatteryModel.hideDevice(deviceName + " 🄻🅁")
                 if leftLevel != 255 {
                     AirBatteryModel.updateDevice(
                         Device(
@@ -850,7 +849,6 @@ final class BLEBattery: NSObject,
                             deviceModel: model,
                             batteryLevel: Int(leftLevel),
                             isCharging: leftCharging,
-                            isHidden: false,
                             parentName: deviceName + " (Case)".local,
                             lastUpdate: now
                         )
@@ -865,7 +863,6 @@ final class BLEBattery: NSObject,
                             deviceModel: model,
                             batteryLevel: Int(rightLevel),
                             isCharging: rightCharging,
-                            isHidden: false,
                             parentName: deviceName + " (Case)".local,
                             lastUpdate: now
                         )
