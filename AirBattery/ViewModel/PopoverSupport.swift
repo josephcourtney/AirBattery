@@ -5,8 +5,8 @@ import SwiftUI
 final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
     private let contentWidth: CGFloat
     private var updatingFrame = false
-    private var resizeScheduled = false
 
+    var onWillHeightChange: ((CGFloat) -> Void)?
     var onHeightChange: ((CGFloat) -> Void)?
 
     required init(rootView: Content) {
@@ -28,12 +28,14 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
 
     override func layout() {
         super.layout()
-        scheduleResizeToFitContent()
+        resizeToFitContent()
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        scheduleResizeToFitContent()
+        DispatchQueue.main.async { [weak self] in
+            self?.resizeToFitContent()
+        }
     }
 
     private func configureFrame() {
@@ -46,29 +48,19 @@ final class ContentFittingHostingView<Content: View>: NSHostingView<Content> {
         autoresizingMask = [.width]
     }
 
-    private func scheduleResizeToFitContent() {
-        guard !resizeScheduled else { return }
-        resizeScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            resizeScheduled = false
-            resizeToFitContent()
-        }
-    }
-
     func resizeToFitContent() {
         guard !updatingFrame else { return }
+        updatingFrame = true
+        defer { updatingFrame = false }
 
         invalidateIntrinsicContentSize()
-        layoutSubtreeIfNeeded()
         let targetHeight = ceil(max(fittingSize.height, 1))
         guard abs(frame.height - targetHeight) > 0.5 else { return }
 
-        updatingFrame = true
+        onWillHeightChange?(targetHeight)
         setFrameSize(
             NSSize(width: contentWidth, height: targetHeight)
         )
-        updatingFrame = false
         onHeightChange?(targetHeight)
     }
 }
