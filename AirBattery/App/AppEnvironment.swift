@@ -32,7 +32,7 @@ final class AppEnvironment {
     )
     lazy var monitoring = MonitoringCoordinator(environment: self)
 
-    init(
+    private init(
         updaterController: SPUStandardUpdaterController,
         deviceStore: DeviceStore,
         ble: BLEBattery,
