@@ -1,12 +1,12 @@
 import Foundation
 
-enum BatteryHistorySharedReader {
+package enum BatteryHistorySharedReader {
     private static let storageKey = "batteryHistory.v1"
     private static var defaults: UserDefaults {
         UserDefaults(suiteName: "group.com.josephcourtney.AirBattery") ?? .standard
     }
 
-    static func estimate(
+    package static func estimate(
         canonicalID: String,
         deviceType: String,
         now: Date = Date()
@@ -30,7 +30,7 @@ enum BatteryHistorySharedReader {
         )
     }
 
-    static func estimate(for device: Device, now: Date = Date()) -> BatteryTimeEstimate? {
+    package static func estimate(for device: Device, now: Date = Date()) -> BatteryTimeEstimate? {
         guard device.deviceID != "@MacInternalBattery" else { return nil }
         return estimate(
             canonicalID: device.deviceID,
