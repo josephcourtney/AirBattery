@@ -48,6 +48,9 @@ let package = Package(
                 "Supports",
                 "UI/Widget",
                 "en.lproj",
+            ],
+            resources: [
+                .process("Assets.xcassets"),
             ]
         ),
         .executableTarget(
