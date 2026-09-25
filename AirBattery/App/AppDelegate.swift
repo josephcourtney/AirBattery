@@ -47,6 +47,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func confirmQuit() {
-        coordinator.confirmQuit()
+        let response = createAlert(
+            level: .warning,
+            title: "Quit AirBattery?",
+            message:
+                "AirBattery will stop monitoring device batteries until you launch it again.",
+            button1: "Quit",
+            button2: "Cancel"
+        ).runModal()
+        if response == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+        }
     }
 }
