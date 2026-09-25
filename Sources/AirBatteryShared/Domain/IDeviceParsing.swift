@@ -78,10 +78,6 @@ package struct CompanionBatteryResponse: Decodable, Equatable {
 
     package let watches: [Watch]
 
-    package init(watches: [Watch]) {
-        self.watches = watches
-    }
-
     package var validWatches: [Watch] {
         watches.filter { (0...100).contains($0.batteryLevel) }
     }
