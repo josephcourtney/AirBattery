@@ -1,22 +1,40 @@
 import Foundation
 
-enum IDeviceConnectionSource: String, Hashable {
+package enum IDeviceConnectionSource: String, Hashable {
     case network = "Network"
     case usb = "USB"
 }
 
-struct IDeviceDiscoveryCandidate: Identifiable, Hashable {
-    let identifier: String
-    var name: String?
-    var deviceType: String?
-    var model: String?
-    var sources: Set<IDeviceConnectionSource>
-    var lastSeen: Date
-    var batteryReadable: Bool
+package struct IDeviceDiscoveryCandidate: Identifiable, Hashable {
+    package let identifier: String
+    package var name: String?
+    package var deviceType: String?
+    package var model: String?
+    package var sources: Set<IDeviceConnectionSource>
+    package var lastSeen: Date
+    package var batteryReadable: Bool
 
-    var id: String { identifier }
+    package init(
+        identifier: String,
+        name: String?,
+        deviceType: String?,
+        model: String?,
+        sources: Set<IDeviceConnectionSource>,
+        lastSeen: Date,
+        batteryReadable: Bool
+    ) {
+        self.identifier = identifier
+        self.name = name
+        self.deviceType = deviceType
+        self.model = model
+        self.sources = sources
+        self.lastSeen = lastSeen
+        self.batteryReadable = batteryReadable
+    }
 
-    mutating func merge(
+    package var id: String { identifier }
+
+    package mutating func merge(
         source: IDeviceConnectionSource,
         name: String? = nil,
         deviceType: String? = nil,
@@ -34,33 +52,48 @@ struct IDeviceDiscoveryCandidate: Identifiable, Hashable {
         }
     }
 }
-struct CompanionBatteryResponse: Decodable, Equatable {
-    struct Watch: Decodable, Equatable {
-        let id: String
-        let name: String
-        let productType: String
-        let batteryLevel: Int
-        let isCharging: Bool
+
+package struct CompanionBatteryResponse: Decodable, Equatable {
+    package struct Watch: Decodable, Equatable {
+        package let id: String
+        package let name: String
+        package let productType: String
+        package let batteryLevel: Int
+        package let isCharging: Bool
+
+        package init(
+            id: String,
+            name: String,
+            productType: String,
+            batteryLevel: Int,
+            isCharging: Bool
+        ) {
+            self.id = id
+            self.name = name
+            self.productType = productType
+            self.batteryLevel = batteryLevel
+            self.isCharging = isCharging
+        }
     }
 
-    let watches: [Watch]
+    package let watches: [Watch]
 
-    var validWatches: [Watch] {
+    package var validWatches: [Watch] {
         watches.filter { (0...100).contains($0.batteryLevel) }
     }
 }
 
-final class CompanionProbeState {
+package final class CompanionProbeState {
     private let lock = NSLock()
     private let interval: TimeInterval
     private var disabledForLaunch = false
     private var lastProbe: [String: TimeInterval] = [:]
 
-    init(interval: TimeInterval) {
+    package init(interval: TimeInterval) {
         self.interval = interval
     }
 
-    func shouldProbe(
+    package func shouldProbe(
         parentID: String,
         deviceType: String,
         now: TimeInterval
@@ -81,31 +114,42 @@ final class CompanionProbeState {
         return true
     }
 
-    func disableForLaunch() {
+    package func disableForLaunch() {
         lock.lock()
         disabledForLaunch = true
         lock.unlock()
     }
 
-    var isDisabledForLaunch: Bool {
+    package var isDisabledForLaunch: Bool {
         lock.lock()
         defer { lock.unlock() }
         return disabledForLaunch
     }
 }
 
-struct IDeviceMetadata: Equatable {
-    let name: String
-    let productType: String
-    let deviceClass: String
+package struct IDeviceMetadata: Equatable {
+    package let name: String
+    package let productType: String
+    package let deviceClass: String
+
+    package init(name: String, productType: String, deviceClass: String) {
+        self.name = name
+        self.productType = productType
+        self.deviceClass = deviceClass
+    }
 }
 
-struct IDeviceBatteryReading: Equatable {
-    let level: Int
-    let isCharging: Bool
+package struct IDeviceBatteryReading: Equatable {
+    package let level: Int
+    package let isCharging: Bool
+
+    package init(level: Int, isCharging: Bool) {
+        self.level = level
+        self.isCharging = isCharging
+    }
 }
 
-enum IDeviceInfoParser {
+package enum IDeviceInfoParser {
     private static func value(for key: String, in output: String) -> String? {
         let prefix = key + ":"
         for line in output.components(separatedBy: .newlines) {
@@ -116,7 +160,7 @@ enum IDeviceInfoParser {
         return nil
     }
 
-    static func metadata(from output: String) -> IDeviceMetadata? {
+    package static func metadata(from output: String) -> IDeviceMetadata? {
         guard let name = value(for: "DeviceName", in: output),
               let productType = value(for: "ProductType", in: output),
               let deviceClass = value(for: "DeviceClass", in: output),
@@ -134,7 +178,7 @@ enum IDeviceInfoParser {
         )
     }
 
-    static func battery(from output: String) -> IDeviceBatteryReading? {
+    package static func battery(from output: String) -> IDeviceBatteryReading? {
         guard let levelText = value(for: "BatteryCurrentCapacity", in: output),
               let level = Int(levelText),
               let chargingText = value(for: "BatteryIsCharging", in: output)

@@ -94,21 +94,13 @@ targets:
     platform: macOS
     sources:
       - path: widget/widgetBundle.swift
-      - path: AirBattery/UI/Widget
-      - path: AirBattery/Domain
-      - path: AirBattery/Preferences/AppPreferences.swift
-      - path: AirBattery/Preferences/UserDefaultsSupport.swift
-      - path: AirBattery/Services/BatteryHistorySharedReader.swift
-      - path: AirBattery/Services/BatterySnapshotStore.swift
-      - path: AirBattery/Services/System/FileSystem.swift
-      - path: AirBattery/Shared/Extensions.swift
-      - path: AirBattery/UI/Components/BatteryColors.swift
-      - path: AirBattery/UI/Components/DeviceIconCatalog.swift
-      - path: AirBattery/UI/Components/WidgetSurfaces.swift
       - path: AirBattery/Assets.xcassets
         buildPhase: resources
       - path: AirBattery/en.lproj
         buildPhase: resources
+    dependencies:
+      - package: AirBatteryPackage
+        product: AirBatteryWidgetKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.josephcourtney.AirBattery.widget

@@ -1,10 +1,12 @@
 import Foundation
 
-final class ExclusiveScanGate: @unchecked Sendable {
+package final class ExclusiveScanGate: @unchecked Sendable {
     private let lock = NSLock()
     private var inFlight = false
 
-    func tryBegin() -> Bool {
+    package init() {}
+
+    package func tryBegin() -> Bool {
         lock.lock()
         defer { lock.unlock() }
         guard !inFlight else { return false }
@@ -12,7 +14,7 @@ final class ExclusiveScanGate: @unchecked Sendable {
         return true
     }
 
-    func end() {
+    package func end() {
         lock.lock()
         inFlight = false
         lock.unlock()

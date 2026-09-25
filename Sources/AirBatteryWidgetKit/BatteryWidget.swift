@@ -5,9 +5,8 @@
 //  Created by apple on 2024/2/18.
 //
 
-import WidgetKit
 import SwiftUI
-
+import WidgetKit
 
 struct SingleBatteryTimelineProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
@@ -143,7 +142,7 @@ struct BatteryOverviewEntryView: View {
             .font(.system(size: 12, weight: .medium))
             .foregroundColor(.gray)
         } else {
-            WidgetOverviewRingsSurfaceContent(
+            SharedWidgetOverviewRingsSurfaceContent(
                 devices: entry.data,
                 family: overviewFamily,
                 showPercentages: entry.showPercentages,
@@ -153,7 +152,7 @@ struct BatteryOverviewEntryView: View {
         }
     }
 
-    private var overviewFamily: WidgetOverviewFamily {
+    private var overviewFamily: SharedWidgetOverviewFamily {
         switch entry.family {
         case .systemSmall:
             return .small
@@ -165,10 +164,12 @@ struct BatteryOverviewEntryView: View {
     }
 }
 
-struct BatteryOverviewWidget: Widget {
+public struct BatteryOverviewWidget: Widget {
     let kind = "widget.battery.overview"
 
-    var body: some WidgetConfiguration {
+    public init() {}
+
+    public var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
             intent: BatteryOverviewConfigurationIntent.self,
@@ -191,4 +192,3 @@ struct BatteryOverviewWidget: Widget {
         ])
     }
 }
-

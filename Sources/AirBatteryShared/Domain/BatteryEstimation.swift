@@ -1,30 +1,50 @@
 import Foundation
 
-struct BatteryHistorySample: Codable, Equatable, Sendable {
-    let timestamp: TimeInterval
-    let level: Int
-    let charging: Bool
+package struct BatteryHistorySample: Codable, Equatable, Sendable {
+    package let timestamp: TimeInterval
+    package let level: Int
+    package let charging: Bool
+
+    package init(timestamp: TimeInterval, level: Int, charging: Bool) {
+        self.timestamp = timestamp
+        self.level = level
+        self.charging = charging
+    }
 }
 
-enum BatteryTimeEstimateKind: String, Codable, Equatable, Sendable {
+package enum BatteryTimeEstimateKind: String, Codable, Equatable, Sendable {
     case charging
     case discharging
 }
 
-struct BatteryTimeEstimate: Equatable, Sendable {
-    let kind: BatteryTimeEstimateKind
-    let startDate: Date
-    let endDate: Date
-    let duration: TimeInterval
-    let confidence: Double
+package struct BatteryTimeEstimate: Equatable, Sendable {
+    package let kind: BatteryTimeEstimateKind
+    package let startDate: Date
+    package let endDate: Date
+    package let duration: TimeInterval
+    package let confidence: Double
+
+    package init(
+        kind: BatteryTimeEstimateKind,
+        startDate: Date,
+        endDate: Date,
+        duration: TimeInterval,
+        confidence: Double
+    ) {
+        self.kind = kind
+        self.startDate = startDate
+        self.endDate = endDate
+        self.duration = duration
+        self.confidence = confidence
+    }
 }
 
-enum BatteryTimeEstimator {
+package enum BatteryTimeEstimator {
     private static let minimumSpan: TimeInterval = 10 * 60
     private static let maximumSpan: TimeInterval = 6 * 60 * 60
     private static let maximumPrediction: TimeInterval = 72 * 60 * 60
 
-    static func estimate(
+    package static func estimate(
         samples: [BatteryHistorySample],
         now: Date = Date()
     ) -> BatteryTimeEstimate? {
@@ -124,19 +144,25 @@ enum BatteryTimeEstimator {
         )
     }
 }
-struct BatteryEstimateState: Equatable {
-    let ratePerHour: Double?
-    let secondsRemaining: Double?
+
+package struct BatteryEstimateState: Equatable {
+    package let ratePerHour: Double?
+    package let secondsRemaining: Double?
+
+    package init(ratePerHour: Double?, secondsRemaining: Double?) {
+        self.ratePerHour = ratePerHour
+        self.secondsRemaining = secondsRemaining
+    }
 }
 
-enum BatteryEstimateEngine {
+package enum BatteryEstimateEngine {
     private static let minimumSampleInterval: TimeInterval = 120
     private static let maximumSampleInterval: TimeInterval = 6 * 3600
     private static let minimumPlausibleRate = 0.1
     private static let maximumPlausibleRate = 100.0
     private static let smoothingWeight = 0.3
 
-    static func updated(
+    package static func updated(
         previousLevel: Int,
         previousCharging: Bool,
         previousTime: TimeInterval,
@@ -239,7 +265,7 @@ enum BatteryEstimateEngine {
         )
     }
 
-    static func seconds(fromNativeTimeLeft value: String) -> Double? {
+    package static func seconds(fromNativeTimeLeft value: String) -> Double? {
         guard value != "∞", value != "…" else { return nil }
         let parts = value.split(separator: ":")
         guard parts.count == 2,
@@ -310,11 +336,6 @@ enum BatteryEstimateEngine {
         return Double(pointsRemaining) / ratePerHour * 3600
     }
 
-    // Before the first usable rate, the two optional estimate fields carry an
-    // internal negative sentinel. Formatting rejects the negative remaining
-    // value, so it is never exposed as an ETA. This lets frequent unchanged
-    // observations preserve the original level/time anchor without adding
-    // another serialized state field to Device.
     private static func anchor(
         level: Int,
         time: TimeInterval
@@ -343,8 +364,8 @@ enum BatteryEstimateEngine {
     }
 }
 
-enum BatteryEstimateFormatting {
-    static func full(
+package enum BatteryEstimateFormatting {
+    package static func full(
         level: Int,
         charging: Bool,
         charged: Bool,
@@ -379,7 +400,7 @@ enum BatteryEstimateFormatting {
         )
     }
 
-    static func compact(
+    package static func compact(
         level: Int,
         charging: Bool,
         charged: Bool,

@@ -1,16 +1,26 @@
 import Foundation
 
-enum DeviceObservationSource: String, Codable, Equatable {
+package enum DeviceObservationSource: String, Codable, Equatable {
     case ble
     case libimobiledevice
 }
 
-struct DeviceIdentifierSet: Equatable {
-    var canonicalID: String
-    var mobileDeviceID: String?
-    var bleDeviceID: String?
+package struct DeviceIdentifierSet: Equatable {
+    package var canonicalID: String
+    package var mobileDeviceID: String?
+    package var bleDeviceID: String?
 
-    mutating func merge(
+    package init(
+        canonicalID: String,
+        mobileDeviceID: String?,
+        bleDeviceID: String?
+    ) {
+        self.canonicalID = canonicalID
+        self.mobileDeviceID = mobileDeviceID
+        self.bleDeviceID = bleDeviceID
+    }
+
+    package mutating func merge(
         canonicalID incomingCanonicalID: String,
         mobileDeviceID incomingMobileDeviceID: String?,
         bleDeviceID incomingBLEDeviceID: String?
@@ -31,15 +41,15 @@ struct DeviceIdentifierSet: Equatable {
         }
     }
 
-    func matches(_ identifier: String) -> Bool {
+    package func matches(_ identifier: String) -> Bool {
         canonicalID == identifier ||
             mobileDeviceID == identifier ||
             bleDeviceID == identifier
     }
 }
 
-enum DeviceStorageKey {
-    static func make(canonicalID: String, deviceType: String) -> String {
+package enum DeviceStorageKey {
+    package static func make(canonicalID: String, deviceType: String) -> String {
         canonicalID + "|" + deviceType
     }
 }

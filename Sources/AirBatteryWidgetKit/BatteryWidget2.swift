@@ -5,8 +5,8 @@
 //  Created by apple on 2024/2/20.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct SingleBatteryWidgetEntryView: View {
     let entry: SimpleEntry
@@ -49,7 +49,7 @@ struct SingleBatteryWidgetEntryView: View {
             .font(.system(size: 11, weight: .medium))
             .foregroundColor(.gray)
         } else {
-            WidgetSingleBatterySurfaceContent(
+            SharedWidgetSingleBatterySurfaceContent(
                 item: item,
                 presentation: presentation,
                 deviceName: entry.deviceName,
@@ -59,10 +59,12 @@ struct SingleBatteryWidgetEntryView: View {
     }
 }
 
-struct SingleBatteryWidget: Widget {
+public struct SingleBatteryWidget: Widget {
     let kind: String = "widget.battery.part3"
 
-    var body: some WidgetConfiguration {
+    public init() {}
+
+    public var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
             intent: SingleBatteryConfigurationIntent.self,
@@ -79,4 +81,3 @@ struct SingleBatteryWidget: Widget {
         .supportedFamilies([.systemSmall])
     }
 }
-

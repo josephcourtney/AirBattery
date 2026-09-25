@@ -9,8 +9,16 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "AirBatteryShared",
+            targets: ["AirBatteryShared"]
+        ),
+        .library(
             name: "AirBatteryKit",
             targets: ["AirBatteryKit"]
+        ),
+        .library(
+            name: "AirBatteryWidgetKit",
+            targets: ["AirBatteryWidgetKit"]
         ),
         .executable(
             name: "airbattery",
@@ -33,8 +41,13 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "AirBatteryShared",
+            path: "Sources/AirBatteryShared"
+        ),
+        .target(
             name: "AirBatteryKit",
             dependencies: [
+                "AirBatteryShared",
                 .product(name: "MultipeerKit", package: "MultipeerKit"),
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
@@ -47,9 +60,13 @@ let package = Package(
                 "Preview Content",
                 "libimobiledevice",
                 "Supports",
-                "UI/Widget",
                 "en.lproj",
             ]
+        ),
+        .target(
+            name: "AirBatteryWidgetKit",
+            dependencies: ["AirBatteryShared"],
+            path: "Sources/AirBatteryWidgetKit"
         ),
         .executableTarget(
             name: "abt",
