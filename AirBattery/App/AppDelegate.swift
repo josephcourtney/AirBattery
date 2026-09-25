@@ -119,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         
         environment.ble.startScan()
-        environment.btd.startScan()
+        environment.hid.startScan()
         environment.magicBattery.startScan()
         environment.iDevices.startScan()
         environment.monitoring.start()
@@ -165,11 +165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 let alert = createAlert(title: "AirBattery Tips".local, message: "If some of your devices shows battery level in the Bluetooth menu, but AirBattery doesn't find it. Try disconnecting and reconnecting it, and wait a few minutes.".local, button1: "Don't remind me again", button2: "OK")
                 if alert.runModal() == .alertFirstButtonReturn { AppPreferences.neverRemind = never + [tipID] }
             }
-            // Bootstrap Enhanced HID scan incrementally with a short initial window
-            let logReader = environment.logReader
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-                logReader.run(.bootstrap)
-            }
         }
     }
     
@@ -196,9 +191,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     private func handleDisplayWake() {
         if AppPreferences.readBTHID {
-            let logReader = environment.logReader
+            let hid = environment.hid
             DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
-                logReader.run(.wake)
+                hid.run(.wake)
             }
         }
     }
@@ -236,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
 
         print("ℹ️ \(name) (\(address)) connected")
-        let logReader = environment.logReader
+        let hid = environment.hid
         let magicBattery = environment.magicBattery
         let deviceStore = environment.deviceStore
         DispatchQueue.global(qos: .utility).async {
@@ -244,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
             if !isAppleDevice {
                 SPBluetoothDataModel.shared.refeshData { _ in
-                    logReader.run(.connect)
+                    hid.run(.connect)
                     magicBattery.getIOBTBattery()
                     magicBattery.getOtherBTBattery()
                 }
