@@ -1,7 +1,7 @@
 import Foundation
 
-enum EarbudMergePolicy {
-    static func mergedLevel(
+package enum EarbudMergePolicy {
+    package static func mergedLevel(
         enabled: Bool,
         threshold: Int,
         leftLevel: Int,
@@ -18,7 +18,7 @@ enum EarbudMergePolicy {
         return min(leftLevel, rightLevel)
     }
 
-    static func mergedCharging(
+    package static func mergedCharging(
         enabled: Bool,
         threshold: Int,
         leftLevel: Int,
