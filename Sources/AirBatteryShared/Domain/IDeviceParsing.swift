@@ -60,9 +60,27 @@ package struct CompanionBatteryResponse: Decodable, Equatable {
         package let productType: String
         package let batteryLevel: Int
         package let isCharging: Bool
+
+        package init(
+            id: String,
+            name: String,
+            productType: String,
+            batteryLevel: Int,
+            isCharging: Bool
+        ) {
+            self.id = id
+            self.name = name
+            self.productType = productType
+            self.batteryLevel = batteryLevel
+            self.isCharging = isCharging
+        }
     }
 
     package let watches: [Watch]
+
+    package init(watches: [Watch]) {
+        self.watches = watches
+    }
 
     package var validWatches: [Watch] {
         watches.filter { (0...100).contains($0.batteryLevel) }
@@ -117,11 +135,22 @@ package struct IDeviceMetadata: Equatable {
     package let name: String
     package let productType: String
     package let deviceClass: String
+
+    package init(name: String, productType: String, deviceClass: String) {
+        self.name = name
+        self.productType = productType
+        self.deviceClass = deviceClass
+    }
 }
 
 package struct IDeviceBatteryReading: Equatable {
     package let level: Int
     package let isCharging: Bool
+
+    package init(level: Int, isCharging: Bool) {
+        self.level = level
+        self.isCharging = isCharging
+    }
 }
 
 package enum IDeviceInfoParser {
