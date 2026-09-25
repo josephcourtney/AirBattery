@@ -42,19 +42,7 @@ let package = Package(
     targets: [
         .target(
             name: "AirBatteryShared",
-            path: "AirBattery",
-            sources: [
-                "Domain",
-                "Preferences/AppPreferences.swift",
-                "Preferences/UserDefaultsSupport.swift",
-                "Services/BatteryHistorySharedReader.swift",
-                "Services/BatterySnapshotStore.swift",
-                "Services/System/FileSystem.swift",
-                "Shared/Extensions.swift",
-                "UI/Components/BatteryColors.swift",
-                "UI/Components/DeviceIconCatalog.swift",
-                "UI/Components/WidgetSurfaces.swift",
-            ]
+            path: "Sources/AirBatteryShared"
         ),
         .target(
             name: "AirBatteryKit",
@@ -68,19 +56,8 @@ let package = Package(
                 "AirBattery.entitlements",
                 "Assets.xcassets",
                 "Base.lproj",
-                "Domain",
                 "Info.plist",
-                "Preferences/AppPreferences.swift",
-                "Preferences/UserDefaultsSupport.swift",
                 "Preview Content",
-                "Services/BatteryHistorySharedReader.swift",
-                "Services/BatterySnapshotStore.swift",
-                "Services/System/FileSystem.swift",
-                "Shared/Extensions.swift",
-                "UI/Components/BatteryColors.swift",
-                "UI/Components/DeviceIconCatalog.swift",
-                "UI/Components/WidgetSurfaces.swift",
-                "UI/Widget",
                 "libimobiledevice",
                 "Supports",
                 "en.lproj",
@@ -89,7 +66,7 @@ let package = Package(
         .target(
             name: "AirBatteryWidgetKit",
             dependencies: ["AirBatteryShared"],
-            path: "AirBattery/UI/Widget"
+            path: "Sources/AirBatteryWidgetKit"
         ),
         .executableTarget(
             name: "abt",
