@@ -1,10 +1,10 @@
 import Foundation
 
-enum BatterySnapshotStore {
-    static let widgetBundleIdentifier = "com.josephcourtney.AirBattery.widget"
-    static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
+package enum BatterySnapshotStore {
+    package static let widgetBundleIdentifier = "com.josephcourtney.AirBattery.widget"
+    package static let appGroupIdentifier = "group.com.josephcourtney.AirBattery"
 
-    static var sharedDataDirectory: URL {
+    package static var sharedDataDirectory: URL {
         if let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier
         ) {
@@ -34,11 +34,11 @@ enum BatterySnapshotStore {
         )
     }
 
-    static var dataURL: URL {
+    package static var dataURL: URL {
         sharedDataDirectory.appendingPathComponent("data.json")
     }
 
-    static var nearcastDirectory: URL {
+    package static var nearcastDirectory: URL {
         let url = sharedDataDirectory.appendingPathComponent(
             "NearcastData",
             isDirectory: true
@@ -50,15 +50,15 @@ enum BatterySnapshotStore {
         return url
     }
 
-    static var heartbeatURL: URL {
+    package static var heartbeatURL: URL {
         sharedDataDirectory.appendingPathComponent("heartbeat")
     }
 
-    static func touchHeartbeat() {
+    package static func touchHeartbeat() {
         try? Data().write(to: heartbeatURL, options: .atomic)
     }
 
-    static func isFresh(
+    package static func isFresh(
         maxAge: TimeInterval = 120,
         now: Date = Date()
     ) -> Bool {
@@ -72,7 +72,7 @@ enum BatterySnapshotStore {
         return now.timeIntervalSince(modified) <= maxAge
     }
 
-    static func read(from url: URL = dataURL) -> [Device] {
+    package static func read(from url: URL = dataURL) -> [Device] {
         do {
             let data = try Data(contentsOf: url)
             return try JSONDecoder().decode([Device].self, from: data)
@@ -82,7 +82,7 @@ enum BatterySnapshotStore {
         }
     }
 
-    static func nearcastDevices(
+    package static func nearcastDevices(
         at url: URL,
         localNames: Set<String>
     ) -> [Device] {
@@ -106,7 +106,7 @@ enum BatterySnapshotStore {
         return list
     }
 
-    static func nearcastDevicesForWidget(at url: URL) -> [Device] {
+    package static func nearcastDevicesForWidget(at url: URL) -> [Device] {
         nearcastDevices(
             at: url,
             localNames: Set(read().map(\.deviceName))
