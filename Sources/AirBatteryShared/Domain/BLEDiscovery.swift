@@ -1,11 +1,11 @@
 import Foundation
 
-enum BLEDiscoveryMode: String, CaseIterable, Codable {
+package enum BLEDiscoveryMode: String, CaseIterable, Codable {
     case passive
     case review
     case automatic
 
-    var title: String {
+    package var title: String {
         switch self {
         case .passive: return "Observe only"
         case .review: return "Ask before querying"
@@ -13,7 +13,7 @@ enum BLEDiscoveryMode: String, CaseIterable, Codable {
         }
     }
 
-    var detail: String {
+    package var detail: String {
         switch self {
         case .passive:
             return "AirBattery observes unknown devices without connecting. Only devices explicitly allowed for battery queries may be contacted."
@@ -25,12 +25,12 @@ enum BLEDiscoveryMode: String, CaseIterable, Codable {
     }
 }
 
-enum BLEDevicePolicy: String, CaseIterable, Codable {
+package enum BLEDevicePolicy: String, CaseIterable, Codable {
     case allow
     case observe
     case ignore
 
-    var title: String {
+    package var title: String {
         switch self {
         case .allow: return "Allow queries"
         case .observe: return "Passive only"
@@ -39,46 +39,100 @@ enum BLEDevicePolicy: String, CaseIterable, Codable {
     }
 }
 
-struct BLEDeviceRule: Codable, Hashable, Identifiable {
-    let identifier: String
-    var name: String
-    var policy: BLEDevicePolicy
+package struct BLEDeviceRule: Codable, Hashable, Identifiable {
+    package let identifier: String
+    package var name: String
+    package var policy: BLEDevicePolicy
 
-    var id: String { identifier }
+    package init(identifier: String, name: String, policy: BLEDevicePolicy) {
+        self.identifier = identifier
+        self.name = name
+        self.policy = policy
+    }
+
+    package var id: String { identifier }
 }
 
-struct BLELogicalDeviceRule: Codable, Hashable, Identifiable {
-    let key: String
-    var name: String
-    var policy: BLEDevicePolicy
+package struct BLELogicalDeviceRule: Codable, Hashable, Identifiable {
+    package let key: String
+    package var name: String
+    package var policy: BLEDevicePolicy
 
-    var id: String { key }
+    package init(key: String, name: String, policy: BLEDevicePolicy) {
+        self.key = key
+        self.name = name
+        self.policy = policy
+    }
+
+    package var id: String { key }
 }
 
-struct BLEDiscoveryCandidate: Hashable, Identifiable {
-    let identifier: String
-    var name: String
-    var rssi: Int
-    var smoothedRSSI: Double
-    var firstSeen: Date
-    var lastSeen: Date
-    var seenCount: Int
-    var isConnectable: Bool
-    var advertisesBatteryService: Bool
-    var hasPassiveBatteryData: Bool
-    var matchesPairedName: Bool
-    var lastProbeResult: String?
+package struct BLEDiscoveryCandidate: Hashable, Identifiable {
+    package let identifier: String
+    package var name: String
+    package var rssi: Int
+    package var smoothedRSSI: Double
+    package var firstSeen: Date
+    package var lastSeen: Date
+    package var seenCount: Int
+    package var isConnectable: Bool
+    package var advertisesBatteryService: Bool
+    package var hasPassiveBatteryData: Bool
+    package var matchesPairedName: Bool
+    package var lastProbeResult: String?
 
-    var id: String { identifier }
-    var displayRSSI: Int { Int(smoothedRSSI.rounded()) }
+    package init(
+        identifier: String,
+        name: String,
+        rssi: Int,
+        smoothedRSSI: Double,
+        firstSeen: Date,
+        lastSeen: Date,
+        seenCount: Int,
+        isConnectable: Bool,
+        advertisesBatteryService: Bool,
+        hasPassiveBatteryData: Bool,
+        matchesPairedName: Bool,
+        lastProbeResult: String?
+    ) {
+        self.identifier = identifier
+        self.name = name
+        self.rssi = rssi
+        self.smoothedRSSI = smoothedRSSI
+        self.firstSeen = firstSeen
+        self.lastSeen = lastSeen
+        self.seenCount = seenCount
+        self.isConnectable = isConnectable
+        self.advertisesBatteryService = advertisesBatteryService
+        self.hasPassiveBatteryData = hasPassiveBatteryData
+        self.matchesPairedName = matchesPairedName
+        self.lastProbeResult = lastProbeResult
+    }
+
+    package var id: String { identifier }
+    package var displayRSSI: Int { Int(smoothedRSSI.rounded()) }
 }
 
-struct BLELogicalDeviceSnapshot: Identifiable {
-    let key: String
-    let name: String
-    let policy: BLEDevicePolicy?
-    let identities: [BLEDiscoveryCandidate]
-    let exactRules: [BLEDeviceRule]
+package struct BLELogicalDeviceSnapshot: Identifiable {
+    package let key: String
+    package let name: String
+    package let policy: BLEDevicePolicy?
+    package let identities: [BLEDiscoveryCandidate]
+    package let exactRules: [BLEDeviceRule]
 
-    var id: String { key }
+    package init(
+        key: String,
+        name: String,
+        policy: BLEDevicePolicy?,
+        identities: [BLEDiscoveryCandidate],
+        exactRules: [BLEDeviceRule]
+    ) {
+        self.key = key
+        self.name = name
+        self.policy = policy
+        self.identities = identities
+        self.exactRules = exactRules
+    }
+
+    package var id: String { key }
 }
