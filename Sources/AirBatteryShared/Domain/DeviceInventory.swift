@@ -1,13 +1,13 @@
 import Foundation
 
-enum DeviceInventorySource: String, Hashable {
+package enum DeviceInventorySource: String, Hashable {
     case builtIn = "Built-in"
     case network = "Network"
     case usb = "USB"
     case bluetooth = "Bluetooth"
     case nearcast = "Nearcast"
 
-    var sortOrder: Int {
+    package var sortOrder: Int {
         switch self {
         case .builtIn: return 0
         case .network: return 1
@@ -18,18 +18,36 @@ enum DeviceInventorySource: String, Hashable {
     }
 }
 
-struct KnownDeviceSnapshot: Identifiable {
-    let id: String
-    var name: String
-    var devices: [Device] = []
-    var sources: Set<DeviceInventorySource> = []
-    var ble: BLELogicalDeviceSnapshot?
-    var iDeviceCandidates: [IDeviceDiscoveryCandidate] = []
-    var isBuiltIn = false
+package struct KnownDeviceSnapshot: Identifiable {
+    package let id: String
+    package var name: String
+    package var devices: [Device]
+    package var sources: Set<DeviceInventorySource>
+    package var ble: BLELogicalDeviceSnapshot?
+    package var iDeviceCandidates: [IDeviceDiscoveryCandidate]
+    package var isBuiltIn: Bool
+
+    package init(
+        id: String,
+        name: String,
+        devices: [Device] = [],
+        sources: Set<DeviceInventorySource> = [],
+        ble: BLELogicalDeviceSnapshot? = nil,
+        iDeviceCandidates: [IDeviceDiscoveryCandidate] = [],
+        isBuiltIn: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.devices = devices
+        self.sources = sources
+        self.ble = ble
+        self.iDeviceCandidates = iDeviceCandidates
+        self.isBuiltIn = isBuiltIn
+    }
 }
 
-enum DeviceInventoryBuilder {
-    static func build(
+package enum DeviceInventoryBuilder {
+    package static func build(
         localDevices: [Device],
         internalBattery: Device?,
         nearcastDevices: [Device],
