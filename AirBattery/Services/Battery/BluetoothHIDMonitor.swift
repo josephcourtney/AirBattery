@@ -250,7 +250,7 @@ final class BluetoothHIDMonitor: Sendable {
             }
 
             state.withLock { state in
-                state.knownDeviceNames.insert(entry.name)
+                _ = state.knownDeviceNames.insert(entry.name)
             }
 
             deviceStore.update(
