@@ -59,10 +59,12 @@ struct SingleBatteryWidgetEntryView: View {
     }
 }
 
-struct SingleBatteryWidget: Widget {
+public struct SingleBatteryWidget: Widget {
     let kind: String = "widget.battery.part3"
 
-    var body: some WidgetConfiguration {
+    public init() {}
+
+    public var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
             intent: SingleBatteryConfigurationIntent.self,
@@ -79,4 +81,3 @@ struct SingleBatteryWidget: Widget {
         .supportedFamilies([.systemSmall])
     }
 }
-
