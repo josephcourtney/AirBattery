@@ -53,7 +53,7 @@ final class ProcessRunnerTests: XCTestCase {
 
     func testChildEnvironmentCanBeSpecifiedWithoutMutatingParent() throws {
         let variable = "AIRBATTERY_PROCESS_RUNNER_TEST"
-        XCTAssertNil(ProcessInfo.processInfo.environment[variable])
+        let originalValue = ProcessInfo.processInfo.environment[variable]
 
         var environment = ProcessInfo.processInfo.environment
         environment[variable] = "child-only"
@@ -70,7 +70,10 @@ final class ProcessRunnerTests: XCTestCase {
                 Substring("\(variable)=child-only")
             )
         )
-        XCTAssertNil(ProcessInfo.processInfo.environment[variable])
+        XCTAssertEqual(
+            ProcessInfo.processInfo.environment[variable],
+            originalValue
+        )
     }
 
     func testTimeoutTerminatesLongRunningProcess() throws {
