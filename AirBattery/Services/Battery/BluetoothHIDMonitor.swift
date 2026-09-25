@@ -97,14 +97,27 @@ final class BluetoothHIDMonitor: Sendable {
 
         switch trigger {
         case .bootstrap:
-            let entries = readEntries(
+            // Preserve the former BTDBattery recovery pass: inspect a broad
+            // window, but materialize only devices that are connected now.
+            let recoveryEntries = readEntries(
                 window: "2h",
                 startTimestamp: nil,
                 timeout: 25,
                 latestOnly: true
             )
-            ingest(entries, connectedOnly: true)
+            ingest(recoveryEntries, connectedOnly: true)
             refreshConnectedDevices()
+
+            // Preserve the former LogReader bootstrap immediately afterward:
+            // replay the incremental range without requiring current presence.
+            let start = incrementalStartTimestamp()
+            let incrementalEntries = readEntries(
+                window: start == nil ? "20m" : "10m",
+                startTimestamp: start,
+                timeout: 5,
+                latestOnly: false
+            )
+            ingest(incrementalEntries, connectedOnly: false)
 
         case .wake:
             let start = incrementalStartTimestamp()
@@ -143,7 +156,6 @@ final class BluetoothHIDMonitor: Sendable {
         )
         ingest(entries, connectedOnly: true)
         refreshConnectedDevices()
-        advanceLastTS()
     }
 
     static func getConnected(mac: Bool = false) -> [String] {
@@ -270,14 +282,12 @@ final class BluetoothHIDMonitor: Sendable {
     }
 
     private func incrementalStartTimestamp() -> String? {
-        guard !lastTS.isEmpty,
-              let previous = Self.makeCursorFormatter().date(from: lastTS)
-        else {
-            return nil
+        let formatter = Self.makeCursorFormatter()
+        if lastTS.isEmpty {
+            return formatter.string(from: Date(timeIntervalSinceNow: -20 * 60))
         }
-        return Self.makeCursorFormatter().string(
-            from: previous.addingTimeInterval(-2)
-        )
+        guard let previous = formatter.date(from: lastTS) else { return nil }
+        return formatter.string(from: previous.addingTimeInterval(-2))
     }
 
     private func advanceLastTS() {
