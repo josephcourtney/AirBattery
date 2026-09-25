@@ -30,6 +30,7 @@ final class ApplicationCoordinator: NSObject, UNUserNotificationCenterDelegate {
 
     func applicationWillFinishLaunching() {
         registerNotificationCategory()
+        installDockMenu()
         installMainMenuIfNeeded()
         configurePreferences()
         prepareNearcastDirectory()
@@ -297,6 +298,12 @@ final class ApplicationCoordinator: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    private func installDockMenu() {
+        guard dockMenu.items.isEmpty else { return }
+        addMenuItem(dockMenu, title: "Settings...".local, action: #selector(openSetting))
+        addMenuItem(dockMenu, title: "About AirBattery".local, action: #selector(openAbout))
+    }
+
     private func installMainMenuIfNeeded() {
         guard NSApp.mainMenu == nil else { return }
 
@@ -324,11 +331,7 @@ final class ApplicationCoordinator: NSObject, UNUserNotificationCenterDelegate {
         addSystemMenuItem(appMenu, title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)))
         appMenu.addItem(.separator())
         addSystemMenuItem(appMenu, title: "Quit AirBattery".local, action: #selector(NSApplication.terminate(_:)), key: "q", modifiers: [.command])
-
         NSApp.mainMenu = mainMenu
-
-        addMenuItem(dockMenu, title: "Settings...".local, action: #selector(openSetting))
-        addMenuItem(dockMenu, title: "About AirBattery".local, action: #selector(openAbout))
     }
 
     @discardableResult
