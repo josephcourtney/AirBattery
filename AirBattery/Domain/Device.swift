@@ -1,27 +1,69 @@
 import Foundation
 
-struct Device: Hashable, Codable {
-    var hasBattery: Bool = true
-    var deviceID: String
-    var deviceType: String
-    var deviceName: String
-    var deviceModel: String?
-    var batteryLevel: Int
-    var isCharging: Int
-    var isCharged: Bool = false
-    var isPaused: Bool = false
-    var acPowered: Bool = false
-    var lowPower: Bool = false
-    var parentName: String = ""
-    var lastUpdate: Double
-    var realUpdate: Double = 0.0
-    var mobileDeviceID: String?
-    var bleDeviceID: String?
-    var batterySource: DeviceObservationSource?
-    var estimatedRatePerHour: Double?
-    var estimatedSecondsRemaining: Double?
+package struct Device: Hashable, Codable {
+    package var hasBattery: Bool = true
+    package var deviceID: String
+    package var deviceType: String
+    package var deviceName: String
+    package var deviceModel: String?
+    package var batteryLevel: Int
+    package var isCharging: Int
+    package var isCharged: Bool = false
+    package var isPaused: Bool = false
+    package var acPowered: Bool = false
+    package var lowPower: Bool = false
+    package var parentName: String = ""
+    package var lastUpdate: Double
+    package var realUpdate: Double = 0.0
+    package var mobileDeviceID: String?
+    package var bleDeviceID: String?
+    package var batterySource: DeviceObservationSource?
+    package var estimatedRatePerHour: Double?
+    package var estimatedSecondsRemaining: Double?
 
-    public func hash(into hasher: inout Hasher) {
+    package init(
+        hasBattery: Bool = true,
+        deviceID: String,
+        deviceType: String,
+        deviceName: String,
+        deviceModel: String? = nil,
+        batteryLevel: Int,
+        isCharging: Int,
+        isCharged: Bool = false,
+        isPaused: Bool = false,
+        acPowered: Bool = false,
+        lowPower: Bool = false,
+        parentName: String = "",
+        lastUpdate: Double,
+        realUpdate: Double = 0.0,
+        mobileDeviceID: String? = nil,
+        bleDeviceID: String? = nil,
+        batterySource: DeviceObservationSource? = nil,
+        estimatedRatePerHour: Double? = nil,
+        estimatedSecondsRemaining: Double? = nil
+    ) {
+        self.hasBattery = hasBattery
+        self.deviceID = deviceID
+        self.deviceType = deviceType
+        self.deviceName = deviceName
+        self.deviceModel = deviceModel
+        self.batteryLevel = batteryLevel
+        self.isCharging = isCharging
+        self.isCharged = isCharged
+        self.isPaused = isPaused
+        self.acPowered = acPowered
+        self.lowPower = lowPower
+        self.parentName = parentName
+        self.lastUpdate = lastUpdate
+        self.realUpdate = realUpdate
+        self.mobileDeviceID = mobileDeviceID
+        self.bleDeviceID = bleDeviceID
+        self.batterySource = batterySource
+        self.estimatedRatePerHour = estimatedRatePerHour
+        self.estimatedSecondsRemaining = estimatedSecondsRemaining
+    }
+
+    package func hash(into hasher: inout Hasher) {
         hasher.combine(hasBattery)
         hasher.combine(deviceID)
         hasher.combine(deviceType)
@@ -43,7 +85,7 @@ struct Device: Hashable, Codable {
         hasher.combine(estimatedSecondsRemaining)
     }
 
-    mutating func mergeIdentifiers(fromExisting existing: Device) {
+    package mutating func mergeIdentifiers(fromExisting existing: Device) {
         var identifiers = DeviceIdentifierSet(
             canonicalID: existing.deviceID,
             mobileDeviceID: existing.mobileDeviceID,
@@ -59,7 +101,7 @@ struct Device: Hashable, Codable {
         bleDeviceID = identifiers.bleDeviceID
     }
 
-    func matchesIdentifier(_ identifier: String) -> Bool {
+    package func matchesIdentifier(_ identifier: String) -> Bool {
         DeviceIdentifierSet(
             canonicalID: deviceID,
             mobileDeviceID: mobileDeviceID,
