@@ -9,7 +9,7 @@ struct DebugView: View {
     @AppStorage("test_full") var test_full = false
     @AppStorage("test_iblevel") var test_iblevel = 100
     @AppStorage("showDebug") var showDebug: Bool = false
-    
+
     @State private var deviceID: String = ""
     @State private var deviceType: String = ""
     @State private var deviceName: String = ""
@@ -20,11 +20,16 @@ struct DebugView: View {
     @State private var isCharging: Bool = false
     @State private var fullCharged: Bool = false
     @State private var isPresented: Bool = false
-    
+
     @Binding var selectedItem: SettingsSection?
-    
+
     var body: some View {
         SForm {
+            SettingsPageHeader(
+                title: "Debug",
+                subtitle: "Inspect and simulate AirBattery data for diagnostics."
+            )
+
             SGroupBox {
                 SToggle("Debug Mode", isOn: $test_debug)
                 Divider().opacity(0.5)
@@ -87,7 +92,7 @@ struct DebugView: View {
                                 Button(action: {
                                     isPresented = false
                                 }, label: {
-                                    Text("Cancle").frame(width: 50)
+                                    Text("Cancel").frame(width: 50)
                                 })
                                 Button(action: {
                                     let device = Device(deviceID: deviceID, deviceType: deviceType, deviceName: deviceName, batteryLevel: batteryLevel, isCharging: isCharging ? 1 : (fullCharged ? 5 : 0), lowPower: lowPower, parentName: parentName,lastUpdate: Date().timeIntervalSince1970)
@@ -122,4 +127,3 @@ struct DebugView: View {
         }
     }
 }
-
