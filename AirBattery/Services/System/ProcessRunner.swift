@@ -41,7 +41,7 @@ enum ProcessRunner {
                     deadline: .now() + 0.4
                 ) {
                     guard task.isRunning else { return }
-                    Darwin.kill(task.processIdentifier, SIGKILL)
+                    _ = Darwin.kill(task.processIdentifier, SIGKILL)
                 }
             }
         }
