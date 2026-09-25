@@ -4,7 +4,7 @@ import Synchronization
 
 struct BluetoothHIDLogEntry: Decodable, Equatable {
     let mac: String
-    var name: String
+    let name: String
     let type: String
     let time: String
     let level: Int
@@ -12,6 +12,27 @@ struct BluetoothHIDLogEntry: Decodable, Equatable {
 
     var identity: String {
         "\(name)\u{1f}\(mac)\u{1f}\(type)"
+    }
+
+    var displayName: String {
+        name.isEmpty ? "\(type) (\(mac))" : name
+    }
+
+    func device(
+        parent: String,
+        observedAt: TimeInterval,
+        eventTime: TimeInterval
+    ) -> Device {
+        Device(
+            deviceID: mac,
+            deviceType: type,
+            deviceName: displayName,
+            batteryLevel: min(100, max(0, level)),
+            isCharging: status == "+" ? 1 : 0,
+            parentName: parent,
+            lastUpdate: observedAt,
+            realUpdate: eventTime
+        )
     }
 }
 
@@ -35,6 +56,27 @@ enum BluetoothHIDLogParser {
     }
 }
 
+struct BluetoothHIDRunState: Equatable {
+    private(set) var isRunning = false
+    private(set) var hasQueuedRun = false
+
+    mutating func begin() -> Bool {
+        guard !isRunning else {
+            hasQueuedRun = true
+            return false
+        }
+        isRunning = true
+        return true
+    }
+
+    mutating func finish() -> Bool {
+        isRunning = false
+        let shouldRunAgain = hasQueuedRun
+        hasQueuedRun = false
+        return shouldRunAgain
+    }
+}
+
 /// Owns Bluetooth HID discovery based on the unified log stream.
 ///
 /// There is one parser, one incremental cursor, one serialized log-reader gate,
@@ -49,8 +91,7 @@ final class BluetoothHIDMonitor: Sendable {
     static let shared = BluetoothHIDMonitor()
 
     private struct State {
-        var isRunning = false
-        var queued = false
+        var run = BluetoothHIDRunState()
         var knownDeviceNames: Set<String> = []
     }
 
@@ -134,30 +175,17 @@ final class BluetoothHIDMonitor: Sendable {
     }
 
     private func beginRun() -> Bool {
-        state.withLock { state in
-            if state.isRunning {
-                state.queued = true
-                return false
-            }
-            state.isRunning = true
-            return true
-        }
+        state.withLock { $0.run.begin() }
     }
 
     private func finishRun() {
-        let shouldRunAgain = state.withLock { state in
-            state.isRunning = false
-            let queued = state.queued
-            state.queued = false
-            return queued
-        }
+        let shouldRunAgain = state.withLock { $0.run.finish() }
+        guard shouldRunAgain else { return }
 
-        if shouldRunAgain {
-            DispatchQueue.global(qos: .utility).asyncAfter(
-                deadline: .now() + 0.8
-            ) {
-                self.run(.wake)
-            }
+        DispatchQueue.global(qos: .utility).asyncAfter(
+            deadline: .now() + 0.8
+        ) {
+            self.run(.wake)
         }
     }
 
@@ -206,30 +234,21 @@ final class BluetoothHIDMonitor: Sendable {
         let parent = AppPreferences.deviceName
         let now = Date().timeIntervalSince1970
 
-        for var entry in entries {
+        for entry in entries {
             let normalizedAddress = Self.normalizedAddress(entry.mac)
             if connectedOnly && !connectedAddresses.contains(normalizedAddress) {
                 continue
             }
 
-            if entry.name.isEmpty {
-                entry.name = "\(entry.type) (\(entry.mac))"
-            }
-
             state.withLock { state in
-                _ = state.knownDeviceNames.insert(entry.name)
+                _ = state.knownDeviceNames.insert(entry.displayName)
             }
 
             deviceStore.update(
-                Device(
-                    deviceID: entry.mac,
-                    deviceType: entry.type,
-                    deviceName: entry.name,
-                    batteryLevel: min(100, max(0, entry.level)),
-                    isCharging: entry.status == "+" ? 1 : 0,
-                    parentName: parent,
-                    lastUpdate: now,
-                    realUpdate:
+                entry.device(
+                    parent: parent,
+                    observedAt: now,
+                    eventTime:
                         formatter.date(from: entry.time)?.timeIntervalSince1970 ?? 0
                 )
             )
