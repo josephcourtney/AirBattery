@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public struct ProcessExecutionResult {
@@ -6,88 +7,78 @@ public struct ProcessExecutionResult {
     let terminationReason: Process.TerminationReason
 }
 
-func processWithStatus(path: String, arguments: [String], timeout: Int = 0) -> ProcessExecutionResult? {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: path)
-    task.arguments = arguments
+enum ProcessRunner {
+    static func run(
+        path: String,
+        arguments: [String],
+        environment: [String: String]? = nil,
+        timeout: TimeInterval? = nil
+    ) -> ProcessExecutionResult? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: path)
+        task.arguments = arguments
+        task.environment = environment
+        task.standardError = FileHandle.nullDevice
 
-    let errorPipe = Pipe()
-    let outputPipe = Pipe()
-    task.standardError = errorPipe
-    task.standardOutput = outputPipe
+        let outputPipe = Pipe()
+        task.standardOutput = outputPipe
+        defer { outputPipe.fileHandleForReading.closeFile() }
 
-    defer {
-        errorPipe.fileHandleForReading.closeFile()
-        outputPipe.fileHandleForReading.closeFile()
-    }
+        do {
+            try task.run()
+        } catch {
+            print(error.localizedDescription)
+            return nil
+        }
 
-    if timeout != 0 {
-        DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(timeout)) {
-            if task.isRunning {
+        if let timeout, timeout > 0 {
+            DispatchQueue.global(qos: .utility).asyncAfter(
+                deadline: .now() + timeout
+            ) {
+                guard task.isRunning else { return }
                 task.terminate()
-                DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(400)) {
-                    if task.isRunning {
-                        task.interrupt()
-                    }
+                DispatchQueue.global(qos: .utility).asyncAfter(
+                    deadline: .now() + 0.4
+                ) {
+                    guard task.isRunning else { return }
+                    _ = Darwin.kill(task.processIdentifier, SIGKILL)
                 }
             }
         }
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        return ProcessExecutionResult(
+            output: String(decoding: outputData, as: UTF8.self)
+                .trimmingCharacters(in: .newlines),
+            terminationStatus: task.terminationStatus,
+            terminationReason: task.terminationReason
+        )
     }
+}
 
-    do {
-        try task.run()
-    } catch {
-        print(error.localizedDescription)
-        return nil
-    }
-
-    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-    task.waitUntilExit()
-
-    return ProcessExecutionResult(
-        output: String(decoding: outputData, as: UTF8.self)
-            .trimmingCharacters(in: .newlines),
-        terminationStatus: task.terminationStatus,
-        terminationReason: task.terminationReason
+func processWithStatus(
+    path: String,
+    arguments: [String],
+    timeout: Int = 0
+) -> ProcessExecutionResult? {
+    ProcessRunner.run(
+        path: path,
+        arguments: arguments,
+        timeout: timeout > 0 ? TimeInterval(timeout) : nil
     )
 }
 
 func process(path: String, arguments: [String], timeout: Int = 0) -> String? {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: path)
-    task.arguments = arguments
-    task.standardError = Pipe()
-
-    let outputPipe = Pipe()
-    defer { outputPipe.fileHandleForReading.closeFile() }
-    task.standardOutput = outputPipe
-
-    if timeout != 0 {
-        DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(timeout)) {
-            if task.isRunning {
-                task.terminate()
-                // Escalate if still running shortly after terminate
-                DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(400)) {
-                    if task.isRunning {
-                        let pid = task.processIdentifier
-                        _ = process(path: "/bin/kill", arguments: ["-9", String(pid)], timeout: 1)
-                    }
-                }
-            }
-        }
-    }
-
-    do {
-        try task.run()
-    } catch let error {
-        print("\(error.localizedDescription)")
+    guard let result = ProcessRunner.run(
+        path: path,
+        arguments: arguments,
+        timeout: timeout > 0 ? TimeInterval(timeout) : nil
+    ), !result.output.isEmpty
+    else {
         return nil
     }
 
-    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-    let output = String(decoding: outputData, as: UTF8.self)
-
-    if output.isEmpty { return nil }
-
-    return output.trimmingCharacters(in: .newlines)
+    return result.output
 }

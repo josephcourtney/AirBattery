@@ -7,11 +7,10 @@ final class AppEnvironment {
     let updaterController: SPUStandardUpdaterController
     let deviceStore: DeviceStore
     let ble: BLEBattery
-    let btd: BTDBattery
+    let hid: BluetoothHIDMonitor
     let iDevices: IDeviceBattery
     let blePolicy: BLEDiscoveryPolicyStore
     let magicBattery: MagicBattery
-    let logReader: LogReader
     let nearcast: MultipeerService
     let history: BatteryHistoryStore
     let systemUUID: String?
@@ -35,11 +34,10 @@ final class AppEnvironment {
         )
         deviceStore = .shared
         ble = BLEBattery()
-        btd = BTDBattery()
+        hid = .shared
         iDevices = .shared
         blePolicy = .shared
         magicBattery = .shared
-        logReader = .shared
         nearcast = MultipeerService(
             serviceType: "airbattery-nc",
             deviceStore: deviceStore

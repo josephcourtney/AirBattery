@@ -79,7 +79,7 @@ final class MonitoringCoordinator: ObservableObject {
                 self?.environment.ble.scan()
             },
             makeTimer(every: TimeInterval(59 * interval)) { [weak self] in
-                self?.environment.btd.scanDevices()
+                self?.environment.hid.scanDevices()
             },
             makeTimer(every: TimeInterval(24 * interval)) {
                 SPBluetoothDataModel.shared.refeshData(

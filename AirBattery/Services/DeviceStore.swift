@@ -1,29 +1,30 @@
 import Foundation
+import Synchronization
 
-final class DeviceStore: @unchecked Sendable {
+final class DeviceStore: Sendable {
     static let shared = DeviceStore()
 
-    private let devicesLock = NSLock()
-    private var devices: [Device] = []
-    private let presenceLock = NSLock()
-    private var lastBLEPresence: [String: Double] = [:]
+    private struct State {
+        var devices: [Device] = []
+        var lastBLEPresence: [String: Double] = [:]
+    }
+
+    private let state = Mutex(State())
 
     private init() {}
 
     func noteBLEPresence(name: String) {
         let key = normalizedObservationName(name)
-        presenceLock.lock()
-        lastBLEPresence[key] = Date().timeIntervalSince1970
-        presenceLock.unlock()
+        state.withLock { state in
+            state.lastBLEPresence[key] = Date().timeIntervalSince1970
+        }
     }
 
     private func isRecentlyBLEObserved(_ device: Device, now: Double) -> Bool {
         let interval = max(1, AppPreferences.updateInterval)
         let presenceLifetime = Double(max(90, interval * 65))
         let key = normalizedObservationName(observationName(for: device))
-        presenceLock.lock()
-        let lastSeen = lastBLEPresence[key]
-        presenceLock.unlock()
+        let lastSeen = state.withLock { $0.lastBLEPresence[key] }
         guard let lastSeen else { return false }
         return now - lastSeen <= presenceLifetime
     }
@@ -44,40 +45,41 @@ final class DeviceStore: @unchecked Sendable {
     }
 
     func snapshot() -> [Device] {
-        devicesLock.lock()
-        defer { devicesLock.unlock() }
-        return devices
+        state.withLock { $0.devices }
     }
 
     func update(_ device: Device) {
-        devicesLock.lock()
-        defer { devicesLock.unlock() }
-
-        if let index = devices.firstIndex(where: { $0.deviceName == device.deviceName }) {
-            let existing = devices[index]
-            var merged = device
-            merged.mergeIdentifiers(fromExisting: existing)
-            let estimate = BatteryEstimateEngine.updated(
-                previousLevel: existing.batteryLevel,
-                previousCharging: existing.isCharging != 0,
-                previousTime: existing.lastUpdate,
-                previousRatePerHour: existing.estimatedRatePerHour,
-                previousSecondsRemaining: existing.estimatedSecondsRemaining,
-                level: merged.batteryLevel,
-                charging: merged.isCharging != 0,
-                time: merged.lastUpdate
-            )
-            merged.estimatedRatePerHour = estimate.ratePerHour
-            merged.estimatedSecondsRemaining = estimate.secondsRemaining
-            devices[index] = merged
-        } else {
-            devices.append(device)
+        state.withLock { state in
+            if let index = state.devices.firstIndex(where: {
+                $0.deviceName == device.deviceName
+            }) {
+                let existing = state.devices[index]
+                var merged = device
+                merged.mergeIdentifiers(fromExisting: existing)
+                let estimate = BatteryEstimateEngine.updated(
+                    previousLevel: existing.batteryLevel,
+                    previousCharging: existing.isCharging != 0,
+                    previousTime: existing.lastUpdate,
+                    previousRatePerHour: existing.estimatedRatePerHour,
+                    previousSecondsRemaining: existing.estimatedSecondsRemaining,
+                    level: merged.batteryLevel,
+                    charging: merged.isCharging != 0,
+                    time: merged.lastUpdate
+                )
+                merged.estimatedRatePerHour = estimate.ratePerHour
+                merged.estimatedSecondsRemaining = estimate.secondsRemaining
+                state.devices[index] = merged
+            } else {
+                state.devices.append(device)
+            }
         }
     }
 
     func hiddenDevices() -> [Device] {
         let hiddenNames = AppPreferences.hiddenDeviceNames
-        return getAll(noFilter: true).filter { hiddenNames.contains($0.deviceName) }
+        return getAll(noFilter: true).filter {
+            hiddenNames.contains($0.deviceName)
+        }
     }
 
     func getAll(reverse: Bool = false, noFilter: Bool = false) -> [Device] {

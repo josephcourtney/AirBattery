@@ -326,7 +326,7 @@ struct popover: View {
                         .background(overStack == 0 ? Color.blackWhite.opacity(0.15) : .clear)
                         if hiddenDevices.count > 0 { Divider() }
                     }
-                    ForEach(allDevices.indices, id: \.self) { index in
+                    ForEach(Array(allDevices.indices), id: \.self) { index in
                         if AirPodsPresentation.isSecondaryRow(allDevices[index], in: allDevices) {
                             EmptyView()
                         } else if let group = AirPodsPresentation.group(
@@ -419,7 +419,7 @@ struct popover: View {
                                 .frame(height: 24, alignment: .center)
                                 .padding(.horizontal, 10)
                             Spacer()
-                            ForEach(hiddenDevices.indices, id: \.self) { index in
+                            ForEach(Array(hiddenDevices.indices), id: \.self) { index in
                                 if !hidden2.contains(index){
                                     Button(action: {
                                         hidden2.append(index)
@@ -459,7 +459,7 @@ struct popover: View {
                 .popoverDevicePanelSurface()
                 .offset(y: 2.5)
                 if nearCast {
-                    ForEach(allNearcast.indices, id: \.self) { index in
+                    ForEach(Array(allNearcast.indices), id: \.self) { index in
                         let devices = BatterySnapshotStore.nearcastDevices(at: allNearcast[index])
                         if devices.count != 0 {
                             NearcastDeviceSection(devices: devices, mainIndex: index, overStackNC: $overStackNC)
@@ -504,7 +504,7 @@ struct NearcastDeviceSection: View {
         Spacer().frame(height: 8)
 
         VStack(spacing: 0) {
-            ForEach(devices.indices, id: \.self) { index in
+            ForEach(Array(devices.indices), id: \.self) { index in
                 let device = devices[index]
                 let hovered =
                     overStackNC == mainIndex && overStack == index
