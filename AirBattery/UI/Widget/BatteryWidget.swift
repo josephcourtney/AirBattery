@@ -165,10 +165,12 @@ struct BatteryOverviewEntryView: View {
     }
 }
 
-struct BatteryOverviewWidget: Widget {
+public struct BatteryOverviewWidget: Widget {
     let kind = "widget.battery.overview"
 
-    var body: some WidgetConfiguration {
+    public init() {}
+
+    public var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
             intent: BatteryOverviewConfigurationIntent.self,
@@ -191,4 +193,3 @@ struct BatteryOverviewWidget: Widget {
         ])
     }
 }
-
