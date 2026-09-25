@@ -1,6 +1,6 @@
 import Foundation
 
-enum BatteryComponentRole: String, Codable, Hashable {
+package enum BatteryComponentRole: String, Codable, Hashable {
     case primary
     case caseBattery
     case leftEarbud
@@ -8,8 +8,8 @@ enum BatteryComponentRole: String, Codable, Hashable {
     case earbuds
 }
 
-enum DevicePresentationNaming {
-    static func compactName(deviceType: String, displayName: String) -> String {
+package enum DevicePresentationNaming {
+    package static func compactName(deviceType: String, displayName: String) -> String {
         let type = deviceType.lowercased()
         let name = displayName.lowercased()
 
@@ -42,7 +42,7 @@ enum DevicePresentationNaming {
         return displayName
     }
 
-    static func componentLabel(_ role: BatteryComponentRole) -> String {
+    package static func componentLabel(_ role: BatteryComponentRole) -> String {
         switch role {
         case .primary: return "Battery"
         case .caseBattery: return "Case"
