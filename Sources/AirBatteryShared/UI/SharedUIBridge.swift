@@ -75,3 +75,35 @@ package struct SharedWidgetSingleBatterySurfaceContent: View {
         )
     }
 }
+
+package struct SharedBatteryRingSurfaceCell: View {
+    private let item: Device
+    private let diameter: CGFloat
+    private let showPercentage: Bool
+    private let showLabel: Bool
+    private let estimate: BatteryTimeEstimate?
+
+    package init(
+        item: Device,
+        diameter: CGFloat,
+        showPercentage: Bool,
+        showLabel: Bool,
+        estimate: BatteryTimeEstimate?
+    ) {
+        self.item = item
+        self.diameter = diameter
+        self.showPercentage = showPercentage
+        self.showLabel = showLabel
+        self.estimate = estimate
+    }
+
+    package var body: some View {
+        BatteryRingSurfaceCell(
+            item: item,
+            diameter: diameter,
+            showPercentage: showPercentage,
+            showLabel: showLabel,
+            estimate: estimate
+        )
+    }
+}
