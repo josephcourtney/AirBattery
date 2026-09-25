@@ -150,7 +150,7 @@ struct MenuDeviceRowContent: View {
     }
 
     private var groupedDeviceContent: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: isExpanded ? 5 : 3) {
             HStack(spacing: 7) {
                 Button {
                     withAnimation(.easeInOut(duration: 0.14)) {
@@ -189,16 +189,7 @@ struct MenuDeviceRowContent: View {
                 .lineLimit(1)
                 .layoutPriority(1)
 
-                Spacer(minLength: 3)
-
-                if !isExpanded {
-                    HStack(spacing: 4) {
-                        ForEach(presentation.components.prefix(3)) { component in
-                            MenuBatteryComponentContent(component: component)
-                        }
-                    }
-                    .transition(.opacity)
-                }
+                Spacer(minLength: 0)
             }
 
             if isExpanded {
@@ -216,6 +207,15 @@ struct MenuDeviceRowContent: View {
                 .padding(.leading, 20)
                 .padding(.top, 2)
                 .transition(.opacity.combined(with: .move(edge: .top)))
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(presentation.components.prefix(3)) { component in
+                        MenuBatteryComponentContent(component: component)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, 42)
+                .transition(.opacity)
             }
         }
     }
@@ -458,4 +458,3 @@ private struct MenuBatteryComponentRow: View {
         .padding(.vertical, 5)
     }
 }
-
