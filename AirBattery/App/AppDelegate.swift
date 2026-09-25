@@ -46,6 +46,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         coordinator.applicationDockMenu()
     }
 
+    func presentSettings() {
+        SettingsWindowController.shared.present()
+    }
+
     @objc func confirmQuit() {
         let response = createAlert(
             level: .warning,
