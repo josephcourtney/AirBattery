@@ -37,9 +37,8 @@ enum BluetoothHIDLogParser {
 
 /// Owns Bluetooth HID discovery based on the unified log stream.
 ///
-/// This replaces the former split between `BTDBattery` and `LogReader`: there
-/// is one parser, one incremental cursor, one serialized log-reader gate, and
-/// one set of names whose connected presence is refreshed between log reads.
+/// There is one parser, one incremental cursor, one serialized log-reader gate,
+/// and one set of names whose connected presence is refreshed between log reads.
 final class BluetoothHIDMonitor: Sendable {
     enum Trigger {
         case bootstrap
@@ -64,7 +63,7 @@ final class BluetoothHIDMonitor: Sendable {
 
     var readBTHID: Bool { AppPreferences.readBTHID }
 
-    var lastTS: String {
+    private var lastTS: String {
         get { AppPreferences.logReaderLastTS }
         set { AppPreferences.logReaderLastTS = newValue }
     }
@@ -77,15 +76,8 @@ final class BluetoothHIDMonitor: Sendable {
         }
     }
 
-    /// Refreshes presence for HID devices already learned from the log stream.
-    /// A long scan is retained for compatibility with the former BTDBattery API.
-    func scanDevices(longScan: Bool = false) {
+    func scanDevices() {
         guard readBTHID else { return }
-        if longScan {
-            startScan()
-            return
-        }
-
         DispatchQueue.global(qos: .utility).async {
             self.refreshConnectedDevices()
         }
@@ -97,8 +89,8 @@ final class BluetoothHIDMonitor: Sendable {
 
         switch trigger {
         case .bootstrap:
-            // Preserve the former BTDBattery recovery pass: inspect a broad
-            // window, but materialize only devices that are connected now.
+            // Recover connected HID devices whose most recent battery event may
+            // predate the incremental cursor.
             let recoveryEntries = readEntries(
                 window: "2h",
                 startTimestamp: nil,
@@ -108,8 +100,6 @@ final class BluetoothHIDMonitor: Sendable {
             ingest(recoveryEntries, connectedOnly: true)
             refreshConnectedDevices()
 
-            // Preserve the former LogReader bootstrap immediately afterward:
-            // replay the incremental range without requiring current presence.
             let start = incrementalStartTimestamp()
             let incrementalEntries = readEntries(
                 window: start == nil ? "20m" : "10m",
@@ -141,29 +131,6 @@ final class BluetoothHIDMonitor: Sendable {
         }
 
         advanceLastTS()
-    }
-
-    /// Compatibility entry point for the former `BTDBattery.getOtherDevice`.
-    func scanLogWindow(_ window: String, timeout: Int = 0) {
-        guard readBTHID, beginRun() else { return }
-        defer { finishRun() }
-
-        let entries = readEntries(
-            window: window,
-            startTimestamp: nil,
-            timeout: timeout,
-            latestOnly: true
-        )
-        ingest(entries, connectedOnly: true)
-        refreshConnectedDevices()
-    }
-
-    static func getConnected(mac: Bool = false) -> [String] {
-        connectedDevices(mac: mac)
-    }
-
-    static func getOtherDevice(last: String = "10m", timeout: Int = 0) {
-        shared.scanLogWindow(last, timeout: timeout)
     }
 
     private func beginRun() -> Bool {
