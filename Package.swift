@@ -41,6 +41,7 @@ let package = Package(
             path: "AirBattery",
             exclude: [
                 "AirBattery.entitlements",
+                "Assets.xcassets",
                 "Base.lproj",
                 "Info.plist",
                 "Preview Content",
@@ -48,9 +49,6 @@ let package = Package(
                 "Supports",
                 "UI/Widget",
                 "en.lproj",
-            ],
-            resources: [
-                .process("Assets.xcassets"),
             ]
         ),
         .executableTarget(
