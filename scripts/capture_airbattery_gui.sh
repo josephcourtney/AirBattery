@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# AirBattery GUI design capture, v9.
+# AirBattery GUI design capture, v10.
 #
 # This version separates capture control into two paths:
 #   - AirBattery-owned UI: deterministic preferences + verified AX navigation.
@@ -10,11 +10,25 @@ set -euo pipefail
 # It also suppresses visually redundant screenshots and never mutates
 # AirBattery preferences while the app is still running.
 #
+# Capture selection is filename-based. With no selectors, the historical full
+# capture behavior is preserved. --only and --skip accept shell-style globs and
+# may be repeated; quote globs so the invoking shell does not expand them.
+#
 # It intentionally does NOT save a misleading screenshot when a macOS
 # Accessibility interaction fails.
 #
 # Usage:
 #   ./scripts/capture_airbattery_gui.sh [output-root]
+#   ./scripts/capture_airbattery_gui.sh [output-root] --only 'widget-editor/*'
+#   ./scripts/capture_airbattery_gui.sh --only 'widget-editor/02-gallery-airbattery.png'
+#   ./scripts/capture_airbattery_gui.sh --skip 'widgets-in-situ/*'
+#   ./scripts/capture_airbattery_gui.sh --list
+#
+# Options:
+#   --only GLOB   Capture only matching image targets. Repeatable.
+#   --skip GLOB   Exclude matching image targets. Repeatable.
+#   --list        List all selectable image targets and exit.
+#   -h, --help    Show usage and exit.
 #
 # Optional:
 #   AIRBATTERY_STATUS_POINT="x,y"
@@ -28,7 +42,206 @@ set -euo pipefail
 
 APP_NAME="AirBattery"
 BUNDLE_ID="com.josephcourtney.AirBattery"
-OUT_ROOT="${1:-artifacts/gui-review}"
+
+CAPTURE_TARGETS=(
+  "menubar/01-current.png"
+  "menubar/02-airbattery-glyph.png"
+  "menubar/03-macos-outside.png"
+  "menubar/04-ios-inside-color.png"
+  "popover/01-current-collapsed.png"
+  "popover/01-current-collapsed-context.png"
+  "popover/02-current-airpods-expanded.png"
+  "popover/03-earbuds-merged-collapsed.png"
+  "popover/04-earbuds-merged-airpods-expanded.png"
+  "popover/03-earbuds-split-collapsed.png"
+  "popover/04-earbuds-split-airpods-expanded.png"
+  "settings/general/01-top.png"
+  "settings/general/02-middle.png"
+  "settings/general/03-bottom.png"
+  "settings/devices/01-top.png"
+  "settings/devices/02-middle.png"
+  "settings/devices/03-bottom.png"
+  "settings/discovery/01-top.png"
+  "settings/discovery/02-middle.png"
+  "settings/discovery/03-bottom.png"
+  "settings/nearcast/01-top.png"
+  "settings/nearcast/02-middle.png"
+  "settings/nearcast/03-bottom.png"
+  "settings/display/01-top.png"
+  "settings/display/02-middle.png"
+  "settings/display/03-bottom.png"
+  "settings/debug/01-top.png"
+  "settings/debug/02-lower.png"
+  "settings/display-configurations/01-earbud-merging-enabled.png"
+  "settings/display-configurations/01-earbud-merging-off.png"
+  "settings/display-preview/01-widgets.png"
+  "settings/display-preview/02-large-widget.png"
+  "widgets-in-situ/01-notification-center-context.png"
+  "widgets-in-situ/02-airbattery-notification-center.png"
+  "widgets-in-situ/03-notification-center-panel.png"
+  "widgets-in-situ/04-desktop-context.png"
+  "widgets-in-situ/05-airbattery-tight.png"
+  "widget-editor/01-gallery.png"
+  "widget-editor/02-gallery-airbattery.png"
+  "widget-editor/03-gallery-airbattery-scrolled.png"
+  "widget-editor/04-existing-widget-configuration-tight.png"
+  "widget-editor/05-existing-widget-configuration-context.png"
+)
+
+ONLY_PATTERNS=()
+SKIP_PATTERNS=()
+OUT_ROOT="artifacts/gui-review"
+OUT_ROOT_SET=0
+LIST_TARGETS=0
+
+usage(){
+  cat <<'EOF'
+Usage:
+  capture_airbattery_gui.sh [output-root] [options]
+
+Options:
+  --only GLOB   Capture only targets matching GLOB. Repeatable.
+  --skip GLOB   Exclude targets matching GLOB. Repeatable.
+  --list        List selectable image targets and exit.
+  -h, --help    Show this help.
+
+Examples:
+  capture_airbattery_gui.sh --only 'widget-editor/02-gallery-airbattery.png'
+  capture_airbattery_gui.sh --only 'popover/*' --skip '*context*'
+  capture_airbattery_gui.sh artifacts/gui-review --only 'settings/display/*'
+EOF
+}
+
+matches_pattern(){
+  value="$1"
+  pattern="$2"
+  case "$value" in
+    $pattern) return 0 ;;
+  esac
+  return 1
+}
+
+pattern_matches_registry(){
+  pattern="$1"
+  for candidate in "${CAPTURE_TARGETS[@]}"; do
+    matches_pattern "$candidate" "$pattern" && return 0
+  done
+  return 1
+}
+
+want_capture(){
+  target="$1"
+
+  if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+    selected=0
+    for pattern in "${ONLY_PATTERNS[@]}"; do
+      if matches_pattern "$target" "$pattern"; then
+        selected=1
+        break
+      fi
+    done
+    [ "$selected" = "1" ] || return 1
+  fi
+
+  for pattern in "${SKIP_PATTERNS[@]}"; do
+    matches_pattern "$target" "$pattern" && return 1
+  done
+
+  return 0
+}
+
+want_group(){
+  group_pattern="$1"
+  for candidate in "${CAPTURE_TARGETS[@]}"; do
+    if matches_pattern "$candidate" "$group_pattern" &&
+       want_capture "$candidate"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --only)
+      [ "$#" -ge 2 ] || { echo "--only requires a glob" >&2; exit 2; }
+      ONLY_PATTERNS+=("$2")
+      shift 2
+      ;;
+    --only=*)
+      ONLY_PATTERNS+=("${1#--only=}")
+      shift
+      ;;
+    --skip)
+      [ "$#" -ge 2 ] || { echo "--skip requires a glob" >&2; exit 2; }
+      SKIP_PATTERNS+=("$2")
+      shift 2
+      ;;
+    --skip=*)
+      SKIP_PATTERNS+=("${1#--skip=}")
+      shift
+      ;;
+    --list)
+      LIST_TARGETS=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while [ "$#" -gt 0 ]; do
+        if [ "$OUT_ROOT_SET" = "1" ]; then
+          echo "Only one output-root positional argument is allowed." >&2
+          exit 2
+        fi
+        OUT_ROOT="$1"
+        OUT_ROOT_SET=1
+        shift
+      done
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [ "$OUT_ROOT_SET" = "1" ]; then
+        echo "Only one output-root positional argument is allowed." >&2
+        exit 2
+      fi
+      OUT_ROOT="$1"
+      OUT_ROOT_SET=1
+      shift
+      ;;
+  esac
+done
+
+if [ "$LIST_TARGETS" = "1" ]; then
+  printf '%s\n' "${CAPTURE_TARGETS[@]}"
+  exit 0
+fi
+
+for pattern in "${ONLY_PATTERNS[@]}"; do
+  if ! pattern_matches_registry "$pattern"; then
+    echo "No capture target matches --only '$pattern'." >&2
+    echo "Use --list to see selectable targets." >&2
+    exit 2
+  fi
+done
+
+selected_count=0
+for target in "${CAPTURE_TARGETS[@]}"; do
+  if want_capture "$target"; then
+    selected_count=$((selected_count + 1))
+  fi
+done
+if [ "$selected_count" -eq 0 ]; then
+  echo "No capture targets selected."
+  exit 0
+fi
+
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT_DIR="${OUT_ROOT%/}/${STAMP}"
 LOG_DIR="$OUT_DIR/_logs"
@@ -52,20 +265,16 @@ GALLERY_OWNER=""
 mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_DIR/capture.log") 2>&1
 
-log() { printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
-warn() { printf 'WARNING: %s\n' "$*" >&2; }
-need() { command -v "$1" >/dev/null 2>&1 || {
-  echo "Missing required command: $1" >&2
-  exit 2
-}; }
+log(){ printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+warn(){ printf 'WARNING: %s\n' "$*" >&2; }
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 2; }; }
+
+log "Capture selection: $selected_count of ${#CAPTURE_TARGETS[@]} selectable target(s)"
 
 for x in xcrun osascript open defaults killall awk sed grep shasum cut cmp zip; do need "$x"; done
-[ -x /usr/sbin/screencapture ] || {
-  echo "Missing /usr/sbin/screencapture" >&2
-  exit 2
-}
+[ -x /usr/sbin/screencapture ] || { echo "Missing /usr/sbin/screencapture" >&2; exit 2; }
 
-cat >"$INDEX" <<EOF
+cat > "$INDEX" <<EOF
 # AirBattery GUI Capture Set
 
 Generated: $(date)
@@ -74,7 +283,7 @@ Generated: $(date)
 |---|---|---|---|
 EOF
 
-cat >"$FAILURES" <<'EOF'
+cat > "$FAILURES" <<'EOF'
 # Capture Failures
 
 The script records a failure here instead of saving a screenshot under an
@@ -82,12 +291,12 @@ incorrect label when it cannot verify that the intended UI state was reached.
 
 EOF
 
-record() {
-  printf '| `%s` | %s | %s | %s |\n' "$1" "$2" "$3" "$4" >>"$INDEX"
+record(){
+  printf '| `%s` | %s | %s | %s |\n' "$1" "$2" "$3" "$4" >> "$INDEX"
 }
 
-fail() {
-  printf -- '- **%s** — %s\n' "$1" "$2" >>"$FAILURES"
+fail(){
+  printf -- '- **%s** — %s\n' "$1" "$2" >> "$FAILURES"
   warn "$1: $2"
 }
 
@@ -96,7 +305,7 @@ PREF_BACKUP="$TMP/original-defaults.plist"
 HELPER_SRC="$TMP/helper.swift"
 HELPER="$TMP/helper"
 
-cat >"$HELPER_SRC" <<'SWIFT'
+cat > "$HELPER_SRC" <<'SWIFT'
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -1000,14 +1209,14 @@ fi
 
 ORIG_TWS_MERGE_ENABLED="$(defaults read "$BUNDLE_ID" twsMergeEnabled 2>/dev/null || echo 1)"
 case "$ORIG_TWS_MERGE_ENABLED" in
-0 | 1) ;;
-*) ORIG_TWS_MERGE_ENABLED=1 ;;
+  0|1) ;;
+  *) ORIG_TWS_MERGE_ENABLED=1 ;;
 esac
 
-save_and_hide_gui_apps() {
+save_and_hide_gui_apps(){
   [ "$APPS_HIDDEN" = "1" ] && return 0
   VISIBLE_APPS_FILE="$TMP/visible-apps.txt"
-  osascript <<'APPLESCRIPT' >"$VISIBLE_APPS_FILE" 2>/dev/null || true
+  osascript <<'APPLESCRIPT' > "$VISIBLE_APPS_FILE" 2>/dev/null || true
 tell application "System Events"
   set xs to name of every application process whose visible is true and background only is false
   set AppleScript's text item delimiters to linefeed
@@ -1018,7 +1227,7 @@ APPLESCRIPT
   while IFS= read -r app_name; do
     [ -z "$app_name" ] && continue
     case "$app_name" in
-    Finder | AirBattery) continue ;;
+      Finder|AirBattery) continue ;;
     esac
     APP_TO_HIDE="$app_name" osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
 tell application "System Events"
@@ -1026,18 +1235,18 @@ tell application "System Events"
   if exists application process n then set visible of application process n to false
 end tell
 APPLESCRIPT
-  done <"$VISIBLE_APPS_FILE"
+  done < "$VISIBLE_APPS_FILE"
   APPS_HIDDEN=1
   sleep 0.8
 }
 
-restore_gui_apps() {
+restore_gui_apps(){
   [ "$APPS_HIDDEN" = "1" ] || return 0
   if [ -n "$VISIBLE_APPS_FILE" ] && [ -f "$VISIBLE_APPS_FILE" ]; then
     while IFS= read -r app_name; do
       [ -z "$app_name" ] && continue
       case "$app_name" in
-      Finder | AirBattery) continue ;;
+        Finder|AirBattery) continue ;;
       esac
       APP_TO_SHOW="$app_name" osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
 tell application "System Events"
@@ -1045,12 +1254,12 @@ tell application "System Events"
   if exists application process n then set visible of application process n to true
 end tell
 APPLESCRIPT
-    done <"$VISIBLE_APPS_FILE"
+    done < "$VISIBLE_APPS_FILE"
   fi
   APPS_HIDDEN=0
 }
 
-restore() {
+restore(){
   [ "$PREFS_RESTORED" = "1" ] && return 0
   killall "$APP_NAME" >/dev/null 2>&1 || true
   if [ "$PREFS_EXISTED" = "1" ]; then
@@ -1061,7 +1270,7 @@ restore() {
   PREFS_RESTORED=1
 }
 
-cleanup() {
+cleanup(){
   rc=$?
   if [ "$TEMP_WIDGET_ADDED" = "1" ] && declare -F remove_temporary_widget >/dev/null 2>&1; then
     remove_temporary_widget "cleanup" || true
@@ -1075,18 +1284,18 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-resetprefs() {
+resetprefs(){
   PREFS_RESTORED=0
   restore
   PREFS_RESTORED=0
 }
 
-launch_fresh() {
+launch_fresh(){
   open -b "$BUNDLE_ID" >/dev/null 2>&1 || open -a "$APP_NAME" >/dev/null 2>&1
   sleep 3
 }
 
-restart() {
+restart(){
   killall "$APP_NAME" >/dev/null 2>&1 || true
   sleep 0.7
   launch_fresh
@@ -1095,7 +1304,7 @@ restart() {
 # Restore the user's baseline while AirBattery is NOT running. A running
 # UserDefaults instance can otherwise flush its cached value while terminating
 # and overwrite an immediately preceding `defaults write`.
-stage_baseline_offline() {
+stage_baseline_offline(){
   killall "$APP_NAME" >/dev/null 2>&1 || true
   sleep 0.7
   if [ "$PREFS_EXISTED" = "1" ]; then
@@ -1106,11 +1315,11 @@ stage_baseline_offline() {
   PREFS_RESTORED=0
 }
 
-pref() {
+pref(){
   defaults write "$BUNDLE_ID" "$1" "$2" "$3"
 }
 
-stage_variant() {
+stage_variant(){
   stage_baseline_offline
   # Arguments are groups of: key type value.
   while [ "$#" -ge 3 ]; do
@@ -1120,19 +1329,15 @@ stage_variant() {
   launch_fresh
 }
 
-pref_is() {
-  key="$1"
-  expected="$2"
+pref_is(){
+  key="$1"; expected="$2"
   actual="$(defaults read "$BUNDLE_ID" "$key" 2>/dev/null || true)"
   [ "$actual" = "$expected" ]
 }
 
-capwin() {
-  rel="$1"
-  id="$2"
-  area="$3"
-  state="$4"
-  verification="$5"
+capwin(){
+  rel="$1"; id="$2"; area="$3"; state="$4"; verification="$5"
+  want_capture "$rel" || return 0
   mkdir -p "$(dirname "$OUT_DIR/$rel")"
   if /usr/sbin/screencapture -x -l "$id" "$OUT_DIR/$rel" >/dev/null 2>&1; then
     record "$rel" "$area" "$state" "$verification"
@@ -1142,12 +1347,9 @@ capwin() {
   return 1
 }
 
-capreg() {
-  rel="$1"
-  rect="$2"
-  area="$3"
-  state="$4"
-  verification="$5"
+capreg(){
+  rel="$1"; rect="$2"; area="$3"; state="$4"; verification="$5"
+  want_capture "$rel" || return 0
   mkdir -p "$(dirname "$OUT_DIR/$rel")"
   if /usr/sbin/screencapture -x -R "$rect" "$OUT_DIR/$rel" >/dev/null 2>&1; then
     record "$rel" "$area" "$state" "$verification"
@@ -1157,12 +1359,9 @@ capreg() {
   return 1
 }
 
-capdisplay() {
-  rel="$1"
-  display="$2"
-  area="$3"
-  state="$4"
-  verification="$5"
+capdisplay(){
+  rel="$1"; display="$2"; area="$3"; state="$4"; verification="$5"
+  want_capture "$rel" || return 0
   mkdir -p "$(dirname "$OUT_DIR/$rel")"
   if /usr/sbin/screencapture -x -D "$display" "$OUT_DIR/$rel" >/dev/null 2>&1; then
     record "$rel" "$area" "$state" "$verification"
@@ -1172,11 +1371,8 @@ capdisplay() {
   return 1
 }
 
-capall() {
-  prefix="$1"
-  area="$2"
-  state="$3"
-  verification="$4"
+capall(){
+  prefix="$1"; area="$2"; state="$3"; verification="$4"
   n="$("$HELPER" displayCount)"
   d=1
   while [ "$d" -le "$n" ]; do
@@ -1186,21 +1382,18 @@ capall() {
   done
 }
 
-capture_temp_window() {
-  id="$1"
-  path="$2"
+capture_temp_window(){
+  id="$1"; path="$2"
   /usr/sbin/screencapture -x -l "$id" "$path" >/dev/null 2>&1
 }
 
-capture_temp_display() {
-  display="$1"
-  path="$2"
+capture_temp_display(){
+  display="$1"; path="$2"
   /usr/sbin/screencapture -x -D "$display" "$path" >/dev/null 2>&1
 }
 
-display_for_point() {
-  px="$1"
-  py="$2"
+display_for_point(){
+  px="$1"; py="$2"
   n="$("$HELPER" displayCount)"
   d=1
   while [ "$d" -le "$n" ]; do
@@ -1209,47 +1402,51 @@ display_for_point() {
     fy="$(printf '%s' "$f" | cut -d, -f2)"
     fw="$(printf '%s' "$f" | cut -d, -f3)"
     fh="$(printf '%s' "$f" | cut -d, -f4)"
-    if [ "$px" -ge "$fx" ] && [ "$px" -lt $((fx + fw)) ] &&
-      [ "$py" -ge "$fy" ] && [ "$py" -lt $((fy + fh)) ]; then
+    if [ "$px" -ge "$fx" ] && [ "$px" -lt $((fx+fw)) ] &&
+       [ "$py" -ge "$fy" ] && [ "$py" -lt $((fy+fh)) ]; then
       echo "$d"
       return 0
     fi
-    d=$((d + 1))
+    d=$((d+1))
   done
   return 1
 }
 
-display_for_frame() {
+display_for_frame(){
   f="$1"
   x="$(printf '%s' "$f" | cut -d, -f1)"
   y="$(printf '%s' "$f" | cut -d, -f2)"
   w="$(printf '%s' "$f" | cut -d, -f3)"
   h="$(printf '%s' "$f" | cut -d, -f4)"
-  display_for_point $((x + w / 2)) $((y + h / 2))
+  display_for_point $((x+w/2)) $((y+h/2))
 }
 
-image_rmse() {
+
+image_rmse(){
   "$HELPER" imageRMSE "$1" "$2" 2>/dev/null || echo 1
 }
 
-meaningfully_different() {
-  a="$1"
-  b="$2"
-  threshold="${3:-0.0045}"
+meaningfully_different(){
+  a="$1"; b="$2"; threshold="${3:-0.0045}"
   score="$(image_rmse "$a" "$b")"
   awk -v s="$score" -v t="$threshold" 'BEGIN { exit !(s >= t) }'
 }
 
-save_unique() {
-  source="$1"
-  dest="$2"
-  reference="$3"
-  area="$4"
-  state="$5"
-  verification="$6"
+save_capture(){
+  source="$1"; dest="$2"; area="$3"; state="$4"; verification="$5"
+  want_capture "$dest" || return 0
+  mkdir -p "$(dirname "$OUT_DIR/$dest")"
+  cp "$source" "$OUT_DIR/$dest"
+  record "$dest" "$area" "$state" "$verification"
+  log "Captured $dest"
+}
+
+save_unique(){
+  source="$1"; dest="$2"; reference="$3"; area="$4"; state="$5"; verification="$6"
+  want_capture "$dest" || return 0
   mkdir -p "$(dirname "$OUT_DIR/$dest")"
   if [ -n "$reference" ] && [ -f "$reference" ] &&
-    ! meaningfully_different "$source" "$reference"; then
+     ! meaningfully_different "$source" "$reference"; then
     log "Skipped visually redundant capture: $dest"
     return 1
   fi
@@ -1258,7 +1455,7 @@ save_unique() {
   log "Captured $dest"
 }
 
-wait_cmd() {
+wait_cmd(){
   attempts="$1"
   shift
   i=0
@@ -1270,16 +1467,16 @@ wait_cmd() {
   return 1
 }
 
-xy() {
+xy(){
   printf '%s\n' "$1" | awk -F, '{print $1, $2}'
 }
 
-closeui() {
+closeui(){
   osascript -e 'tell application "System Events" to key code 53' >/dev/null 2>&1 || true
   sleep 0.35
 }
 
-statuspoint() {
+statuspoint(){
   [ -n "$STATUS_POINT" ] && return 0
   STATUS_POINT="$("$HELPER" status "$BUNDLE_ID" 2>/dev/null || true)"
   if [ -n "$STATUS_POINT" ]; then
@@ -1299,25 +1496,25 @@ statuspoint() {
   log "Calibrated status item at $STATUS_POINT"
 }
 
-capstatus() {
-  label="$1"
-  notes="$2"
+capstatus(){
+  label="$1"; notes="$2"
+  rel="menubar/${label}.png"
+  want_capture "$rel" || return 0
   statuspoint || return 0
   sf="$("$HELPER" statusFrame "$BUNDLE_ID" 2>/dev/null || true)"
   if [ -n "$sf" ]; then
     rect="$(printf '%s' "$sf" | awk -F, '{printf "%d,%d,%d,%d",$1-5,$2-5,$3+10,$4+10}')"
-    capreg "menubar/${label}.png" "$rect" \
+    capreg "$rel" "$rect" \
       "Menu bar" "$label" "verified AX status-item frame; $notes" || true
   else
     set -- $(xy "$STATUS_POINT")
-    x="$1"
-    y="$2"
-    capreg "menubar/${label}.png" "$((x - 42)),$((y - 19)),84,38" \
+    x="$1"; y="$2"
+    capreg "$rel" "$((x-42)),$((y-19)),84,38" \
       "Menu bar" "$label" "calibrated status coordinate fallback; $notes" || true
   fi
 }
 
-open_popover() {
+open_popover(){
   statuspoint || return 1
   closeui
   set -- $(xy "$STATUS_POINT")
@@ -1325,7 +1522,7 @@ open_popover() {
   wait_cmd 15 "$HELPER" menu "$BUNDLE_ID"
 }
 
-wait_for_airpods_ready() {
+wait_for_airpods_ready(){
   timeout_seconds="${1:-40}"
   elapsed=0
   log "Waiting for AirPods inventory to repopulate"
@@ -1344,10 +1541,8 @@ wait_for_airpods_ready() {
   return 1
 }
 
-capture_open_popover() {
-  rel="$1"
-  state="$2"
-  verification="$3"
+capture_open_popover(){
+  rel="$1"; state="$2"; verification="$3"
   id="$("$HELPER" menu "$BUNDLE_ID" 2>/dev/null || true)"
   if [ -z "$id" ]; then
     fail "$state" "AirBattery popover/menu window could not be verified."
@@ -1356,17 +1551,30 @@ capture_open_popover() {
   capwin "$rel" "$id" "Popover" "$state" "$verification"
 }
 
-capture_popover_collapsed() {
-  label="$1"
-  notes="$2"
+capture_popover_collapsed(){
+  label="$1"; notes="$2"
+  rel="popover/${label}.png"
+  context_rel="popover/01-current-collapsed-context.png"
+  want_base=0
+  want_context=0
+  want_capture "$rel" && want_base=1
+  if [ "$CAPTURE_CONTEXT" = "1" ] &&
+     [ "$label" = "01-current-collapsed" ] &&
+     want_capture "$context_rel"; then
+    want_context=1
+  fi
+  [ "$want_base" = "1" ] || [ "$want_context" = "1" ] || return 0
+
   if open_popover; then
-    capture_open_popover "popover/${label}.png" "$label" \
-      "AirBattery menu window exists; $notes" || true
-    if [ "$CAPTURE_CONTEXT" = "1" ] && [ "$label" = "01-current-collapsed" ]; then
+    if [ "$want_base" = "1" ]; then
+      capture_open_popover "$rel" "$label" \
+        "AirBattery menu window exists; $notes" || true
+    fi
+    if [ "$want_context" = "1" ]; then
       mf="$("$HELPER" menuFrame "$BUNDLE_ID" 2>/dev/null || true)"
       if [ -n "$mf" ]; then
         d="$(display_for_frame "$mf" 2>/dev/null || true)"
-        [ -n "$d" ] && capdisplay "popover/01-current-collapsed-context.png" "$d" \
+        [ -n "$d" ] && capdisplay "$context_rel" "$d" \
           "Popover" "current collapsed / in situ" \
           "display containing the verified AirBattery menu window" || true
       fi
@@ -1377,9 +1585,10 @@ capture_popover_collapsed() {
   closeui
 }
 
-capture_popover_airpods_expanded() {
-  label="$1"
-  notes="$2"
+capture_popover_airpods_expanded(){
+  label="$1"; notes="$2"
+  rel="popover/${label}-airpods-expanded.png"
+  want_capture "$rel" || return 0
   if ! open_popover; then
     fail "$label expanded" "Could not open AirBattery popover."
     return 0
@@ -1402,20 +1611,20 @@ capture_popover_airpods_expanded() {
   after_h="$(printf '%s' "$after" | cut -d, -f4)"
 
   if ! "$HELPER" bundleHas "$BUNDLE_ID" "Collapse components" >/dev/null 2>&1 &&
-    { [ -z "$after_h" ] || [ "$after_h" -le $((before_h + 12)) ]; }; then
+     { [ -z "$after_h" ] || [ "$after_h" -le $((before_h + 12)) ]; }; then
     fail "$label expanded" \
       "Disclosure was clicked but neither 'Collapse components' nor a larger menu frame was observed."
     closeui
     return 0
   fi
 
-  capture_open_popover "popover/${label}-airpods-expanded.png" \
+  capture_open_popover "$rel" \
     "$label / AirPods expanded" \
     "clicked the real 'Show components' disclosure and verified expansion; $notes" || true
   closeui
 }
 
-open_settings() {
+open_settings(){
   open 'airbattery://settings' >/dev/null 2>&1 || true
   if wait_cmd 20 "$HELPER" window "$BUNDLE_ID" "AirBattery Settings"; then
     return 0
@@ -1429,24 +1638,23 @@ open_settings() {
   wait_cmd 20 "$HELPER" window "$BUNDLE_ID" "AirBattery Settings"
 }
 
-settings_id() {
+settings_id(){
   "$HELPER" window "$BUNDLE_ID" "AirBattery Settings" 2>/dev/null || true
 }
 
-scrolltop() {
+scrolltop(){
   "$HELPER" scrollWindow "$BUNDLE_ID" "AirBattery Settings" 2600 >/dev/null 2>&1 || true
   "$HELPER" scrollWindow "$BUNDLE_ID" "AirBattery Settings" 2600 >/dev/null 2>&1 || true
   sleep 0.25
 }
 
-scrolldown() {
+scrolldown(){
   "$HELPER" scrollWindow "$BUNDLE_ID" "AirBattery Settings" "${1:--1050}" >/dev/null 2>&1 || true
   sleep 0.3
 }
 
-navigate_settings() {
-  label="$1"
-  verify="$2"
+navigate_settings(){
+  label="$1"; verify="$2"
   if ! "$HELPER" sidebar "$BUNDLE_ID" "AirBattery Settings" "$label" >/dev/null 2>&1; then
     fail "Settings / $label" "Sidebar label could not be clicked by its actual screen frame."
     return 1
@@ -1462,58 +1670,69 @@ navigate_settings() {
   return 0
 }
 
-capsettings() {
-  rel="$1"
-  section="$2"
-  state="$3"
-  verification="$4"
+capsettings(){
+  rel="$1"; section="$2"; state="$3"; verification="$4"
   id="$(settings_id)"
   [ -n "$id" ] || return 1
   capwin "$rel" "$id" "Settings / $section" "$state" "$verification"
 }
 
-capture_settings_sweep() {
-  section="$1"
-  slug="$2"
-  verify="$3"
+capture_settings_sweep(){
+  section="$1"; slug="$2"; verify="$3"
+  top_rel="settings/$slug/01-top.png"
+  middle_rel="settings/$slug/02-middle.png"
+  bottom_rel="settings/$slug/03-bottom.png"
+
+  want_top=0
+  want_middle=0
+  want_bottom=0
+  want_capture "$top_rel" && want_top=1
+  want_capture "$middle_rel" && want_middle=1
+  want_capture "$bottom_rel" && want_bottom=1
+  [ "$want_top" = "1" ] || [ "$want_middle" = "1" ] || [ "$want_bottom" = "1" ] || return 0
+
   navigate_settings "$section" "$verify" || return 0
   scrolltop
 
-  mkdir -p "$OUT_DIR/settings/$slug"
   first="$TMP/${slug}-top.png"
   second="$TMP/${slug}-middle.png"
   third="$TMP/${slug}-bottom.png"
   id="$(settings_id)"
 
   capture_temp_window "$id" "$first"
-  cp "$first" "$OUT_DIR/settings/$slug/01-top.png"
-  record "settings/$slug/01-top.png" "Settings / $section" "top" \
-    "verified detail text: $verify"
+  if [ "$want_top" = "1" ]; then
+    save_capture "$first" "$top_rel" \
+      "Settings / $section" "top" "verified detail text: $verify"
+  fi
 
-  scrolldown -1050
-  capture_temp_window "$id" "$second"
-  save_unique "$second" "settings/$slug/02-middle.png" "$first" \
-    "Settings / $section" "middle" \
-    "verified detail text; perceptually distinct from top" || true
+  if [ "$want_middle" = "1" ] || [ "$want_bottom" = "1" ]; then
+    scrolldown -1050
+    capture_temp_window "$id" "$second"
+    if [ "$want_middle" = "1" ]; then
+      save_unique "$second" "$middle_rel" "$first" \
+        "Settings / $section" "middle" \
+        "verified detail text; perceptually distinct from top" || true
+    fi
+  fi
 
-  scrolldown -1900
-  capture_temp_window "$id" "$third"
-  if meaningfully_different "$third" "$first" &&
-    meaningfully_different "$third" "$second"; then
-    cp "$third" "$OUT_DIR/settings/$slug/03-bottom.png"
-    record "settings/$slug/03-bottom.png" "Settings / $section" "bottom" \
-      "verified detail text; perceptually distinct lower state"
-    log "Captured settings/$slug/03-bottom.png"
-  else
-    log "Skipped visually redundant lower Settings capture: $section"
+  if [ "$want_bottom" = "1" ]; then
+    scrolldown -1900
+    capture_temp_window "$id" "$third"
+    if meaningfully_different "$third" "$first" &&
+       meaningfully_different "$third" "$second"; then
+      save_capture "$third" "$bottom_rel" \
+        "Settings / $section" "bottom" \
+        "verified detail text; perceptually distinct lower state"
+    else
+      log "Skipped visually redundant lower Settings capture: $section"
+    fi
   fi
 }
 
-capture_display_variant() {
-  slug="$1"
-  notes="$2"
-  verify_present="${3:-}"
-  verify_absent="${4:-}"
+capture_display_variant(){
+  slug="$1"; notes="$2"; verify_present="${3:-}"; verify_absent="${4:-}"
+  rel="settings/display-configurations/${slug}.png"
+  want_capture "$rel" || return 0
   if ! open_settings; then
     fail "Display variant $slug" "Settings did not open after staged preference change."
     return 0
@@ -1523,12 +1742,12 @@ capture_display_variant() {
   fi
 
   if [ -n "$verify_present" ] &&
-    ! "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "$verify_present" >/dev/null 2>&1; then
+     ! "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "$verify_present" >/dev/null 2>&1; then
     fail "Display variant $slug" "Expected visible control '$verify_present' did not appear."
     return 0
   fi
   if [ -n "$verify_absent" ] &&
-    "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "$verify_absent" >/dev/null 2>&1; then
+     "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "$verify_absent" >/dev/null 2>&1; then
     fail "Display variant $slug" "Control '$verify_absent' was expected hidden but remained visible."
     return 0
   fi
@@ -1543,11 +1762,9 @@ capture_display_variant() {
     fail "Display variant $slug" \
       "Preference was staged, but resulting Settings image is visually redundant with the reference."
   else
-    mkdir -p "$OUT_DIR/settings/display-configurations"
-    cp "$tmp" "$OUT_DIR/settings/display-configurations/${slug}.png"
-    record "settings/display-configurations/${slug}.png" "Settings / Display" "$slug" \
+    save_capture "$tmp" "$rel" \
+      "Settings / Display" "$slug" \
       "offline-staged UserDefaults; $notes"
-    log "Captured settings/display-configurations/${slug}.png"
   fi
 
   osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
@@ -1555,45 +1772,43 @@ capture_display_variant() {
   sleep 0.3
 }
 
-main_frame() {
+main_frame(){
   "$HELPER" mainFrame
 }
 
-main_display_index() {
+main_display_index(){
   # Determine which numbered active display has the same origin/size as CGMainDisplayID.
   mf="$(main_frame)"
   n="$("$HELPER" displayCount)"
   d=1
   while [ "$d" -le "$n" ]; do
-    [ "$("$HELPER" displayFrame "$d")" = "$mf" ] && {
-      echo "$d"
-      return 0
-    }
+    [ "$("$HELPER" displayFrame "$d")" = "$mf" ] && { echo "$d"; return 0; }
     d=$((d + 1))
   done
   echo 1
 }
 
-notification_center_verified() {
+notification_center_verified(){
   # Prefer a semantic control inside NotificationCenter. WindowServer geometry
   # remains a secondary proof because the exact panel geometry can change.
   "$HELPER" bundleHas "com.apple.notificationcenterui" "Edit Widgets" >/dev/null 2>&1 ||
     "$HELPER" notificationPanel >/dev/null 2>&1
 }
 
-open_notification_center() {
+open_notification_center(){
   closeui
 
   # Primary route: address the exact menu-bar clock object. This is more
   # reliable than searching all AX text and avoids accidentally clicking the
   # adjacent Control Center icon.
-  if osascript <<'APPLESCRIPT' >/dev/null 2>&1; then
+  if osascript <<'APPLESCRIPT' >/dev/null 2>&1
  tell application "System Events"
    tell process "ControlCenter"
      click menu bar item "Clock" of menu bar 1
    end tell
  end tell
 APPLESCRIPT
+  then
     if wait_cmd 20 notification_center_verified; then return 0; fi
   fi
 
@@ -1624,13 +1839,13 @@ APPLESCRIPT
   return 1
 }
 
-wait_for_gallery_owner() {
+wait_for_gallery_owner(){
   attempts="${1:-30}"
   i=0
   while [ "$i" -lt "$attempts" ]; do
     owner="$("$HELPER" galleryOwner 2>/dev/null || true)"
     if [ -n "$owner" ] &&
-      "$HELPER" bundleHasSearch "$owner" >/dev/null 2>&1; then
+       "$HELPER" bundleHasSearch "$owner" >/dev/null 2>&1; then
       GALLERY_OWNER="$owner"
       log "Verified widget gallery owner: $GALLERY_OWNER"
       return 0
@@ -1641,7 +1856,7 @@ wait_for_gallery_owner() {
   return 1
 }
 
-open_widget_gallery() {
+open_widget_gallery(){
   GALLERY_OWNER=""
 
   # Primary route: click Notification Center's own Edit Widgets control.
@@ -1677,11 +1892,11 @@ open_widget_gallery() {
   return 1
 }
 
-find_desktop_airbattery_widget() {
+find_desktop_airbattery_widget(){
   "$HELPER" widgetFrame "com.apple.notificationcenterui" "AirBattery" 2>/dev/null || true
 }
 
-wait_for_desktop_airbattery_widget() {
+wait_for_desktop_airbattery_widget(){
   seconds="${1:-20}"
   i=0
   while [ "$i" -lt "$seconds" ]; do
@@ -1696,7 +1911,7 @@ wait_for_desktop_airbattery_widget() {
   return 1
 }
 
-close_widget_gallery() {
+close_widget_gallery(){
   if [ -n "$GALLERY_OWNER" ]; then
     "$HELPER" clickAppText "$GALLERY_OWNER" "Done" >/dev/null 2>&1 || true
   fi
@@ -1707,7 +1922,7 @@ close_widget_gallery() {
   sleep 0.5
 }
 
-filter_gallery_to_airbattery() {
+filter_gallery_to_airbattery(){
   [ -n "$GALLERY_OWNER" ] || return 1
 
   "$HELPER" bundleSetSearch \
@@ -1725,7 +1940,7 @@ filter_gallery_to_airbattery() {
     "$HELPER" bundleHas "$GALLERY_OWNER" "Single Battery" >/dev/null 2>&1
 }
 
-add_temporary_airbattery_widget_from_gallery() {
+add_temporary_airbattery_widget_from_gallery(){
   [ -n "$GALLERY_OWNER" ] || return 1
 
   # Click an AirBattery widget preview only inside the already-verified gallery
@@ -1756,7 +1971,7 @@ add_temporary_airbattery_widget_from_gallery() {
   return 1
 }
 
-remove_temporary_widget() {
+remove_temporary_widget(){
   reason="${1:-normal cleanup}"
   [ "$TEMP_WIDGET_ADDED" = "1" ] || return 0
 
@@ -1773,15 +1988,15 @@ remove_temporary_widget() {
   ww="$(printf '%s' "$frame" | cut -d, -f3)"
   wh="$(printf '%s' "$frame" | cut -d, -f4)"
 
-  "$HELPER" right "$((wx + ww / 2))" "$((wy + wh / 2))" >/dev/null 2>&1 || true
+  "$HELPER" right "$((wx + ww/2))" "$((wy + wh/2))" >/dev/null 2>&1 || true
   sleep 0.5
   if "$HELPER" clickGlobal "Remove Widget" >/dev/null 2>&1 ||
-    "$HELPER" clickGlobal "Remove" >/dev/null 2>&1; then
+     "$HELPER" clickGlobal "Remove" >/dev/null 2>&1; then
     sleep 1
     if [ -z "$(find_desktop_airbattery_widget)" ]; then
       TEMP_WIDGET_ADDED=0
       TEMP_WIDGET_FRAME=""
-      GALLERY_OWNER=""
+GALLERY_OWNER=""
       log "Removed temporary AirBattery widget ($reason)"
       return 0
     fi
@@ -1795,102 +2010,146 @@ remove_temporary_widget() {
 # -----------------------------------------------------------------------------
 # Launch and status/popover capture
 # -----------------------------------------------------------------------------
-open -b "$BUNDLE_ID" >/dev/null 2>&1 || open -a "$APP_NAME" >/dev/null 2>&1
-sleep 3
+if want_group 'menubar/*' || want_group 'popover/*'; then
+  open -b "$BUNDLE_ID" >/dev/null 2>&1 || open -a "$APP_NAME" >/dev/null 2>&1
+  sleep 3
 
-log "Menu-bar/status and popover captures"
-capstatus "01-current" "current user configuration"
-capture_popover_collapsed "01-current-collapsed" "current user configuration"
-capture_popover_airpods_expanded "02-current" "current user configuration"
+  log "Menu-bar/status and popover captures"
+  capstatus "01-current" "current user configuration"
+  capture_popover_collapsed "01-current-collapsed" "current user configuration"
+  capture_popover_airpods_expanded "02-current" "current user configuration"
 
-if [ "$MUTATE_PREFS" = "1" ]; then
-  stage_variant intBattOnStatusBar -bool false
-  capstatus "02-airbattery-glyph" "built-in Mac battery hidden from status item"
+  if [ "$MUTATE_PREFS" = "1" ]; then
+    did_stage_variant=0
 
-  stage_variant \
-    intBattOnStatusBar -bool true \
-    iosBatteryStyle -bool false \
-    colorfulBattery -bool false \
-    batteryPercent -string outside
-  capstatus "03-macos-outside" "macOS battery style; outside percentage"
-
-  stage_variant \
-    intBattOnStatusBar -bool true \
-    iosBatteryStyle -bool true \
-    colorfulBattery -bool true \
-    batteryPercent -string inside
-  capstatus "04-ios-inside-color" "iOS style; inside percentage; colors"
-
-  if [ "$ORIG_TWS_MERGE_ENABLED" = "0" ]; then
-    stage_variant twsMergeEnabled -bool true twsMerge -int 99
-    if wait_for_airpods_ready 40; then
-      capture_popover_collapsed "03-earbuds-merged-collapsed" \
-        "opposite of baseline: merging enabled at 99%; live AirPods inventory verified"
-      capture_popover_airpods_expanded "04-earbuds-merged" \
-        "opposite of baseline: merging enabled at 99%; live AirPods inventory verified"
-    else
-      fail "Alternate merged AirPods popover" \
-        "AirPods did not reappear within 40 seconds after restarting AirBattery; no truncated startup-state screenshot was saved."
+    if want_capture "menubar/02-airbattery-glyph.png"; then
+      stage_variant intBattOnStatusBar -bool false
+      did_stage_variant=1
+      capstatus "02-airbattery-glyph" "built-in Mac battery hidden from status item"
     fi
-  else
-    stage_variant twsMergeEnabled -bool false
-    if wait_for_airpods_ready 40; then
-      capture_popover_collapsed "03-earbuds-split-collapsed" \
-        "opposite of baseline: earbud merging disabled; live AirPods inventory verified"
-      capture_popover_airpods_expanded "04-earbuds-split" \
-        "opposite of baseline: earbud merging disabled; live AirPods inventory verified"
+
+    if want_capture "menubar/03-macos-outside.png"; then
+      stage_variant \
+        intBattOnStatusBar -bool true \
+        iosBatteryStyle -bool false \
+        colorfulBattery -bool false \
+        batteryPercent -string outside
+      did_stage_variant=1
+      capstatus "03-macos-outside" "macOS battery style; outside percentage"
+    fi
+
+    if want_capture "menubar/04-ios-inside-color.png"; then
+      stage_variant \
+        intBattOnStatusBar -bool true \
+        iosBatteryStyle -bool true \
+        colorfulBattery -bool true \
+        batteryPercent -string inside
+      did_stage_variant=1
+      capstatus "04-ios-inside-color" "iOS style; inside percentage; colors"
+    fi
+
+    capture_merged_variant(){
+      stage_variant twsMergeEnabled -bool true twsMerge -int 99
+      did_stage_variant=1
+      if wait_for_airpods_ready 40; then
+        capture_popover_collapsed "03-earbuds-merged-collapsed" \
+          "earbud merging enabled at 99%; live AirPods inventory verified"
+        capture_popover_airpods_expanded "04-earbuds-merged" \
+          "earbud merging enabled at 99%; live AirPods inventory verified"
+      else
+        fail "Merged AirPods popover" \
+          "AirPods did not reappear within 40 seconds after restarting AirBattery; no truncated startup-state screenshot was saved."
+      fi
+    }
+
+    capture_split_variant(){
+      stage_variant twsMergeEnabled -bool false
+      did_stage_variant=1
+      if wait_for_airpods_ready 40; then
+        capture_popover_collapsed "03-earbuds-split-collapsed" \
+          "earbud merging disabled; live AirPods inventory verified"
+        capture_popover_airpods_expanded "04-earbuds-split" \
+          "earbud merging disabled; live AirPods inventory verified"
+      else
+        fail "Split AirPods popover" \
+          "AirPods did not reappear within 40 seconds after restarting AirBattery; no truncated startup-state screenshot was saved."
+      fi
+    }
+
+    if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+      # Explicit selection makes either structural state addressable regardless
+      # of the user's current merge preference.
+      want_group 'popover/*earbuds-merged*' && capture_merged_variant
+      want_group 'popover/*earbuds-split*' && capture_split_variant
+    elif [ "$ORIG_TWS_MERGE_ENABLED" = "0" ]; then
+      want_group 'popover/*earbuds-merged*' && capture_merged_variant
     else
-      fail "Alternate split AirPods popover" \
-        "AirPods did not reappear within 40 seconds after restarting AirBattery; no truncated startup-state screenshot was saved."
+      want_group 'popover/*earbuds-split*' && capture_split_variant
+    fi
+
+    if [ "$did_stage_variant" = "1" ]; then
+      stage_baseline_offline
+      launch_fresh
     fi
   fi
-
-  stage_baseline_offline
-  launch_fresh
 fi
 
 # -----------------------------------------------------------------------------
 # Settings
 # -----------------------------------------------------------------------------
-log "Settings captures with navigation verification"
+if want_group 'settings/general/*' ||
+   want_group 'settings/devices/*' ||
+   want_group 'settings/discovery/*' ||
+   want_group 'settings/nearcast/*' ||
+   want_group 'settings/display/*'; then
+  log "Settings captures with navigation verification"
 
-if open_settings; then
-  capture_settings_sweep \
-    "General" "general" \
-    "Configure startup behavior, command-line tools, and software updates"
+  if open_settings; then
+    capture_settings_sweep \
+      "General" "general" \
+      "Configure startup behavior, command-line tools, and software updates"
 
-  capture_settings_sweep \
-    "Devices" "devices" \
-    "Manage known devices and inspect battery, connection, and discovery information"
+    capture_settings_sweep \
+      "Devices" "devices" \
+      "Manage known devices and inspect battery, connection, and discovery information"
 
-  capture_settings_sweep \
-    "Discovery" "discovery" \
-    "Control which device sources AirBattery monitors and when active battery queries are allowed"
+    capture_settings_sweep \
+      "Discovery" "discovery" \
+      "Control which device sources AirBattery monitors and when active battery queries are allowed"
 
-  capture_settings_sweep \
-    "Nearcast" "nearcast" \
-    "Share battery information securely with other Macs on your local network"
+    capture_settings_sweep \
+      "Nearcast" "nearcast" \
+      "Share battery information securely with other Macs on your local network"
 
-  capture_settings_sweep \
-    "Display" "display" \
-    "Choose where AirBattery appears and how battery information is presented"
+    capture_settings_sweep \
+      "Display" "display" \
+      "Choose where AirBattery appears and how battery information is presented"
+  else
+    fail "Settings" "AirBattery Settings window could not be opened."
+  fi
+fi
 
-  # Debug is hidden normally. Make it visible only for the capture run.
-  if [ "$MUTATE_PREFS" = "1" ]; then
-    osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
-      >/dev/null 2>&1 || true
-    stage_variant showDebug -bool true
-    if open_settings && navigate_settings "Debug" "Debug Mode"; then
-      scrolltop
-      id="$(settings_id)"
-      debug_top="$TMP/debug-top.png"
-      debug_lower="$TMP/debug-lower.png"
-      capture_temp_window "$id" "$debug_top"
-      mkdir -p "$OUT_DIR/settings/debug"
-      cp "$debug_top" "$OUT_DIR/settings/debug/01-top.png"
-      record "settings/debug/01-top.png" "Settings / Debug" "top" \
+# Debug is hidden normally. Make it visible only when one of its captures is
+# selected, then restore the user's baseline before any later workflow.
+if want_group 'settings/debug/*' && [ "$MUTATE_PREFS" = "1" ]; then
+  osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
+    >/dev/null 2>&1 || true
+  stage_variant showDebug -bool true
+
+  if open_settings && navigate_settings "Debug" "Debug Mode"; then
+    scrolltop
+    id="$(settings_id)"
+    debug_top="$TMP/debug-top.png"
+    debug_lower="$TMP/debug-lower.png"
+    capture_temp_window "$id" "$debug_top"
+
+    if want_capture "settings/debug/01-top.png"; then
+      save_capture "$debug_top" "settings/debug/01-top.png" \
+        "Settings / Debug" "top" \
         "verified Debug Mode control in detail pane"
-      log "Captured settings/debug/01-top.png"
+    fi
+
+    if want_capture "settings/debug/02-lower.png"; then
       scrolldown -1300
       capture_temp_window "$id" "$debug_lower"
       save_unique "$debug_lower" "settings/debug/02-lower.png" "$debug_top" \
@@ -1898,28 +2157,46 @@ if open_settings; then
         "saved only if scrolling visibly changed the Debug page" || true
     fi
   fi
-else
-  fail "Settings" "AirBattery Settings window could not be opened."
+
+  osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
+    >/dev/null 2>&1 || true
+  stage_baseline_offline
+  launch_fresh
 fi
 
-# Capture only the opposite structural Device Rows state. The normal Display
-# screenshot already documents the user's baseline.
-if [ "$MUTATE_PREFS" = "1" ]; then
+# Capture structural Device Rows variants. With no --only selector, preserve the
+# historical behavior of capturing only the state opposite the user's baseline.
+if want_group 'settings/display-configurations/*' && [ "$MUTATE_PREFS" = "1" ]; then
   osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
     >/dev/null 2>&1 || true
 
-  if [ "$ORIG_TWS_MERGE_ENABLED" = "0" ]; then
+  capture_merging_enabled(){
     stage_variant twsMergeEnabled -bool true twsMerge -int 99
     capture_display_variant \
       "01-earbud-merging-enabled" \
-      "opposite of baseline: threshold row visible" \
+      "threshold row visible" \
       "Merge threshold (%)" ""
-  else
+  }
+
+  capture_merging_off(){
     stage_variant twsMergeEnabled -bool false
     capture_display_variant \
       "01-earbud-merging-off" \
-      "opposite of baseline: threshold row absent" \
+      "threshold row absent" \
       "" "Merge threshold (%)"
+  }
+
+  if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+    want_capture "settings/display-configurations/01-earbud-merging-enabled.png" &&
+      capture_merging_enabled
+    want_capture "settings/display-configurations/01-earbud-merging-off.png" &&
+      capture_merging_off
+  elif [ "$ORIG_TWS_MERGE_ENABLED" = "0" ]; then
+    want_capture "settings/display-configurations/01-earbud-merging-enabled.png" &&
+      capture_merging_enabled
+  else
+    want_capture "settings/display-configurations/01-earbud-merging-off.png" &&
+      capture_merging_off
   fi
 
   stage_baseline_offline
@@ -1928,265 +2205,313 @@ fi
 
 # Live Display preview: this state is @State rather than persisted, so drive the
 # actual Show button and verify the preview-specific "Preview options" text.
-if open_settings && navigate_settings "Display" "Choose where AirBattery appears"; then
-  scrolltop
-  scrolldown -2600
-  if "$HELPER" clickAppText "$BUNDLE_ID" "Show" >/dev/null 2>&1 &&
-    wait_cmd 15 "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "Preview options"; then
-    scrolldown -1200
-    id="$(settings_id)"
-    mkdir -p "$OUT_DIR/settings/display-preview"
-    preview_base="$TMP/display-preview-widgets.png"
-    capture_temp_window "$id" "$preview_base"
-    cp "$preview_base" "$OUT_DIR/settings/display-preview/01-widgets.png"
-    record "settings/display-preview/01-widgets.png" "Settings / Display" \
-      "live preview / widgets" "clicked Show and verified Preview options"
-    log "Captured settings/display-preview/01-widgets.png"
+if want_group 'settings/display-preview/*'; then
+  if open_settings && navigate_settings "Display" "Choose where AirBattery appears"; then
+    scrolltop
+    scrolldown -2600
+    if "$HELPER" clickAppText "$BUNDLE_ID" "Show" >/dev/null 2>&1 &&
+       wait_cmd 15 "$HELPER" detailHas "$BUNDLE_ID" "AirBattery Settings" "Preview options"; then
+      scrolldown -1200
+      id="$(settings_id)"
+      preview_base="$TMP/display-preview-widgets.png"
+      capture_temp_window "$id" "$preview_base"
 
-    if "$HELPER" clickAppText "$BUNDLE_ID" "Battery Overview — Large" >/dev/null 2>&1 ||
-      "$HELPER" clickAppText "$BUNDLE_ID" "Battery Overview - Large" >/dev/null 2>&1; then
-      sleep 0.5
-      scrolldown -900
-      preview_large="$TMP/display-preview-large.png"
-      capture_temp_window "$id" "$preview_large"
-      save_unique "$preview_large" \
-        "settings/display-preview/02-large-widget.png" "$preview_base" \
-        "Settings / Display" "live preview / large widget expanded" \
-        "large disclosure clicked and image materially changed" || true
+      if want_capture "settings/display-preview/01-widgets.png"; then
+        save_capture "$preview_base" "settings/display-preview/01-widgets.png" \
+          "Settings / Display" "live preview / widgets" \
+          "clicked Show and verified Preview options"
+      fi
+
+      if want_capture "settings/display-preview/02-large-widget.png"; then
+        if "$HELPER" clickAppText "$BUNDLE_ID" "Battery Overview — Large" >/dev/null 2>&1 ||
+           "$HELPER" clickAppText "$BUNDLE_ID" "Battery Overview - Large" >/dev/null 2>&1; then
+          sleep 0.5
+          scrolldown -900
+          preview_large="$TMP/display-preview-large.png"
+          capture_temp_window "$id" "$preview_large"
+          save_unique "$preview_large" \
+            "settings/display-preview/02-large-widget.png" "$preview_base" \
+            "Settings / Display" "live preview / large widget expanded" \
+            "large disclosure clicked and image materially changed" || true
+        fi
+      fi
+    else
+      fail "Display live preview" \
+        "The Show button was not activated or Preview options did not appear."
     fi
-  else
-    fail "Display live preview" \
-      "The Show button was not activated or Preview options did not appear."
-  fi
 
-  osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
-    >/dev/null 2>&1 || true
+    osascript -e 'tell application "System Events" to tell process "AirBattery" to keystroke "w" using command down' \
+      >/dev/null 2>&1 || true
+  fi
 fi
 
 # -----------------------------------------------------------------------------
 # Widgets in situ + Notification Center + gallery + widget configuration
 # -----------------------------------------------------------------------------
-log "Restoring real preferences before widget capture"
-resetprefs
-restart
-open 'airbattery://reloadwingets' >/dev/null 2>&1 || true
-sleep 4
+if want_group 'widgets-in-situ/*' || want_group 'widget-editor/*'; then
+  log "Restoring real preferences before widget capture"
+  resetprefs
+  restart
+  open 'airbattery://reloadwingets' >/dev/null 2>&1 || true
+  sleep 4
 
-# Desktop/system-widget capture is easiest to reason about with an unobscured
-# desktop. Preserve and later restore the user's visible-application state.
-log "Preparing an unobscured desktop for widget capture"
-osascript -e 'tell application "Finder" to activate' >/dev/null 2>&1 || true
-save_and_hide_gui_apps
-closeui
-sleep 1
+  # System widget capture is easiest to reason about with an unobscured desktop.
+  log "Preparing an unobscured desktop for widget capture"
+  osascript -e 'tell application "Finder" to activate' >/dev/null 2>&1 || true
+  save_and_hide_gui_apps
+  closeui
+  sleep 1
 
-existing_widget_frame="$(find_desktop_airbattery_widget)"
-desktop_widget_frame="$existing_widget_frame"
-widget_was_preexisting=0
-[ -n "$existing_widget_frame" ] && widget_was_preexisting=1
-
-# First capture Notification Center itself, independent of whether the user
-# already has an AirBattery widget installed there or on the desktop.
-log "Opening Notification Center through ControlCenter -> Clock"
-if open_notification_center; then
-  edit_frame="$("$HELPER" bundleFrame "com.apple.notificationcenterui" "Edit Widgets" 2>/dev/null || true)"
-  panel_frame="$("$HELPER" notificationPanelFrame 2>/dev/null || true)"
-  panel_id="$("$HELPER" notificationPanel 2>/dev/null || true)"
-
-  if [ -n "$panel_frame" ]; then
-    pd="$(display_for_frame "$panel_frame" 2>/dev/null || main_display_index)"
-  elif [ -n "$edit_frame" ]; then
-    pd="$(display_for_frame "$edit_frame" 2>/dev/null || main_display_index)"
-  else
-    pd="$(main_display_index)"
+  need_desktop_widget=0
+  need_widget_configuration=0
+  if want_capture "widgets-in-situ/04-desktop-context.png" ||
+     want_capture "widgets-in-situ/05-airbattery-tight.png" ||
+     want_capture "widget-editor/04-existing-widget-configuration-tight.png" ||
+     want_capture "widget-editor/05-existing-widget-configuration-context.png"; then
+    need_desktop_widget=1
+  fi
+  if want_capture "widget-editor/04-existing-widget-configuration-tight.png" ||
+     want_capture "widget-editor/05-existing-widget-configuration-context.png"; then
+    need_widget_configuration=1
   fi
 
-  capdisplay "widgets-in-situ/01-notification-center-context.png" "$pd" \
-    "Widgets in situ" "Notification Center / context" \
-    "opened through ControlCenter Clock and verified NotificationCenter Edit Widgets or panel" || true
-
-  nc_widget_frame=""
-  for nc_label in "AirBattery" "Battery Overview"; do
-    nc_widget_frame="$("$HELPER" notificationWidgetFrame "$nc_label" 2>/dev/null || true)"
-    [ -n "$nc_widget_frame" ] && break
-  done
-
-  if [ -n "$nc_widget_frame" ]; then
-    nc_widget_rect="$(printf '%s' "$nc_widget_frame" | awk -F, \
-      '{printf "%d,%d,%d,%d",$1-10,$2-10,$3+20,$4+20}')"
-    capreg "widgets-in-situ/02-airbattery-notification-center.png" "$nc_widget_rect" \
-      "Widgets in situ" "AirBattery widget in Notification Center" \
-      "widget container is inside the verified Notification Center panel" || true
-  else
-    fail "AirBattery widget in Notification Center" \
-      "Notification Center opened, but no AirBattery/Battery Overview widget container could be isolated inside its panel."
+  desktop_widget_frame=""
+  if [ "$need_desktop_widget" = "1" ]; then
+    desktop_widget_frame="$(find_desktop_airbattery_widget)"
   fi
 
-  if [ -n "$panel_id" ]; then
-    capwin "widgets-in-situ/03-notification-center-panel.png" "$panel_id" \
-      "Widgets in situ" "Notification Center panel" \
-      "captured verified Notification Center WindowServer panel" || true
-  fi
-else
-  fail "Notification Center" \
-    "The exact ControlCenter Clock action and semantic fallbacks did not expose Notification Center."
-fi
-closeui
+  if want_capture "widgets-in-situ/01-notification-center-context.png" ||
+     want_capture "widgets-in-situ/02-airbattery-notification-center.png" ||
+     want_capture "widgets-in-situ/03-notification-center-panel.png"; then
+    log "Opening Notification Center through ControlCenter -> Clock"
+    if open_notification_center; then
+      edit_frame="$("$HELPER" bundleFrame "com.apple.notificationcenterui" "Edit Widgets" 2>/dev/null || true)"
+      panel_frame="$("$HELPER" notificationPanelFrame 2>/dev/null || true)"
+      panel_id="$("$HELPER" notificationPanel 2>/dev/null || true)"
 
-# Open and capture the gallery before deciding whether a temporary widget is
-# needed. The gallery itself is an important design surface.
-gallery_open=0
-gallery_filtered=0
-gallery_display=""
-search_frame=""
+      if [ -n "$panel_frame" ]; then
+        pd="$(display_for_frame "$panel_frame" 2>/dev/null || main_display_index)"
+      elif [ -n "$edit_frame" ]; then
+        pd="$(display_for_frame "$edit_frame" 2>/dev/null || main_display_index)"
+      else
+        pd="$(main_display_index)"
+      fi
 
-log "Opening macOS widget gallery"
-if open_widget_gallery; then
-  gallery_open=1
-  search_frame="$("$HELPER" bundleSearchFrame "$GALLERY_OWNER" 2>/dev/null || true)"
-  gallery_display="$(display_for_frame "$search_frame" 2>/dev/null || main_display_index)"
+      capdisplay "widgets-in-situ/01-notification-center-context.png" "$pd" \
+        "Widgets in situ" "Notification Center / context" \
+        "opened through ControlCenter Clock and verified NotificationCenter Edit Widgets or panel" || true
 
-  capdisplay "widget-editor/01-gallery.png" "$gallery_display" \
-    "Widget editor" "widget gallery" \
-    "verified Apple-owned gallery host '$GALLERY_OWNER' exposes both gallery markers and its own search field" || true
+      if want_capture "widgets-in-situ/02-airbattery-notification-center.png"; then
+        nc_widget_frame=""
+        for nc_label in "AirBattery" "Battery Overview"; do
+          nc_widget_frame="$("$HELPER" notificationWidgetFrame "$nc_label" 2>/dev/null || true)"
+          [ -n "$nc_widget_frame" ] && break
+        done
 
-  if filter_gallery_to_airbattery; then
-    gallery_filtered=1
-    gallery_base="$TMP/gallery-airbattery.png"
-    gallery_scrolled="$TMP/gallery-airbattery-scrolled.png"
-    capture_temp_display "$gallery_display" "$gallery_base"
-    mkdir -p "$OUT_DIR/widget-editor"
-    cp "$gallery_base" "$OUT_DIR/widget-editor/02-gallery-airbattery.png"
-    record "widget-editor/02-gallery-airbattery.png" \
-      "Widget editor" "gallery filtered to AirBattery" \
-      "search was set in the verified gallery owner and Battery Overview or Single Battery appeared in that same AX tree"
-    log "Captured widget-editor/02-gallery-airbattery.png"
+        if [ -n "$nc_widget_frame" ]; then
+          nc_widget_rect="$(printf '%s' "$nc_widget_frame" | awk -F, \
+            '{printf "%d,%d,%d,%d",$1-10,$2-10,$3+20,$4+20}')"
+          capreg "widgets-in-situ/02-airbattery-notification-center.png" "$nc_widget_rect" \
+            "Widgets in situ" "AirBattery widget in Notification Center" \
+            "widget container is inside the verified Notification Center panel" || true
+        else
+          fail "AirBattery widget in Notification Center" \
+            "Notification Center opened, but no AirBattery/Battery Overview widget container could be isolated inside its panel."
+        fi
+      fi
 
-    if [ -n "$search_frame" ]; then
-      gx="$(printf '%s' "$search_frame" | cut -d, -f1)"
-      gy="$(printf '%s' "$search_frame" | cut -d, -f2)"
-      gw="$(printf '%s' "$search_frame" | cut -d, -f3)"
-      "$HELPER" scrollPoint "$((gx + gw / 2))" "$((gy + 260))" -1000 >/dev/null 2>&1 || true
-      sleep 0.5
-      capture_temp_display "$gallery_display" "$gallery_scrolled"
-      save_unique "$gallery_scrolled" \
-        "widget-editor/03-gallery-airbattery-scrolled.png" "$gallery_base" \
-        "Widget editor" "AirBattery gallery scrolled" \
-        "saved only if scrolling reveals materially different AirBattery gallery content" || true
-    fi
-  else
-    fail "Widget gallery / AirBattery" \
-      "The gallery opened, but AirBattery widget results could not be verified after filtering."
-  fi
-else
-  fail "Widget gallery" \
-    "Neither route produced a positively identified Apple-owned widget gallery with its own search field and gallery-specific markers."
-fi
-
-# If there was no widget already on the desktop, use the open filtered gallery
-# to create one temporarily. Apple explicitly supports clicking a widget preview
-# to place it on the desktop. The script removes this widget after capture.
-if [ -z "$desktop_widget_frame" ]; then
-  if [ "$gallery_open" = "1" ] && [ "$gallery_filtered" = "1" ]; then
-    log "No existing AirBattery desktop widget; adding a temporary Battery Overview widget"
-    if add_temporary_airbattery_widget_from_gallery; then
-      desktop_widget_frame="$TEMP_WIDGET_FRAME"
+      if want_capture "widgets-in-situ/03-notification-center-panel.png" &&
+         [ -n "$panel_id" ]; then
+        capwin "widgets-in-situ/03-notification-center-panel.png" "$panel_id" \
+          "Widgets in situ" "Notification Center panel" \
+          "captured verified Notification Center WindowServer panel" || true
+      fi
     else
-      fail "Temporary AirBattery desktop widget" \
-        "The filtered gallery was visible, but clicking an AirBattery widget preview did not produce a verifiable desktop widget."
-      close_widget_gallery
+      fail "Notification Center" \
+        "The exact ControlCenter Clock action and semantic fallbacks did not expose Notification Center."
     fi
+    closeui
+  fi
+
+  gallery_open=0
+  gallery_filtered=0
+  gallery_display=""
+  search_frame=""
+
+  need_gallery=0
+  if want_capture "widget-editor/01-gallery.png" ||
+     want_capture "widget-editor/02-gallery-airbattery.png" ||
+     want_capture "widget-editor/03-gallery-airbattery-scrolled.png" ||
+     { [ "$need_desktop_widget" = "1" ] && [ -z "$desktop_widget_frame" ]; }; then
+    need_gallery=1
+  fi
+
+  if [ "$need_gallery" = "1" ]; then
+    log "Opening macOS widget gallery"
+    if open_widget_gallery; then
+      gallery_open=1
+      search_frame="$("$HELPER" bundleSearchFrame "$GALLERY_OWNER" 2>/dev/null || true)"
+      gallery_display="$(display_for_frame "$search_frame" 2>/dev/null || main_display_index)"
+
+      capdisplay "widget-editor/01-gallery.png" "$gallery_display" \
+        "Widget editor" "widget gallery" \
+        "verified Apple-owned gallery host '$GALLERY_OWNER' exposes both gallery markers and its own search field" || true
+
+      need_filter=0
+      if want_capture "widget-editor/02-gallery-airbattery.png" ||
+         want_capture "widget-editor/03-gallery-airbattery-scrolled.png" ||
+         { [ "$need_desktop_widget" = "1" ] && [ -z "$desktop_widget_frame" ]; }; then
+        need_filter=1
+      fi
+
+      if [ "$need_filter" = "1" ]; then
+        if filter_gallery_to_airbattery; then
+          gallery_filtered=1
+
+          if want_capture "widget-editor/02-gallery-airbattery.png" ||
+             want_capture "widget-editor/03-gallery-airbattery-scrolled.png"; then
+            gallery_base="$TMP/gallery-airbattery.png"
+            capture_temp_display "$gallery_display" "$gallery_base"
+
+            if want_capture "widget-editor/02-gallery-airbattery.png"; then
+              save_capture "$gallery_base" "widget-editor/02-gallery-airbattery.png" \
+                "Widget editor" "gallery filtered to AirBattery" \
+                "search was set in the verified gallery owner and Battery Overview or Single Battery appeared in that same AX tree"
+            fi
+
+            if want_capture "widget-editor/03-gallery-airbattery-scrolled.png" &&
+               [ -n "$search_frame" ]; then
+              gallery_scrolled="$TMP/gallery-airbattery-scrolled.png"
+              gx="$(printf '%s' "$search_frame" | cut -d, -f1)"
+              gy="$(printf '%s' "$search_frame" | cut -d, -f2)"
+              gw="$(printf '%s' "$search_frame" | cut -d, -f3)"
+              "$HELPER" scrollPoint "$((gx + gw/2))" "$((gy + 260))" -1000 >/dev/null 2>&1 || true
+              sleep 0.5
+              capture_temp_display "$gallery_display" "$gallery_scrolled"
+              save_unique "$gallery_scrolled" \
+                "widget-editor/03-gallery-airbattery-scrolled.png" "$gallery_base" \
+                "Widget editor" "AirBattery gallery scrolled" \
+                "saved only if scrolling reveals materially different AirBattery gallery content" || true
+            fi
+          fi
+        else
+          fail "Widget gallery / AirBattery" \
+            "The gallery opened, but AirBattery widget results could not be verified after filtering."
+        fi
+      fi
+    else
+      fail "Widget gallery" \
+        "Neither route produced a positively identified Apple-owned widget gallery with its own search field and gallery-specific markers."
+    fi
+  fi
+
+  # A real widget is needed only for desktop/configuration targets. If none
+  # exists, use the already filtered gallery to create a temporary one.
+  if [ "$need_desktop_widget" = "1" ] && [ -z "$desktop_widget_frame" ]; then
+    if [ "$gallery_open" = "1" ] && [ "$gallery_filtered" = "1" ]; then
+      log "No existing AirBattery desktop widget; adding a temporary Battery Overview widget"
+      if add_temporary_airbattery_widget_from_gallery; then
+        desktop_widget_frame="$TEMP_WIDGET_FRAME"
+        gallery_open=0
+      else
+        fail "Temporary AirBattery desktop widget" \
+          "The filtered gallery was visible, but clicking an AirBattery widget preview did not produce a verifiable desktop widget."
+        gallery_open=0
+      fi
+    else
+      fail "AirBattery desktop widget" \
+        "No pre-existing widget was found and the AirBattery gallery was not available to create a temporary one."
+    fi
+  fi
+
+  if [ "$gallery_open" = "1" ]; then
+    close_widget_gallery
+    gallery_open=0
   else
     closeui
   fi
-else
-  # Do not modify an existing user's widget. Simply close the gallery.
-  [ "$gallery_open" = "1" ] && close_widget_gallery || closeui
-fi
 
-# Capture the real desktop rendering once a pre-existing or temporary widget is
-# known to exist.
-if [ -n "$desktop_widget_frame" ]; then
-  widget_display="$(display_for_frame "$desktop_widget_frame" 2>/dev/null || true)"
-  widget_rect="$(printf '%s' "$desktop_widget_frame" | awk -F, '{printf "%d,%d,%d,%d",$1-12,$2-12,$3+24,$4+24}')"
+  if [ "$need_desktop_widget" = "1" ]; then
+    if [ -n "$desktop_widget_frame" ]; then
+      widget_display="$(display_for_frame "$desktop_widget_frame" 2>/dev/null || true)"
+      widget_rect="$(printf '%s' "$desktop_widget_frame" | awk -F, '{printf "%d,%d,%d,%d",$1-12,$2-12,$3+24,$4+24}')"
 
-  if [ -n "$widget_display" ]; then
-    capdisplay "widgets-in-situ/04-desktop-context.png" "$widget_display" \
-      "Widgets in situ" "AirBattery desktop widget / context" \
-      "GUI applications hidden; verified AirBattery desktop widget container" || true
-  fi
+      if [ -n "$widget_display" ]; then
+        capdisplay "widgets-in-situ/04-desktop-context.png" "$widget_display" \
+          "Widgets in situ" "AirBattery desktop widget / context" \
+          "GUI applications hidden; verified AirBattery desktop widget container" || true
+      fi
 
-  capreg "widgets-in-situ/05-airbattery-tight.png" "$widget_rect" \
-    "Widgets in situ" "AirBattery desktop widget" \
-    "tight crop of verified AirBattery desktop widget container" || true
+      capreg "widgets-in-situ/05-airbattery-tight.png" "$widget_rect" \
+        "Widgets in situ" "AirBattery desktop widget" \
+        "tight crop of verified AirBattery desktop widget container" || true
 
-  # Capture configuration from the verified widget itself.
-  log "Opening AirBattery widget configuration"
-  wx="$(printf '%s' "$desktop_widget_frame" | cut -d, -f1)"
-  wy="$(printf '%s' "$desktop_widget_frame" | cut -d, -f2)"
-  ww="$(printf '%s' "$desktop_widget_frame" | cut -d, -f3)"
-  wh="$(printf '%s' "$desktop_widget_frame" | cut -d, -f4)"
-  cx=$((wx + ww / 2))
-  cy=$((wy + wh / 2))
-  [ -n "$WIDGET_POINT" ] && {
-    set -- $(xy "$WIDGET_POINT")
-    cx="$1"
-    cy="$2"
-  }
+      if [ "$need_widget_configuration" = "1" ]; then
+        log "Opening AirBattery widget configuration"
+        wx="$(printf '%s' "$desktop_widget_frame" | cut -d, -f1)"
+        wy="$(printf '%s' "$desktop_widget_frame" | cut -d, -f2)"
+        ww="$(printf '%s' "$desktop_widget_frame" | cut -d, -f3)"
+        wh="$(printf '%s' "$desktop_widget_frame" | cut -d, -f4)"
+        cx=$((wx + ww/2)); cy=$((wy + wh/2))
+        [ -n "$WIDGET_POINT" ] && { set -- $(xy "$WIDGET_POINT"); cx="$1"; cy="$2"; }
 
-  before_widget="$TMP/widget-before-edit.png"
-  after_widget="$TMP/widget-after-edit.png"
-  /usr/sbin/screencapture -x -R "$widget_rect" "$before_widget" >/dev/null 2>&1 || true
+        before_widget="$TMP/widget-before-edit.png"
+        after_widget="$TMP/widget-after-edit.png"
+        /usr/sbin/screencapture -x -R "$widget_rect" "$before_widget" >/dev/null 2>&1 || true
 
-  "$HELPER" right "$cx" "$cy" >/dev/null 2>&1 || true
-  sleep 0.55
-  if "$HELPER" clickGlobal "Edit AirBattery" >/dev/null 2>&1 ||
-    "$HELPER" clickGlobal "Edit Widget" >/dev/null 2>&1; then
-    sleep 1.2
-    /usr/sbin/screencapture -x -R "$widget_rect" "$after_widget" >/dev/null 2>&1 || true
+        "$HELPER" right "$cx" "$cy" >/dev/null 2>&1 || true
+        sleep 0.55
+        if "$HELPER" clickGlobal "Edit AirBattery" >/dev/null 2>&1 ||
+           "$HELPER" clickGlobal "Edit Widget" >/dev/null 2>&1; then
+          sleep 1.2
+          /usr/sbin/screencapture -x -R "$widget_rect" "$after_widget" >/dev/null 2>&1 || true
 
-    if "$HELPER" globalHas "Show Percentages" >/dev/null 2>&1 ||
-      "$HELPER" globalHas "Show Labels" >/dev/null 2>&1 ||
-      "$HELPER" globalHas "Enter Device Name" >/dev/null 2>&1 ||
-      { [ -s "$before_widget" ] && [ -s "$after_widget" ] &&
-        meaningfully_different "$before_widget" "$after_widget" 0.018; }; then
-      mkdir -p "$OUT_DIR/widget-editor"
-      cp "$after_widget" "$OUT_DIR/widget-editor/04-existing-widget-configuration-tight.png"
-      record "widget-editor/04-existing-widget-configuration-tight.png" \
-        "Widget editor" "existing AirBattery widget configuration" \
-        "Edit Widget invoked; AppIntent controls or material widget-region transition verified"
-      [ -n "${widget_display:-}" ] && capdisplay \
-        "widget-editor/05-existing-widget-configuration-context.png" "$widget_display" \
-        "Widget editor" "existing widget configuration / context" \
-        "verified AirBattery widget entered configuration state" || true
+          if "$HELPER" globalHas "Show Percentages" >/dev/null 2>&1 ||
+             "$HELPER" globalHas "Show Labels" >/dev/null 2>&1 ||
+             "$HELPER" globalHas "Enter Device Name" >/dev/null 2>&1 ||
+             { [ -s "$before_widget" ] && [ -s "$after_widget" ] &&
+               meaningfully_different "$before_widget" "$after_widget" 0.018; }; then
+            save_capture "$after_widget" \
+              "widget-editor/04-existing-widget-configuration-tight.png" \
+              "Widget editor" "existing AirBattery widget configuration" \
+              "Edit Widget invoked; AppIntent controls or material widget-region transition verified"
+
+            if [ -n "${widget_display:-}" ]; then
+              capdisplay "widget-editor/05-existing-widget-configuration-context.png" "$widget_display" \
+                "Widget editor" "existing widget configuration / context" \
+                "verified AirBattery widget entered configuration state" || true
+            fi
+          else
+            fail "Existing widget configuration" \
+              "Edit Widget was invoked, but neither AppIntent controls nor a material widget-region change was observed."
+          fi
+        else
+          fail "Existing widget configuration" \
+            "The verified AirBattery widget context menu exposed no Edit Widget action."
+        fi
+        closeui
+      fi
     else
-      fail "Existing widget configuration" \
-        "Edit Widget was invoked, but neither AppIntent controls nor a material widget-region change was observed."
+      fail "AirBattery desktop widget" \
+        "No pre-existing widget was found and no temporary widget could be added from the gallery."
     fi
-  else
-    fail "Existing widget configuration" \
-      "The verified AirBattery widget context menu exposed no Edit Widget action."
   fi
-  closeui
-else
-  fail "AirBattery desktop widget" \
-    "No pre-existing widget was found and no temporary widget could be added from the gallery."
-  fail "Existing widget configuration" \
-    "No verified AirBattery desktop widget was available to edit."
+
+  # Remove only the widget this script added. A pre-existing user widget is never
+  # removed or repositioned.
+  if [ "$TEMP_WIDGET_ADDED" = "1" ]; then
+    remove_temporary_widget "normal completion" || true
+  fi
+
+  restore_gui_apps
 fi
 
-# Remove only the widget this script added. A pre-existing user widget is never
-# removed or repositioned.
-if [ "$TEMP_WIDGET_ADDED" = "1" ]; then
-  remove_temporary_widget "normal completion" || true
-fi
-
-restore_gui_apps
-
-cat >>"$INDEX" <<'EOF'
+cat >> "$INDEX" <<'EOF'
 
 ## Notes
 
+- `--only` and `--skip` are evaluated against the output paths shown by
+  `--list`. Unselected workflows are skipped before their UI automation runs.
 - Settings captures are written only after a destination-specific detail-pane
   string proves that navigation succeeded.
 - Settings scroll captures use perceptual image comparison; visually
