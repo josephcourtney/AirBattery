@@ -90,6 +90,8 @@ CAPTURE_TARGETS=(
 
 ONLY_PATTERNS=()
 SKIP_PATTERNS=()
+ONLY_PATTERN_COUNT=0
+SKIP_PATTERN_COUNT=0
 OUT_ROOT="artifacts/gui-review"
 OUT_ROOT_SET=0
 LIST_TARGETS=0
@@ -132,19 +134,25 @@ pattern_matches_registry(){
 want_capture(){
   target="$1"
 
-  if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+  if [ "$ONLY_PATTERN_COUNT" -gt 0 ]; then
     selected=0
-    for pattern in "${ONLY_PATTERNS[@]}"; do
+    i=0
+    while [ "$i" -lt "$ONLY_PATTERN_COUNT" ]; do
+      pattern="${ONLY_PATTERNS[$i]}"
       if matches_pattern "$target" "$pattern"; then
         selected=1
         break
       fi
+      i=$((i + 1))
     done
     [ "$selected" = "1" ] || return 1
   fi
 
-  for pattern in "${SKIP_PATTERNS[@]}"; do
+  i=0
+  while [ "$i" -lt "$SKIP_PATTERN_COUNT" ]; do
+    pattern="${SKIP_PATTERNS[$i]}"
     matches_pattern "$target" "$pattern" && return 1
+    i=$((i + 1))
   done
 
   return 0
@@ -165,20 +173,24 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --only)
       [ "$#" -ge 2 ] || { echo "--only requires a glob" >&2; exit 2; }
-      ONLY_PATTERNS+=("$2")
+      ONLY_PATTERNS[$ONLY_PATTERN_COUNT]="$2"
+      ONLY_PATTERN_COUNT=$((ONLY_PATTERN_COUNT + 1))
       shift 2
       ;;
     --only=*)
-      ONLY_PATTERNS+=("${1#--only=}")
+      ONLY_PATTERNS[$ONLY_PATTERN_COUNT]="${1#--only=}"
+      ONLY_PATTERN_COUNT=$((ONLY_PATTERN_COUNT + 1))
       shift
       ;;
     --skip)
       [ "$#" -ge 2 ] || { echo "--skip requires a glob" >&2; exit 2; }
-      SKIP_PATTERNS+=("$2")
+      SKIP_PATTERNS[$SKIP_PATTERN_COUNT]="$2"
+      SKIP_PATTERN_COUNT=$((SKIP_PATTERN_COUNT + 1))
       shift 2
       ;;
     --skip=*)
-      SKIP_PATTERNS+=("${1#--skip=}")
+      SKIP_PATTERNS[$SKIP_PATTERN_COUNT]="${1#--skip=}"
+      SKIP_PATTERN_COUNT=$((SKIP_PATTERN_COUNT + 1))
       shift
       ;;
     --list)
@@ -223,12 +235,15 @@ if [ "$LIST_TARGETS" = "1" ]; then
   exit 0
 fi
 
-for pattern in "${ONLY_PATTERNS[@]}"; do
+i=0
+while [ "$i" -lt "$ONLY_PATTERN_COUNT" ]; do
+  pattern="${ONLY_PATTERNS[$i]}"
   if ! pattern_matches_registry "$pattern"; then
     echo "No capture target matches --only '$pattern'." >&2
     echo "Use --list to see selectable targets." >&2
     exit 2
   fi
+  i=$((i + 1))
 done
 
 selected_count=0
@@ -2076,7 +2091,7 @@ if want_group 'menubar/*' || want_group 'popover/*'; then
       fi
     }
 
-    if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+    if [ "$ONLY_PATTERN_COUNT" -gt 0 ]; then
       # Explicit selection makes either structural state addressable regardless
       # of the user's current merge preference.
       want_group 'popover/*earbuds-merged*' && capture_merged_variant
@@ -2186,7 +2201,7 @@ if want_group 'settings/display-configurations/*' && [ "$MUTATE_PREFS" = "1" ]; 
       "" "Merge threshold (%)"
   }
 
-  if [ "${#ONLY_PATTERNS[@]}" -gt 0 ]; then
+  if [ "$ONLY_PATTERN_COUNT" -gt 0 ]; then
     want_capture "settings/display-configurations/01-earbud-merging-enabled.png" &&
       capture_merging_enabled
     want_capture "settings/display-configurations/01-earbud-merging-off.png" &&
