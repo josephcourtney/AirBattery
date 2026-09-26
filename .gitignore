@@ -97,3 +97,5 @@ AirBattery/libimobiledevice/bin/
 AirBattery/libimobiledevice/lib/
 AirBattery/libimobiledevice/licenses/
 AirBattery/libimobiledevice/MANIFEST.txt
+*.zip
+artifacts
