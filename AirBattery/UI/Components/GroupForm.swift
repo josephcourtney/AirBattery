@@ -102,6 +102,51 @@ struct SInfoButton: View {
     }
 }
 
+struct SDescriptiveToggle: View {
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    @Binding var isOn: Bool
+    let tips: LocalizedStringKey?
+
+    init(
+        _ title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        isOn: Binding<Bool>,
+        tips: LocalizedStringKey? = nil
+    ) {
+        self.title = title
+        self.detail = detail
+        _isOn = isOn
+        self.tips = tips
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                    if let tips {
+                        SInfoButton(tips: tips)
+                    }
+                }
+
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .padding(.top, 1)
+        }
+        .frame(minHeight: 36)
+    }
+}
+
 private struct SettingsControlRow<Control: View>: View {
     let title: LocalizedStringKey
     let tips: LocalizedStringKey?
