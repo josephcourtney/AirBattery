@@ -144,15 +144,21 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         for configuration: BatteryOverviewConfigurationIntent,
         in context: Context
     ) async -> Timeline<BatteryOverviewEntry> {
-        Timeline(
-            entries: [
-                makeEntry(
-                    configuration: configuration,
-                    family: context.family
-                )
-            ],
-            policy: .atEnd
-        )
+        let entry: BatteryOverviewEntry
+        if context.isPreview {
+            entry = makePreviewEntry(
+                family: context.family,
+                showPercentages: configuration.showPercentages,
+                showLabels: configuration.showLabels
+            )
+        } else {
+            entry = makeEntry(
+                configuration: configuration,
+                family: context.family
+            )
+        }
+
+        return Timeline(entries: [entry], policy: .atEnd)
     }
 
     private func makePreviewEntry(
