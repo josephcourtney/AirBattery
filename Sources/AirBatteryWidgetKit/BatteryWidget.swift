@@ -74,69 +74,45 @@ struct BatteryOverviewEntry: TimelineEntry {
 private enum BatteryOverviewPreviewData {
     static func devices(at date: Date) -> [Device] {
         let timestamp = date.timeIntervalSince1970
+
+        func device(
+            _ id: String,
+            _ type: String,
+            _ name: String,
+            model: String? = nil,
+            level: Int,
+            charging: Int = 0,
+            parent: String = ""
+        ) -> Device {
+            Device(
+                deviceID: id,
+                deviceType: type,
+                deviceName: name,
+                deviceModel: model,
+                batteryLevel: level,
+                isCharging: charging,
+                parentName: parent,
+                lastUpdate: timestamp
+            )
+        }
+
         return AirPodsPresentation.widgetPresentationOrder(from: [
-            Device(
-                deviceID: "preview-airpods-case",
-                deviceType: "ap_case",
-                deviceName: "AirPods Pro (Case)",
-                deviceModel: "Airpods Pro 2",
-                batteryLevel: 64,
-                isCharging: 0,
-                parentName: "AirPods Pro",
-                lastUpdate: timestamp
+            device(
+                "preview-airpods-case", "ap_case", "AirPods Pro (Case)",
+                model: "Airpods Pro 2", level: 64, parent: "AirPods Pro"
             ),
-            Device(
-                deviceID: "preview-airpods-left",
-                deviceType: "ap_pod_left",
-                deviceName: "AirPods Pro Left",
-                deviceModel: "Airpods Pro 2",
-                batteryLevel: 88,
-                isCharging: 0,
-                parentName: "AirPods Pro",
-                lastUpdate: timestamp
+            device(
+                "preview-airpods-left", "ap_pod_left", "AirPods Pro Left",
+                model: "Airpods Pro 2", level: 88, parent: "AirPods Pro"
             ),
-            Device(
-                deviceID: "preview-airpods-right",
-                deviceType: "ap_pod_right",
-                deviceName: "AirPods Pro Right",
-                deviceModel: "Airpods Pro 2",
-                batteryLevel: 82,
-                isCharging: 1,
-                parentName: "AirPods Pro",
-                lastUpdate: timestamp
+            device(
+                "preview-airpods-right", "ap_pod_right", "AirPods Pro Right",
+                model: "Airpods Pro 2", level: 82, charging: 1, parent: "AirPods Pro"
             ),
-            Device(
-                deviceID: "preview-mac",
-                deviceType: "macbookpro",
-                deviceName: "MacBook Pro",
-                batteryLevel: 76,
-                isCharging: 1,
-                lastUpdate: timestamp
-            ),
-            Device(
-                deviceID: "preview-iphone",
-                deviceType: "iPhone",
-                deviceName: "iPhone",
-                batteryLevel: 42,
-                isCharging: 0,
-                lastUpdate: timestamp
-            ),
-            Device(
-                deviceID: "preview-watch",
-                deviceType: "Watch",
-                deviceName: "Apple Watch",
-                batteryLevel: 68,
-                isCharging: 0,
-                lastUpdate: timestamp
-            ),
-            Device(
-                deviceID: "preview-mouse",
-                deviceType: "MMouse",
-                deviceName: "Magic Mouse",
-                batteryLevel: 91,
-                isCharging: 0,
-                lastUpdate: timestamp
-            ),
+            device("preview-mac", "macbookpro", "MacBook Pro", level: 76, charging: 1),
+            device("preview-iphone", "iPhone", "iPhone", level: 42),
+            device("preview-watch", "Watch", "Apple Watch", level: 68),
+            device("preview-mouse", "MMouse", "Magic Mouse", level: 91),
         ])
     }
 }
