@@ -5,6 +5,7 @@
 //  Created by apple on 2024/2/18.
 //
 
+import os
 import SwiftUI
 import WidgetKit
 
@@ -118,8 +119,16 @@ private enum BatteryOverviewPreviewData {
 }
 
 struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
+    private static let logger = Logger(
+        subsystem: "com.josephcourtney.AirBattery.widget",
+        category: "BatteryOverviewProvider"
+    )
+
     func placeholder(in context: Context) -> BatteryOverviewEntry {
-        makePreviewEntry(
+        Self.logger.notice(
+            "placeholder family=\(String(describing: context.family), privacy: .public) source=preview"
+        )
+        return makePreviewEntry(
             family: context.family,
             showPercentages: true,
             showLabels: true
@@ -130,6 +139,10 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         for configuration: BatteryOverviewConfigurationIntent,
         in context: Context
     ) async -> BatteryOverviewEntry {
+        let source = context.isPreview ? "preview" : "live"
+        Self.logger.notice(
+            "snapshot isPreview=\(context.isPreview, privacy: .public) family=\(String(describing: context.family), privacy: .public) source=\(source, privacy: .public)"
+        )
         if context.isPreview {
             return makePreviewEntry(
                 family: context.family,
@@ -144,6 +157,11 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         for configuration: BatteryOverviewConfigurationIntent,
         in context: Context
     ) async -> Timeline<BatteryOverviewEntry> {
+        let source = context.isPreview ? "preview" : "live"
+        Self.logger.notice(
+            "timeline isPreview=\(context.isPreview, privacy: .public) family=\(String(describing: context.family), privacy: .public) source=\(source, privacy: .public)"
+        )
+
         let entry: BatteryOverviewEntry
         if context.isPreview {
             entry = makePreviewEntry(
@@ -167,9 +185,13 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         showLabels: Bool
     ) -> BatteryOverviewEntry {
         let date = Date()
+        let data = BatteryOverviewPreviewData.devices(at: date)
+        Self.logger.notice(
+            "makePreviewEntry family=\(String(describing: family), privacy: .public) devices=\(data.count, privacy: .public)"
+        )
         return BatteryOverviewEntry(
             date: date,
-            data: BatteryOverviewPreviewData.devices(at: date),
+            data: data,
             family: family,
             mainApp: true,
             showPercentages: showPercentages,
@@ -189,6 +211,9 @@ struct BatteryOverviewTimelineProvider: AppIntentTimelineProvider {
         }
 
         data = AirPodsPresentation.widgetPresentationOrder(from: data)
+        Self.logger.notice(
+            "makeEntry family=\(String(describing: family), privacy: .public) devices=\(data.count, privacy: .public) mainApp=\(mainApp, privacy: .public)"
+        )
 
         return BatteryOverviewEntry(
             date: Date(),
