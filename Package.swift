@@ -1,89 +1,121 @@
 // swift-tools-version: 6.2
 
+import Foundation
 import PackageDescription
+
+let hrostEnabled = ProcessInfo.processInfo.environment["AIRBATTERY_HROST"] == "1"
+let hrostPath = ProcessInfo.processInfo.environment["HROST_PATH"] ?? "../hrost"
+
+var products: [Product] = [
+    .library(
+        name: "AirBatteryShared",
+        targets: ["AirBatteryShared"]
+    ),
+    .library(
+        name: "AirBatteryKit",
+        targets: ["AirBatteryKit"]
+    ),
+    .library(
+        name: "AirBatteryWidgetKit",
+        targets: ["AirBatteryWidgetKit"]
+    ),
+    .executable(
+        name: "airbattery",
+        targets: ["abt"]
+    ),
+]
+
+var dependencies: [Package.Dependency] = [
+    .package(
+        url: "https://github.com/insidegui/MultipeerKit.git",
+        from: "0.4.0"
+    ),
+    .package(
+        url: "https://github.com/sparkle-project/Sparkle.git",
+        from: "2.10.0"
+    ),
+    .package(
+        url: "https://github.com/apple/swift-argument-parser.git",
+        from: "1.8.2"
+    ),
+]
+
+var targets: [Target] = [
+    .target(
+        name: "AirBatteryShared",
+        path: "Sources/AirBatteryShared"
+    ),
+    .target(
+        name: "AirBatteryKit",
+        dependencies: [
+            "AirBatteryShared",
+            .product(name: "MultipeerKit", package: "MultipeerKit"),
+            .product(name: "Sparkle", package: "Sparkle"),
+        ],
+        path: "AirBattery",
+        exclude: [
+            "AirBattery.entitlements",
+            "Assets.xcassets",
+            "Base.lproj",
+            "Info.plist",
+            "Preview Content",
+            "libimobiledevice",
+            "Supports",
+            "en.lproj",
+        ]
+    ),
+    .target(
+        name: "AirBatteryWidgetKit",
+        dependencies: ["AirBatteryShared"],
+        path: "Sources/AirBatteryWidgetKit"
+    ),
+    .executableTarget(
+        name: "abt",
+        dependencies: [
+            "AirBatteryKit",
+            .product(
+                name: "ArgumentParser",
+                package: "swift-argument-parser"
+            ),
+        ],
+        path: "abt",
+        exclude: ["abt.entitlements"]
+    ),
+    .testTarget(
+        name: "AirBatteryTests",
+        dependencies: ["AirBatteryKit"],
+        path: "AirBatteryTests"
+    ),
+]
+
+if hrostEnabled {
+    products.append(
+        .executable(
+            name: "AirBatteryHrost",
+            targets: ["AirBatteryHrost"]
+        )
+    )
+    dependencies.append(.package(path: hrostPath))
+    targets.append(
+        .executableTarget(
+            name: "AirBatteryHrost",
+            dependencies: [
+                "AirBatteryKit",
+                "AirBatteryShared",
+                "AirBatteryWidgetKit",
+                .product(name: "Hrost", package: "hrost"),
+            ],
+            path: "Development/AirBatteryHrost"
+        )
+    )
+}
 
 let package = Package(
     name: "AirBattery",
     platforms: [
         .macOS("26.0"),
     ],
-    products: [
-        .library(
-            name: "AirBatteryShared",
-            targets: ["AirBatteryShared"]
-        ),
-        .library(
-            name: "AirBatteryKit",
-            targets: ["AirBatteryKit"]
-        ),
-        .library(
-            name: "AirBatteryWidgetKit",
-            targets: ["AirBatteryWidgetKit"]
-        ),
-        .executable(
-            name: "airbattery",
-            targets: ["abt"]
-        ),
-    ],
-    dependencies: [
-        .package(
-            url: "https://github.com/insidegui/MultipeerKit.git",
-            from: "0.4.0"
-        ),
-        .package(
-            url: "https://github.com/sparkle-project/Sparkle.git",
-            from: "2.10.0"
-        ),
-        .package(
-            url: "https://github.com/apple/swift-argument-parser.git",
-            from: "1.8.2"
-        ),
-    ],
-    targets: [
-        .target(
-            name: "AirBatteryShared",
-            path: "Sources/AirBatteryShared"
-        ),
-        .target(
-            name: "AirBatteryKit",
-            dependencies: [
-                "AirBatteryShared",
-                .product(name: "MultipeerKit", package: "MultipeerKit"),
-                .product(name: "Sparkle", package: "Sparkle"),
-            ],
-            path: "AirBattery",
-            exclude: [
-                "AirBattery.entitlements",
-                "Assets.xcassets",
-                "Base.lproj",
-                "Info.plist",
-                "Preview Content",
-                "libimobiledevice",
-                "Supports",
-                "en.lproj",
-            ]
-        ),
-        .target(
-            name: "AirBatteryWidgetKit",
-            dependencies: ["AirBatteryShared"],
-            path: "Sources/AirBatteryWidgetKit"
-        ),
-        .executableTarget(
-            name: "abt",
-            dependencies: [
-                "AirBatteryKit",
-                .product(
-                    name: "ArgumentParser",
-                    package: "swift-argument-parser"
-                ),
-            ],
-            path: "abt",
-            exclude: ["abt.entitlements"]
-        ),
-        .testTarget(
-            name: "AirBatteryTests",
-            dependencies: ["AirBatteryKit"],
-            path: "AirBatteryTests"
-        ),
-    ]
+    products: products,
+    dependencies: dependencies,
+    targets: targets
 )
