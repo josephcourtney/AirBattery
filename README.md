@@ -67,6 +67,18 @@ just check
 stress-tests the Apple Watch companion helper. See [TESTING.md](./TESTING.md)
 for coverage and configuration.
 
+For deterministic UI development, AirBattery also has an opt-in Hrost harness
+that renders production popover, menu-bar, Dock, settings, and widget surfaces
+against synthetic device fixtures without starting the normal discovery/service
+graph:
+
+```bash
+bash Development/AirBatteryHrost/run.sh
+```
+
+See [Development/AirBatteryHrost/README.md](./Development/AirBatteryHrost/README.md)
+for scenarios, surfaces, capture commands, and `HROST_PATH` configuration.
+
 ## Donate
 <img src="./img/donate.png" width="350"/>
 
