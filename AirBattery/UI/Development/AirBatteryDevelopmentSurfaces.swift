@@ -89,7 +89,7 @@ package enum AirBatteryDevelopmentSurfaces {
             mergeEarbuds: mergeEarbuds,
             mergeThreshold: mergeThreshold
         )
-        let host = ContentFittingHostingView(width: 352, rootView: root)
+        let host = ContentFittingHostingView(width: 352) { root }
         host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
         host.layoutSubtreeIfNeeded()
         host.resizeToFitContent()
