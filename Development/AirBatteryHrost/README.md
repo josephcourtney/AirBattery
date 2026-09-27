@@ -33,7 +33,17 @@ bash Development/AirBatteryHrost/run.sh capture \
   --appearance dark
 ```
 
-The Lab also exposes **Capture Set…**. It can package any selected subset of the surface × scenario × variant × appearance matrix—from one combination through the complete matrix—into one `.hrostcapture` archive.
+The Lab also exposes **Capture Set…**. Its faceted builder selects surfaces, scenarios, compatible variants, and appearances independently, shows the resolved capture count, and allows explicit per-coordinate additions/exclusions under **Preview & Exceptions**. Capture progress is shown in the Lab with completed/total count and the current coordinate.
+
+AirBattery provides these capture presets:
+
+- **Smoke** — every surface, single-device fixture, default variants, System appearance
+- **Visual Regression** — AirPods, charging, long names, and missing battery data across Light/Dark, plus the medium widget variant
+- **Edge Cases** — empty, many devices, long names, and missing battery data across Light/Dark
+- **AirPods** — AirPods across the battery-bearing surfaces in Light/Dark
+- **Everything** — the complete compatible surface × scenario × variant × appearance matrix
+
+`Visual Regression` is the normal evidence-gathering preset; `Everything` is intentionally much larger and is mainly useful for exhaustive checks.
 
 ## Scenarios
 
