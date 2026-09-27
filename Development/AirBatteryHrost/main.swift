@@ -178,6 +178,73 @@ struct AirBatteryHrostManifest: HrostManifest {
     let scenarios = AirBatteryHrostScenario.allCases
     let surfaces: [HrostSurface<AirBatteryHrostScenario>]
 
+    var capturePresets: [HrostCapturePreset] {
+        [
+            HrostCapturePreset(
+                id: "smoke",
+                title: "Smoke",
+                selection: HrostCaptureSelection(
+                    scenarios: .only([AirBatteryHrostScenario.singleDevice.id]),
+                    variants: .defaults,
+                    appearances: [.system]
+                )
+            ),
+            HrostCapturePreset(
+                id: "visual-regression",
+                title: "Visual Regression",
+                selection: HrostCaptureSelection(
+                    scenarios: .only([
+                        AirBatteryHrostScenario.airPods.id,
+                        AirBatteryHrostScenario.charging.id,
+                        AirBatteryHrostScenario.longNames.id,
+                        AirBatteryHrostScenario.noBattery.id,
+                    ]),
+                    variants: .defaultsPlus(["medium"]),
+                    appearances: [.light, .dark]
+                )
+            ),
+            HrostCapturePreset(
+                id: "edge-cases",
+                title: "Edge Cases",
+                selection: HrostCaptureSelection(
+                    scenarios: .only([
+                        AirBatteryHrostScenario.empty.id,
+                        AirBatteryHrostScenario.manyDevices.id,
+                        AirBatteryHrostScenario.longNames.id,
+                        AirBatteryHrostScenario.noBattery.id,
+                    ]),
+                    variants: .defaults,
+                    appearances: [.light, .dark]
+                )
+            ),
+            HrostCapturePreset(
+                id: "airpods",
+                title: "AirPods",
+                selection: HrostCaptureSelection(
+                    surfaces: .only([
+                        "main-popover",
+                        "status-menu",
+                        "status-item",
+                        "dock-tile",
+                        "overview-widget",
+                        "battery-glyph",
+                    ]),
+                    scenarios: .only([AirBatteryHrostScenario.airPods.id]),
+                    variants: .defaultsPlus(["medium"]),
+                    appearances: [.light, .dark]
+                )
+            ),
+            HrostCapturePreset(
+                id: "everything",
+                title: "Everything",
+                selection: HrostCaptureSelection(
+                    variants: .allCompatible,
+                    appearances: Set(HrostAppearance.allCases)
+                )
+            ),
+        ]
+    }
+
     init() {
         let popoverVariants = [
             HrostVariant(
