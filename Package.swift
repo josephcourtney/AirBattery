@@ -105,7 +105,8 @@ if hrostEnabled {
                 "AirBatteryWidgetKit",
                 .product(name: "Hrost", package: "hrost"),
             ],
-            path: "Development/AirBatteryHrost"
+            path: "Development/AirBatteryHrost",
+            exclude: ["README.md", "run.sh"]
         )
     )
 }
