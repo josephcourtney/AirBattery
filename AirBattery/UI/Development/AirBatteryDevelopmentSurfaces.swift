@@ -79,6 +79,30 @@ package enum AirBatteryDevelopmentSurfaces {
         )
     }
 
+    package static func statusMenu(
+        devices: [Device],
+        mergeEarbuds: Bool = true,
+        mergeThreshold: Int = 5
+    ) -> NSMenu {
+        let root = popover(
+            devices: devices,
+            mergeEarbuds: mergeEarbuds,
+            mergeThreshold: mergeThreshold
+        )
+        let host = ContentFittingHostingView(width: 352, rootView: root)
+        host.frame = NSRect(x: 0, y: 0, width: 352, height: 1)
+        host.layoutSubtreeIfNeeded()
+        host.resizeToFitContent()
+
+        let item = NSMenuItem()
+        item.view = host
+
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(item)
+        return menu
+    }
+
     package static func dockTile(
         devices: [Device],
         darkMode: Bool,
