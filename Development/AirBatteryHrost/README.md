@@ -18,7 +18,7 @@ By default Hrost is expected at the sibling checkout `../hrost`. Override that w
 HROST_PATH=/path/to/hrost bash Development/AirBatteryHrost/run.sh
 ```
 
-The runner builds `AirBatteryHrost`, compiles AirBattery's production `Assets.xcassets` into the SwiftPM executable directory with `actool`, and then launches the harness. Compiling the catalog is necessary because production views resolve named images and adaptive colors from `Bundle.main`.
+The runner builds `AirBatteryHrost`, stages the executable inside a minimal development-only `AirBatteryHrost.app`, compiles AirBattery's production `Assets.xcassets` into `Contents/Resources` with `actool`, copies the app's `.lproj` localization directories, and then launches the bundled executable. Running from an application bundle is necessary because production views resolve named images, adaptive colors, and localized strings from `Bundle.main`.
 
 ## Commands
 
@@ -32,6 +32,8 @@ bash Development/AirBatteryHrost/run.sh capture \
   --scenario airpods \
   --appearance dark
 ```
+
+The Lab also exposes **Capture Set…**. It can package any selected subset of the surface × scenario × variant × appearance matrix—from one combination through the complete matrix—into one `.hrostcapture` archive.
 
 ## Scenarios
 
