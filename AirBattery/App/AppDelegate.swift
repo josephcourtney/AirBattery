@@ -5,12 +5,31 @@ public func runAirBatteryApplication() {
     AppDelegate.main()
 }
 
+/// Development-only package seam for launching the real AirBattery AppKit host
+/// without starting live monitoring services. The normal production entry point
+/// remains `runAirBatteryApplication()`.
+@MainActor
+package func runAirBatteryDisplaySettingsProductionFixture(
+    onReady: @escaping @MainActor (NSWindow) -> Void
+) {
+    AppDelegate.fixtureMain(onReady: onReady)
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let coordinator: ApplicationCoordinator
+    private let coordinator: ApplicationCoordinator?
+    private let fixtureReady: (@MainActor (NSWindow) -> Void)?
+    private var fixtureSettingsController: SettingsWindowController?
 
     init(environment: AppEnvironment) {
         coordinator = ApplicationCoordinator(environment: environment)
+        fixtureReady = nil
+        super.init()
+    }
+
+    private init(fixtureReady: @escaping @MainActor (NSWindow) -> Void) {
+        coordinator = nil
+        self.fixtureReady = fixtureReady
         super.init()
     }
 
@@ -23,27 +42,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private static func fixtureMain(
+        onReady: @escaping @MainActor (NSWindow) -> Void
+    ) {
+        let application = NSApplication.shared
+        let delegate = AppDelegate(fixtureReady: onReady)
+        application.delegate = delegate
+        application.setActivationPolicy(.regular)
+        withExtendedLifetime(delegate) {
+            application.run()
+        }
+    }
+
     func applicationShouldHandleReopen(
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        coordinator.handleReopen()
+        coordinator?.handleReopen() ?? false
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        coordinator.applicationWillFinishLaunching()
+        coordinator?.applicationWillFinishLaunching()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        coordinator.applicationDidFinishLaunching()
+        if let fixtureReady {
+            let controller = SettingsWindowController.developmentFixture(section: .display)
+            fixtureSettingsController = controller
+            controller.present()
+            guard let window = controller.window else {
+                NSApp.terminate(nil)
+                return
+            }
+            // Let AppKit finish key-window ordering before the development
+            // capture callback starts querying WindowServer.
+            DispatchQueue.main.async {
+                fixtureReady(window)
+            }
+            return
+        }
+
+        coordinator?.applicationDidFinishLaunching()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        coordinator.applicationWillTerminate()
+        coordinator?.applicationWillTerminate()
     }
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
-        coordinator.applicationDockMenu()
+        coordinator?.applicationDockMenu()
     }
 
     func presentSettings() {
