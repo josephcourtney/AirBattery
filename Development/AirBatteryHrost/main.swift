@@ -327,10 +327,14 @@ struct AirBatteryHrostManifest: HrostManifest {
             .window(
                 id: "display-settings",
                 title: "Display Settings",
-                initialSize: CGSize(width: 740, height: 720)
-            ) { _ in
-                AirBatteryDevelopmentSurfaces.displaySettings()
-            },
+                initialSize: AirBatteryDevelopmentSurfaces.settingsWindowContentSize,
+                content: { _ in
+                    AirBatteryDevelopmentSurfaces.settingsWindow()
+                },
+                configure: { window, _ in
+                    AirBatteryDevelopmentSurfaces.configureSettingsWindow(window)
+                }
+            ),
 
             .widget(
                 id: "overview-widget",
@@ -376,6 +380,13 @@ private func configureHarnessDefaults() {
     defaults.set(false, forKey: "iosBatteryStyle")
     defaults.set("outside", forKey: "batteryPercent")
     defaults.set(90, forKey: "hideLevel")
+    defaults.set(false, forKey: "showDebug")
+
+    defaults.removeObject(forKey: "bleDevicePolicyRules")
+    defaults.removeObject(forKey: "bleLogicalDevicePolicyRulesV1")
+    defaults.set(false, forKey: "readBLEDevice")
+    defaults.set(false, forKey: "ideviceOverBLE")
+    defaults.set("review", forKey: "bleDiscoveryMode")
 }
 
 @main
