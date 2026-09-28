@@ -17,6 +17,14 @@ package enum AirBatterySettingsWindowConfiguration {
         window.tabbingMode = .disallowed
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.zoomButton)?.isEnabled = true
+
+        // Installing an NSHostingController can resize its containing NSWindow
+        // to SwiftUI's fitting size. Reassert the declared initial content size
+        // after the content controller has been installed so a fresh settings
+        // window opens at the intended 960x680 rather than an incidental fitting
+        // size. Frame autosave, when enabled, is applied afterward and may still
+        // restore a user-resized production window.
+        window.setContentSize(initialContentSize)
     }
 }
 
@@ -38,8 +46,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             defer: false
         )
 
-        AirBatterySettingsWindowConfiguration.apply(to: window)
         window.contentViewController = hostingController
+        AirBatterySettingsWindowConfiguration.apply(to: window)
         if usesFrameAutosave {
             window.setFrameAutosaveName("AirBatterySettingsWindow")
         }
