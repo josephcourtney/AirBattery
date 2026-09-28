@@ -10,22 +10,24 @@ if [[ "${1:-}" == "--prepare-only" ]]; then
     shift
 fi
 
+PRODUCT="${AIRBATTERY_HROST_PRODUCT:-AirBatteryHrost}"
+
 export AIRBATTERY_HROST=1
 export HROST_PATH="${HROST_PATH:-../hrost}"
 
 [[ -f "$HROST_PATH/Package.swift" ]] || {
-    echo "AirBatteryHrost: Hrost checkout not found at '$HROST_PATH'." >&2
+    echo "$PRODUCT: Hrost checkout not found at '$HROST_PATH'." >&2
     echo "Set HROST_PATH=/path/to/hrost to override the default ../hrost." >&2
     exit 2
 }
 command -v xcrun >/dev/null 2>&1 || {
-    echo "AirBatteryHrost: xcrun is required to compile AirBattery assets." >&2
+    echo "$PRODUCT: xcrun is required to compile AirBattery assets." >&2
     exit 2
 }
 
-swift build --product AirBatteryHrost
+swift build --product "$PRODUCT"
 BIN_DIR="$(swift build --show-bin-path)"
-APP_DIR="$BIN_DIR/AirBatteryHrost.app"
+APP_DIR="$BIN_DIR/$PRODUCT.app"
 CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
@@ -37,10 +39,10 @@ FRAMEWORKS="$CONTENTS/Frameworks"
 # as a minimal development-only .app around the already-built executable.
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS" "$RESOURCES" "$FRAMEWORKS"
-cp "$BIN_DIR/AirBatteryHrost" "$MACOS/AirBatteryHrost"
-chmod +x "$MACOS/AirBatteryHrost"
+cp "$BIN_DIR/$PRODUCT" "$MACOS/$PRODUCT"
+chmod +x "$MACOS/$PRODUCT"
 
-cat > "$CONTENTS/Info.plist" <<'PLIST'
+cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -48,11 +50,11 @@ cat > "$CONTENTS/Info.plist" <<'PLIST'
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>AirBatteryHrost</string>
+    <string>$PRODUCT</string>
     <key>CFBundleIdentifier</key>
-    <string>com.josephcourtney.AirBattery.Hrost</string>
+    <string>com.josephcourtney.AirBattery.$PRODUCT</string>
     <key>CFBundleName</key>
-    <string>AirBattery Hrost</string>
+    <string>$PRODUCT</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -98,7 +100,7 @@ done
 shopt -u nullglob
 
 [[ -f "$RESOURCES/Assets.car" ]] || {
-    echo "AirBatteryHrost: actool did not produce $RESOURCES/Assets.car." >&2
+    echo "$PRODUCT: actool did not produce $RESOURCES/Assets.car." >&2
     exit 2
 }
 
@@ -112,4 +114,4 @@ fi
 export DYLD_FRAMEWORK_PATH="$FRAMEWORKS:$BIN_DIR${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
 export DYLD_LIBRARY_PATH="$FRAMEWORKS:$BIN_DIR${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
 
-exec "$MACOS/AirBatteryHrost" "$@"
+exec "$MACOS/$PRODUCT" "$@"
