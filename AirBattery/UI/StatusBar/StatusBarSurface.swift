@@ -199,9 +199,11 @@ struct SurfaceBatteryGlyph: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            item.hasBattery
-                ? "Battery \(item.batteryLevel) percent"
-                : "Battery level unavailable"
+            Text(
+                item.hasBattery
+                    ? "Battery \(item.batteryLevel) percent"
+                    : "Battery level unavailable"
+            )
         )
     }
 
