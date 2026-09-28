@@ -86,15 +86,18 @@ for candidate_file in "${candidate_files[@]}"; do
     rm -rf "$artifact_dir"
     mkdir -p "$artifact_dir"
 
-    printf '\n%s\n' "$name"
-    run_compare compare \
-        --candidate "$candidate_file" \
-        --reference "$reference_file" \
+    compare_args=(
+        compare
+        --candidate "$candidate_file"
+        --reference "$reference_file"
         --output-dir "$artifact_dir"
-    run_compare compare \
-        --candidate "$candidate_file" \
-        --reference "$reference_file" \
-        --json > "$artifact_dir/comparison.json"
+    )
+    if [[ -n "${AIRBATTERY_HROST_COMPARISON_PROFILE:-}" ]]; then
+        compare_args+=(--profile "$AIRBATTERY_HROST_COMPARISON_PROFILE")
+    fi
+
+    printf '\n%s\n' "$name"
+    run_compare "${compare_args[@]}"
 done
 
 rm -f "$ARCHIVE"
