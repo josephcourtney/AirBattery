@@ -35,7 +35,7 @@ struct AirBatteryProductionHrost {
                             surfaceTitle: "Display Settings",
                             surfaceKind: "window",
                             scenarioID: options.scenarioID,
-                            scenarioTitle: scenarioTitle(options.scenarioID),
+                            scenarioTitle: try scenarioTitle(options.scenarioID),
                             variantID: options.variantID,
                             variantTitle: options.variantID == "default" ? "Default" : options.variantID,
                             environment: HrostEnvironment(appearance: options.appearance)
