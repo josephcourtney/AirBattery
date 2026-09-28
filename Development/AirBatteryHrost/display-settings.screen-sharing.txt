@@ -1,0 +1,9 @@
+# Focused native-window acceptance cases.
+display-settings,airpods,light
+display-settings,airpods,dark
+display-settings,charging,light
+display-settings,charging,dark
+display-settings,long-names,light
+display-settings,long-names,dark
+display-settings,no-battery,light
+display-settings,no-battery,dark
