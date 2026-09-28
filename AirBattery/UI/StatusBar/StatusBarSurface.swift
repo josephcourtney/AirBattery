@@ -190,11 +190,27 @@ struct SurfaceBatteryGlyph: View {
     let item: Device
 
     var body: some View {
+        Group {
+            if item.hasBattery {
+                measuredBatteryGlyph
+            } else {
+                unavailableBatteryGlyph
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            item.hasBattery
+                ? "Battery \(item.batteryLevel) percent"
+                : "Battery level unavailable"
+        )
+    }
+
+    private var measuredBatteryGlyph: some View {
         let width = round(
             max(1, min(19, Double(item.batteryLevel) / 100 * 19))
         )
 
-        ZStack {
+        return ZStack {
             ZStack(alignment: .leading) {
                 Image("batt_outline_bold")
                 Rectangle()
@@ -220,6 +236,19 @@ struct SurfaceBatteryGlyph: View {
             }
         }
         .compositingGroup()
+    }
+
+    private var unavailableBatteryGlyph: some View {
+        ZStack {
+            Image("batt_outline_bold")
+                .foregroundStyle(.secondary)
+                .opacity(0.6)
+
+            Text("?")
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .offset(x: -0.5, y: -0.5)
+        }
     }
 
     @ViewBuilder
