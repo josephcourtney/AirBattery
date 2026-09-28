@@ -125,6 +125,18 @@ package enum AirBatteryDevelopmentSurfaces {
         )
     }
 
+    package static var settingsWindowContentSize: CGSize {
+        AirBatterySettingsWindowConfiguration.initialContentSize
+    }
+
+    package static func settingsWindow() -> AnyView {
+        AnyView(SettingsView(initialSelection: .display))
+    }
+
+    package static func configureSettingsWindow(_ window: NSWindow) {
+        AirBatterySettingsWindowConfiguration.apply(to: window)
+    }
+
     package static func displaySettings() -> AnyView {
         AnyView(DisplayView())
     }
