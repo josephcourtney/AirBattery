@@ -77,19 +77,24 @@ for candidate_file in "${candidate_files[@]}"; do
     name="$(basename "$candidate_file")"
     stem="${name%.hrostcapture}"
     reference_file="$REFERENCE_DIR/$name"
+    artifact_dir="$COMPARISON_DIR/$stem"
     [[ -f "$reference_file" ]] || {
         printf 'AirBatteryHrost: matching reference capture not found: %s\n' "$reference_file" >&2
         exit 2
     }
 
+    rm -rf "$artifact_dir"
+    mkdir -p "$artifact_dir"
+
     printf '\n%s\n' "$name"
     run_compare compare \
         --candidate "$candidate_file" \
-        --reference "$reference_file"
+        --reference "$reference_file" \
+        --output-dir "$artifact_dir"
     run_compare compare \
         --candidate "$candidate_file" \
         --reference "$reference_file" \
-        --json > "$COMPARISON_DIR/$stem.json"
+        --json > "$artifact_dir/comparison.json"
 done
 
 rm -f "$ARCHIVE"
