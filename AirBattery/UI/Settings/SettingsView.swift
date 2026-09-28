@@ -44,7 +44,7 @@ struct SettingsView: View {
 
     @State private var selectedItem: SettingsSection?
     @AppStorage("showDebug") var showDebug: Bool = false
-    @ObservedObject private var discoveryPolicy = AppEnvironment.shared.blePolicy
+    @ObservedObject private var discoveryPolicy = BLEDiscoveryPolicyStore.shared
 
     init(initialSelection: SettingsSection = .general) {
         _selectedItem = State(initialValue: initialSelection)
