@@ -46,10 +46,11 @@ fi
 # The development app is intentionally self-contained, but its SwiftPM-built
 # executable still uses @rpath for dynamic products such as Sparkle. The normal
 # run.sh path supplies these search paths; do the same here rather than executing
-# the app binary with a bare dyld environment.
+# the app binary with a bare dyld environment. compare-only explicitly refreshes
+# the prepared app so it cannot silently use an older Hrost dependency.
 COMPARE_APP="$ROOT/.build/out/Products/Debug/AirBatteryHrost.app"
 COMPARE_EXEC="$COMPARE_APP/Contents/MacOS/AirBatteryHrost"
-if [[ ! -x "$COMPARE_EXEC" ]]; then
+if (( COMPARE_ONLY )) || [[ ! -x "$COMPARE_EXEC" ]]; then
     HROST_PATH="${HROST_PATH:-../hrost}" bash "$RUNNER" --prepare-only >/dev/null
 fi
 [[ -x "$COMPARE_EXEC" ]] || {
