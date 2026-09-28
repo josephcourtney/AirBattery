@@ -62,7 +62,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     static func developmentFixture(section: SettingsSection) -> SettingsWindowController {
-        SettingsWindowController(initialSection: section, usesFrameAutosave: false)
+        let controller = SettingsWindowController(initialSection: section, usesFrameAutosave: false)
+        // Hrost's native-window host centers deterministic fixture windows.
+        // Use the same canonical screen position here so translucent titlebar
+        // and sidebar materials sample the same desktop backdrop on both hosts.
+        controller.window?.center()
+        return controller
     }
 
     func present() {
