@@ -76,7 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             // Let AppKit finish key-window ordering before the development
             // capture callback starts querying WindowServer.
-            DispatchQueue.main.async {
+            Task { @MainActor in
+                await Task.yield()
                 fixtureReady(window)
             }
             return
