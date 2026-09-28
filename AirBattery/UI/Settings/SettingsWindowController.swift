@@ -5,8 +5,13 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
-    private init() {
-        let hostingController = NSHostingController(rootView: SettingsView())
+    private init(
+        initialSection: SettingsSection = .general,
+        usesFrameAutosave: Bool = true
+    ) {
+        let hostingController = NSHostingController(
+            rootView: SettingsView(initialSelection: initialSection)
+        )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -24,7 +29,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarSeparatorStyle = .automatic
         window.tabbingMode = .disallowed
         window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName("AirBatterySettingsWindow")
+        if usesFrameAutosave {
+            window.setFrameAutosaveName("AirBatterySettingsWindow")
+        }
         window.standardWindowButton(.zoomButton)?.isEnabled = true
 
         super.init(window: window)
@@ -34,6 +41,10 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    static func developmentFixture(section: SettingsSection) -> SettingsWindowController {
+        SettingsWindowController(initialSection: section, usesFrameAutosave: false)
     }
 
     func present() {
@@ -55,4 +66,3 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         )
     }
 }
-
