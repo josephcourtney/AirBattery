@@ -73,7 +73,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
                 ),
                 Self.device(
                     id: "mouse",
-                    type: "Magic Mouse",
+                    type: "MMouse",
                     name: "Magic Mouse",
                     level: 9
                 ),
@@ -83,10 +83,10 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
             [
                 Self.mac(level: 88),
                 Self.device(id: "iphone", type: "iPhone", name: "iPhone", level: 67),
-                Self.device(id: "watch", type: "Apple Watch", name: "Apple Watch", level: 44),
-                Self.device(id: "keyboard", type: "Magic Keyboard", name: "Magic Keyboard", level: 91),
-                Self.device(id: "mouse", type: "Magic Mouse", name: "Magic Mouse", level: 35),
-                Self.device(id: "trackpad", type: "Magic Trackpad", name: "Magic Trackpad", level: 58),
+                Self.device(id: "watch", type: "Watch", name: "Apple Watch", level: 44),
+                Self.device(id: "keyboard", type: "Keyboard", name: "Magic Keyboard", level: 91),
+                Self.device(id: "mouse", type: "MMouse", name: "Magic Mouse", level: 35),
+                Self.device(id: "trackpad", type: "Trackpad", name: "Magic Trackpad", level: 58),
                 Self.device(id: "beats", type: "Headphones", name: "Beats Studio Pro", level: 76),
                 Self.device(id: "ipad", type: "iPad", name: "iPad", level: 22),
             ]
@@ -96,7 +96,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
                 Self.mac(level: 61),
                 Self.device(
                     id: "long-keyboard",
-                    type: "Magic Keyboard",
+                    type: "Keyboard",
                     name: "Joseph’s Extremely Long Descriptive Magic Keyboard Name",
                     level: 47
                 ),
@@ -112,7 +112,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
             [
                 Self.device(
                     id: "unknown",
-                    type: "Bluetooth",
+                    type: "general_bt",
                     name: "Connected Device Without Battery Data",
                     level: 0,
                     hasBattery: false
@@ -126,7 +126,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
             ?? devices.first
             ?? Self.device(
                 id: "no-battery",
-                type: "Mac",
+                type: "mac",
                 name: "This Mac",
                 level: 0,
                 hasBattery: false
@@ -140,7 +140,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
     ) -> Device {
         device(
             id: "@MacInternalBattery",
-            type: "MacBook",
+            type: "macbook",
             name: "This Mac",
             level: level,
             charging: charging,
