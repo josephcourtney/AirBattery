@@ -2,15 +2,15 @@
 
 AirBattery-side issues identified while auditing the 64 captures produced by the Hrost `visual-regression` fixture suite. Items caused by Hrost capture/presentation defects are tracked in the Hrost repository instead.
 
-The implementation work below is complete. Final closure requires rerunning the Hrost visual-regression preset after pulling the corresponding Hrost fixes.
+Both AirBattery issues below are resolved and visually validated in the `20260928T021459Z` Hrost acceptance rerun. The remaining failed captures are confined to Hrost status-item capture geometry and do not indicate an AirBattery product defect.
 
 ## AIRBATTERY-001 — Hrost fixture device types do not match production icon identifiers
 
-**Status:** Implemented; pending visual validation
+**Status:** Resolved and visually validated
 
 Several synthetic devices in `Development/AirBatteryHrost/main.swift` used human-readable `deviceType` values that did not match the identifiers consumed by `getDeviceIcon(_:)`. The production icon catalog therefore fell through to `questionmark.circle.fill` even though the relevant assets/SF Symbols were available.
 
-The fixture vocabulary has been corrected to production identifiers, including:
+The fixture vocabulary was corrected to production identifiers, including:
 
 | Previous fixture value | Production identifier |
 |---|---|
@@ -24,22 +24,27 @@ The fixture vocabulary has been corrected to production identifiers, including:
 
 The correctly specified iPhone, AirPods, headphones, and iPad fixture identifiers were left unchanged.
 
-**Expected validation:** popover, menu, dock-tile, and widget captures should resolve the intended production device icons without fallback question marks.
+**Validation:** the `20260928T021459Z` rerun resolves the intended Mac, keyboard, mouse, generic Bluetooth, AirPods, headphone, and iPhone production icons without the previous fallback question marks across trustworthy popover, menu, dock-tile, and widget captures.
 
 ## AIRBATTERY-002 — Battery glyph treats unavailable battery data as critical 0%
 
-**Status:** Implemented; pending visual validation
+**Status:** Resolved and visually validated
 
-In the `no-battery` scenario the fixture device has `hasBattery == false`, but the standalone `battery-glyph` surface rendered a nearly empty red battery. This visually communicated a critically low charge rather than unavailable battery information.
+In the `no-battery` scenario the fixture device has `hasBattery == false`, but the original standalone `battery-glyph` surface rendered a nearly empty red battery. This visually communicated a critically low charge rather than unavailable battery information.
 
-**Implementation:** `SurfaceBatteryGlyph` now branches on `hasBattery`. Measured batteries retain the existing fill/charging behavior; unavailable batteries render a subdued battery outline with a `?` marker and an accessibility label of `Battery level unavailable`, without deriving a fill color from the synthetic `0` value.
+**Implementation:** `SurfaceBatteryGlyph` branches on `hasBattery`. Measured batteries retain the existing fill/charging behavior; unavailable batteries render a subdued battery outline with a `?` marker and an accessibility label of `Battery level unavailable`, without deriving a fill color from the synthetic `0` value.
 
-**Expected validation:** the no-battery glyph should read as unknown/unavailable rather than critical, in both light and dark appearances.
+**Validation:** both light and dark `no-battery` glyph captures in the `20260928T021459Z` rerun show the explicit subdued unknown state rather than a critical red 0% state.
 
-## Validation after fixes
+## Regression observations
 
-Re-run the Hrost `visual-regression` fixtures and verify:
+The latest trustworthy captures also preserve the behaviors that were already correct before these fixes:
 
-- fixture devices resolve the intended production icons without fallback question marks;
-- `hasBattery == false` renders as an unavailable/unknown state, not an actual critical 0% measurement;
-- AirPods grouping, charging indicators, low-battery coloring, long-name truncation, and no-battery empty states remain unchanged, since those behaviors appeared correct in trustworthy captures.
+- AirPods grouping and case/left/right presentation;
+- charging indicators;
+- low-battery coloring;
+- long-name truncation;
+- no-battery row and widget empty-state behavior;
+- light/dark presentation across popovers, menus, dock tiles, settings, widgets, and standalone glyphs.
+
+No additional AirBattery-side UI defect was identified in the 56 trustworthy captures from the `20260928T021459Z` rerun.
