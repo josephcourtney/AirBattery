@@ -4,6 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+PREPARE_ONLY=0
+if [[ "${1:-}" == "--prepare-only" ]]; then
+    PREPARE_ONLY=1
+    shift
+fi
+
 export AIRBATTERY_HROST=1
 export HROST_PATH="${HROST_PATH:-../hrost}"
 
@@ -23,13 +29,14 @@ APP_DIR="$BIN_DIR/AirBatteryHrost.app"
 CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
+FRAMEWORKS="$CONTENTS/Frameworks"
 
 # The production AirBattery views resolve named images, adaptive colors, and
 # localized strings from Bundle.main. A bare SwiftPM executable does not provide
 # the application-bundle resource layout those APIs expect, so stage the harness
 # as a minimal development-only .app around the already-built executable.
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS" "$RESOURCES"
+mkdir -p "$MACOS" "$RESOURCES" "$FRAMEWORKS"
 cp "$BIN_DIR/AirBatteryHrost" "$MACOS/AirBatteryHrost"
 chmod +x "$MACOS/AirBatteryHrost"
 
@@ -76,14 +83,33 @@ for localization in "$ROOT"/AirBattery/*.lproj; do
     /usr/bin/ditto "$localization" "$RESOURCES/$(basename "$localization")"
 done
 
+# Preserve dynamic SwiftPM products inside the app so the harness remains
+# runnable after it is copied into the isolated Screen Sharing account.
+shopt -s nullglob
+for framework in "$BIN_DIR"/*.framework; do
+    /usr/bin/ditto "$framework" "$FRAMEWORKS/$(basename "$framework")"
+done
+for dylib in "$BIN_DIR"/*.dylib; do
+    cp -p "$dylib" "$FRAMEWORKS/$(basename "$dylib")"
+done
+for resource_bundle in "$BIN_DIR"/*.bundle; do
+    /usr/bin/ditto "$resource_bundle" "$RESOURCES/$(basename "$resource_bundle")"
+done
+shopt -u nullglob
+
 [[ -f "$RESOURCES/Assets.car" ]] || {
     echo "AirBatteryHrost: actool did not produce $RESOURCES/Assets.car." >&2
     exit 2
 }
 
-# SwiftPM may leave dynamic products beside the original executable. Preserve
-# that lookup location after staging the executable inside the development app.
-export DYLD_FRAMEWORK_PATH="$BIN_DIR${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
-export DYLD_LIBRARY_PATH="$BIN_DIR${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+if (( PREPARE_ONLY )); then
+    printf '%s\n' "$APP_DIR"
+    exit 0
+fi
+
+# SwiftPM may leave dynamic products beside the original executable. Prefer the
+# self-contained app copy, with the build directory retained as a local fallback.
+export DYLD_FRAMEWORK_PATH="$FRAMEWORKS:$BIN_DIR${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
+export DYLD_LIBRARY_PATH="$FRAMEWORKS:$BIN_DIR${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
 
 exec "$MACOS/AirBatteryHrost" "$@"
