@@ -106,7 +106,13 @@ if hrostEnabled {
                 .product(name: "Hrost", package: "hrost"),
             ],
             path: "Development/AirBatteryHrost",
-            exclude: ["README.md", "run.sh"]
+            exclude: [
+                "README.md",
+                "run.sh",
+                "capture-screen-sharing.sh",
+                "visual-regression.screen-sharing.txt",
+                "display-settings.screen-sharing.txt",
+            ]
         )
     )
 }
