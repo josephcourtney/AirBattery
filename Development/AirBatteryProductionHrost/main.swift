@@ -31,7 +31,7 @@ struct AirBatteryProductionHrost {
                     do {
                         let identity = HrostCaptureIdentity(
                             applicationName: "AirBattery",
-                            surfaceID: "display-settings",
+                            surfaceID: options.surfaceID,
                             surfaceTitle: "Display Settings",
                             surfaceKind: "window",
                             scenarioID: options.scenarioID,
@@ -46,7 +46,7 @@ struct AirBatteryProductionHrost {
                             destination: options.output
                         )
                         print(bundle.url.path)
-                        NSApp.terminate(nil)
+                        NSApplication.shared.terminate(nil)
                     } catch {
                         writeError("AirBatteryProductionHrost: capture failed: \(error.localizedDescription)\n")
                         Darwin.exit(2)
@@ -152,13 +152,14 @@ struct AirBatteryProductionHrost {
 
     @MainActor
     private static func applyAppearance(_ appearance: HrostAppearance) {
+        let application = NSApplication.shared
         switch appearance {
         case .system:
-            NSApp.appearance = nil
+            application.appearance = nil
         case .light:
-            NSApp.appearance = NSAppearance(named: .aqua)
+            application.appearance = NSAppearance(named: .aqua)
         case .dark:
-            NSApp.appearance = NSAppearance(named: .darkAqua)
+            application.appearance = NSAppearance(named: .darkAqua)
         }
     }
 
@@ -177,6 +178,15 @@ struct AirBatteryProductionHrost {
         defaults.set("outside", forKey: "batteryPercent")
         defaults.set(90, forKey: "hideLevel")
         defaults.set(false, forKey: "showDebug")
+
+        // The settings sidebar displays a badge derived from discovery policy.
+        // Clear persisted test-account policy state so reference captures do not
+        // depend on previous Screen Sharing sessions or hardware observations.
+        defaults.removeObject(forKey: "bleDevicePolicyRules")
+        defaults.removeObject(forKey: "bleLogicalDevicePolicyRulesV1")
+        defaults.set(false, forKey: "readBLEDevice")
+        defaults.set(false, forKey: "ideviceOverBLE")
+        defaults.set("review", forKey: "bleDiscoveryMode")
     }
 
     private static func writeError(_ message: String) {
