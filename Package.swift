@@ -89,14 +89,18 @@ var targets: [Target] = [
 ]
 
 if hrostEnabled {
-    products.append(
+    products.append(contentsOf: [
         .executable(
             name: "AirBatteryHrost",
             targets: ["AirBatteryHrost"]
-        )
-    )
+        ),
+        .executable(
+            name: "AirBatteryProductionHrost",
+            targets: ["AirBatteryProductionHrost"]
+        ),
+    ])
     dependencies.append(.package(path: hrostPath))
-    targets.append(
+    targets.append(contentsOf: [
         .executableTarget(
             name: "AirBatteryHrost",
             dependencies: [
@@ -112,9 +116,20 @@ if hrostEnabled {
                 "capture-screen-sharing.sh",
                 "visual-regression.screen-sharing.txt",
                 "display-settings.screen-sharing.txt",
+                "fidelity-settings.screen-sharing.txt",
+                "capture-settings-fidelity-pair.sh",
+                "capture-production-screen-sharing.sh",
             ]
-        )
-    )
+        ),
+        .executableTarget(
+            name: "AirBatteryProductionHrost",
+            dependencies: [
+                "AirBatteryKit",
+                .product(name: "Hrost", package: "hrost"),
+            ],
+            path: "Development/AirBatteryProductionHrost"
+        ),
+    ])
 }
 
 let package = Package(
