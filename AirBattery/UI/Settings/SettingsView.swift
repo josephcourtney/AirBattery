@@ -5,8 +5,8 @@
 //  Created by apple on 2023/9/7.
 //
 
-import SwiftUI
 import AppKit
+import SwiftUI
 
 enum SettingsSection: String, Hashable {
     case general
@@ -42,9 +42,13 @@ enum SettingsSection: String, Hashable {
 struct SettingsView: View {
     private static let sidebarWidth: CGFloat = 220
 
-    @State private var selectedItem: SettingsSection? = .general
+    @State private var selectedItem: SettingsSection?
     @AppStorage("showDebug") var showDebug: Bool = false
     @ObservedObject private var discoveryPolicy = AppEnvironment.shared.blePolicy
+
+    init(initialSelection: SettingsSection = .general) {
+        _selectedItem = State(initialValue: initialSelection)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -156,4 +160,3 @@ struct SettingsView: View {
         .tag(section)
     }
 }
-
