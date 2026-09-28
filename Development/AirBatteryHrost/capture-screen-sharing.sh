@@ -7,7 +7,10 @@ cd "$ROOT"
 HROST_PATH="${HROST_PATH:-../hrost}"
 HROST_PATH="$(cd "$HROST_PATH" && pwd -P)"
 PREPARE="$ROOT/Development/AirBatteryHrost/run.sh"
-CASES="$ROOT/Development/AirBatteryHrost/visual-regression.screen-sharing.txt"
+CASES="${AIRBATTERY_HROST_CASES:-$ROOT/Development/AirBatteryHrost/visual-regression.screen-sharing.txt}"
+if [[ "$CASES" != /* ]]; then
+    CASES="$ROOT/$CASES"
+fi
 APP_CAPTURE="$HROST_PATH/scripts/hrost-screen-share-capture-app"
 
 [[ -f "$HROST_PATH/Package.swift" ]] || {
