@@ -18,7 +18,7 @@ By default Hrost is expected at the sibling checkout `../hrost`. Override that w
 HROST_PATH=/path/to/hrost bash Development/AirBatteryHrost/run.sh
 ```
 
-The runner builds `AirBatteryHrost`, stages the executable inside a minimal development-only `AirBatteryHrost.app`, compiles AirBattery's production `Assets.xcassets` into `Contents/Resources` with `actool`, copies the app's `.lproj` localization directories, and then launches the bundled executable. Running from an application bundle is necessary because production views resolve named images, adaptive colors, and localized strings from `Bundle.main`.
+The runner builds `AirBatteryHrost`, stages the executable inside a minimal development-only `AirBatteryHrost.app`, compiles AirBattery's production `Assets.xcassets` into `Contents/Resources` with `actool`, copies the app's `.lproj` localization directories and SwiftPM runtime products, and then launches the bundled executable. Running from an application bundle is necessary because production views resolve named images, adaptive colors, and localized strings from `Bundle.main`.
 
 ## Commands
 
@@ -44,6 +44,25 @@ AirBattery provides these capture presets:
 - **Everything** — the complete compatible surface × scenario × variant × appearance matrix
 
 `Visual Regression` is the normal evidence-gathering preset; `Everything` is intentionally much larger and is mainly useful for exhaustive checks.
+
+## Isolated visual-regression acceptance
+
+The checked-in `visual-regression.screen-sharing.txt` file expands the Visual Regression preset into the same 64 explicit coordinates used for acceptance review. To run them in Hrost's dedicated same-Mac Screen Sharing GUI session:
+
+```sh
+bash Development/AirBatteryHrost/capture-screen-sharing.sh \
+  --user testymctestface
+```
+
+The wrapper prepares a self-contained `AirBatteryHrost.app`, including AirBattery assets, localizations, SwiftPM frameworks/dylibs, and resource bundles. Hrost stages and code-signs that app under the same persistent capture identity, leases it to the GUI-session agent for the duration of the run, and delegates readiness checks, TCC handling, retries, and result collection to `hrost-screen-share-capture`.
+
+If the Hrost Screen Sharing agent has changed since initial setup, upgrade it once before the acceptance run:
+
+```sh
+../hrost/scripts/hrost-screen-share-session setup --user testymctestface
+```
+
+The normal runner fails rather than capturing when that GUI session is locked or logged out. Pass `--wait-for-desktop SEC` through the wrapper when bounded waiting is preferable.
 
 ## Scenarios
 
