@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private static func fixtureMain(
+    fileprivate static func fixtureMain(
         onReady: @escaping @MainActor (NSWindow) -> Void
     ) {
         let application = NSApplication.shared
