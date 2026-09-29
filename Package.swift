@@ -117,6 +117,7 @@ if hrostEnabled {
                 "visual-regression.screen-sharing.txt",
                 "display-settings.screen-sharing.txt",
                 "fidelity-settings.screen-sharing.txt",
+                "replay-fidelity-profile.json",
                 "capture-settings-fidelity-pair.sh",
                 "capture-settings-replay-pair.sh",
                 "capture-production-screen-sharing.sh",
