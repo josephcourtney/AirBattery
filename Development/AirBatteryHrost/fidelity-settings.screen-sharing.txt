@@ -1,2 +1,2 @@
-display-settings,airpods,light
-display-settings,airpods,dark
+display-settings,airpods,light,default
+display-settings,airpods,dark,default
