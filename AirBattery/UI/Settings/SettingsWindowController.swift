@@ -70,6 +70,14 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         return controller
     }
 
+    /// Development observation of the real production settings host while the
+    /// normal application coordinator and monitoring services are running.
+    /// Frame autosave intentionally remains enabled so this reflects production
+    /// window behavior rather than fixture geometry policy.
+    static func liveObservation(section: SettingsSection) -> SettingsWindowController {
+        SettingsWindowController(initialSection: section, usesFrameAutosave: true)
+    }
+
     func present() {
         guard let window else { return }
 
