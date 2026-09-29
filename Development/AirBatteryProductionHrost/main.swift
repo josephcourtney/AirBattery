@@ -11,6 +11,7 @@ private struct CaptureOptions {
     let appearance: HrostAppearance
     let output: URL
     let recordPresentationState: Bool
+    let liveState: Bool
 }
 
 private struct CLIError: LocalizedError {
@@ -24,44 +25,98 @@ struct AirBatteryProductionHrost {
     static func main() {
         do {
             let options = try parse(arguments: Array(CommandLine.arguments.dropFirst()))
-            configureFixtureDefaults()
-            applyAppearance(options.appearance)
-
-            runAirBatteryDisplaySettingsProductionFixture { window in
-                Task { @MainActor in
-                    do {
-                        let presentationState = try options.recordPresentationState
-                            ? recordedPresentationState(scenarioID: options.scenarioID)
-                            : nil
-                        let identity = HrostCaptureIdentity(
-                            applicationName: "AirBattery",
-                            surfaceID: options.surfaceID,
-                            surfaceTitle: "Display Settings",
-                            surfaceKind: "window",
-                            scenarioID: options.scenarioID,
-                            scenarioTitle: try scenarioTitle(options.scenarioID),
-                            variantID: options.variantID,
-                            variantTitle: options.variantID == "default" ? "Default" : options.variantID,
-                            environment: HrostEnvironment(appearance: options.appearance),
-                            presentationState: presentationState
-                        )
-                        let bundle = try await HrostProductionCapture.window(
-                            window,
-                            identity: identity,
-                            destination: options.output
-                        )
-                        print(bundle.url.path)
-                        NSApplication.shared.terminate(nil)
-                    } catch {
-                        writeError("AirBatteryProductionHrost: capture failed: \(error.localizedDescription)\n")
-                        Darwin.exit(2)
-                    }
-                }
+            if options.liveState {
+                runLiveCapture(options)
+            } else {
+                runFixtureCapture(options)
             }
         } catch {
             writeError("AirBatteryProductionHrost: \(error.localizedDescription)\n")
             Darwin.exit(2)
         }
+    }
+
+    @MainActor
+    private static func runFixtureCapture(_ options: CaptureOptions) {
+        configureFixtureDefaults()
+        applyAppearance(options.appearance)
+
+        runAirBatteryDisplaySettingsProductionFixture { window in
+            Task { @MainActor in
+                do {
+                    let presentationState = try options.recordPresentationState
+                        ? recordedPresentationState(
+                            scenarioID: options.scenarioID,
+                            origin: .fixture
+                        )
+                        : nil
+                    let identity = HrostCaptureIdentity(
+                        applicationName: "AirBattery",
+                        surfaceID: options.surfaceID,
+                        surfaceTitle: "Display Settings",
+                        surfaceKind: "window",
+                        scenarioID: options.scenarioID,
+                        scenarioTitle: try scenarioTitle(options.scenarioID),
+                        variantID: options.variantID,
+                        variantTitle: "Default",
+                        environment: HrostEnvironment(appearance: options.appearance),
+                        presentationState: presentationState
+                    )
+                    let bundle = try await HrostProductionCapture.window(
+                        window,
+                        identity: identity,
+                        destination: options.output
+                    )
+                    print(bundle.url.path)
+                    NSApplication.shared.terminate(nil)
+                } catch {
+                    captureFailed(error)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private static func runLiveCapture(_ options: CaptureOptions) {
+        runAirBatteryDisplaySettingsLiveObservation { window in
+            Task { @MainActor in
+                do {
+                    let appearance = resolvedAppearance(for: window)
+                    let presentationState = try recordedPresentationState(
+                        scenarioID: options.scenarioID,
+                        origin: .live
+                    )
+                    let identity = HrostCaptureIdentity(
+                        applicationName: "AirBattery",
+                        surfaceID: options.surfaceID,
+                        surfaceTitle: "Display Settings",
+                        surfaceKind: "window",
+                        scenarioID: options.scenarioID,
+                        scenarioTitle: try scenarioTitle(options.scenarioID),
+                        variantID: options.variantID,
+                        variantTitle: "Default",
+                        environment: HrostEnvironment(appearance: appearance),
+                        presentationState: presentationState
+                    )
+                    let bundle = try await HrostProductionCapture.window(
+                        window,
+                        identity: identity,
+                        role: .liveProduction,
+                        destination: options.output
+                    )
+                    print(bundle.url.path)
+                    NSApplication.shared.terminate(nil)
+                } catch {
+                    captureFailed(error)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private static func captureFailed(_ error: Error) -> Never {
+        writeError("AirBatteryProductionHrost: capture failed: \(error.localizedDescription)\n")
+        Darwin.exit(2)
     }
 
     private static func parse(arguments: [String]) throws -> CaptureOptions {
@@ -75,6 +130,7 @@ struct AirBatteryProductionHrost {
         var appearance: HrostAppearance = .system
         var output: String?
         var recordPresentationState = false
+        var liveState = false
         var index = 1
 
         func value(after option: String) throws -> String {
@@ -109,13 +165,16 @@ struct AirBatteryProductionHrost {
             case "--record-state":
                 recordPresentationState = true
                 index += 1
+            case "--live-state":
+                liveState = true
+                index += 1
             default:
                 throw CLIError(message: "unknown capture option '\(option)'")
             }
         }
 
         guard surfaceID == "display-settings" else {
-            throw CLIError(message: "only the 'display-settings' production fixture is implemented")
+            throw CLIError(message: "only the 'display-settings' production surface is implemented")
         }
         guard let scenarioID else {
             throw CLIError(message: "capture requires --scenario ID")
@@ -123,6 +182,17 @@ struct AirBatteryProductionHrost {
         _ = try scenarioTitle(scenarioID)
         guard variantID == "default" else {
             throw CLIError(message: "display-settings supports only the default variant")
+        }
+        if liveState {
+            guard scenarioID == "live-settings" else {
+                throw CLIError(message: "--live-state requires --scenario live-settings")
+            }
+            guard appearance == .system else {
+                throw CLIError(message: "--live-state observes the current appearance; pass --appearance system")
+            }
+            recordPresentationState = true
+        } else if scenarioID == "live-settings" {
+            throw CLIError(message: "live-settings requires --live-state")
         }
         guard let output else {
             throw CLIError(message: "capture requires --output PATH")
@@ -143,20 +213,22 @@ struct AirBatteryProductionHrost {
             variantID: variantID,
             appearance: appearance,
             output: destination,
-            recordPresentationState: recordPresentationState
+            recordPresentationState: recordPresentationState,
+            liveState: liveState
         )
     }
 
     @MainActor
     private static func recordedPresentationState(
-        scenarioID: String
+        scenarioID: String,
+        origin: HrostPresentationStateOrigin
     ) throws -> HrostPresentationState {
         let snapshot = AirBatterySettingsPresentationSnapshot.capture(
             scenarioID: scenarioID
         )
         return HrostPresentationState(
             id: try snapshot.stableID(),
-            origin: .fixture,
+            origin: origin,
             schemaIdentifier: AirBatterySettingsPresentationSnapshot.schemaIdentifier,
             schemaVersion: AirBatterySettingsPresentationSnapshot.schemaVersion,
             mediaType: "application/json",
@@ -173,8 +245,15 @@ struct AirBatteryProductionHrost {
         case "many-devices": "Many Devices"
         case "long-names": "Long Names"
         case "no-battery": "No Battery Data"
-        default: throw CLIError(message: "unknown AirBattery fixture scenario '\(id)'")
+        case "live-settings": "Live Settings"
+        default: throw CLIError(message: "unknown AirBattery scenario '\(id)'")
         }
+    }
+
+    @MainActor
+    private static func resolvedAppearance(for window: NSWindow) -> HrostAppearance {
+        let match = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+        return match == .darkAqua ? .dark : .light
     }
 
     @MainActor
