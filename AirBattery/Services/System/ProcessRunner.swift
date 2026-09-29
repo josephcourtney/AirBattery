@@ -71,6 +71,19 @@ func processWithStatus(
 }
 
 func process(path: String, arguments: [String], timeout: Int = 0) -> String? {
+    // The production launch path intentionally primes IOBluetooth's cached
+    // system profile before starting monitors. `system_profiler` is an
+    // unbounded synchronous subprocess, though, and can wait indefinitely in a
+    // dedicated Screen Sharing account. Hrost's live-observation process marks
+    // itself explicitly so that one non-presentation-critical prefetch is
+    // omitted while the real monitoring graph still starts normally.
+    if ProcessInfo.processInfo.environment["AIRBATTERY_HROST_LIVE_OBSERVATION"] == "1",
+       path == "/usr/sbin/system_profiler",
+       arguments == ["SPBluetoothDataType", "-json"]
+    {
+        return nil
+    }
+
     guard let result = ProcessRunner.run(
         path: path,
         arguments: arguments,
