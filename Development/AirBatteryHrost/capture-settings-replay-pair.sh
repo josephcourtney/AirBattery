@@ -4,10 +4,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT"
 
+COMPARE_ONLY=0
+if [[ "${1:-}" == "--compare-only" ]]; then
+    COMPARE_ONLY=1
+    shift
+fi
+
 CASES="$ROOT/Development/AirBatteryHrost/fidelity-settings.screen-sharing.txt"
 REPLAY="$ROOT/Development/AirBatteryHrost/capture-screen-sharing.sh"
 REFERENCE="$ROOT/Development/AirBatteryHrost/capture-production-screen-sharing.sh"
 RUNNER="$ROOT/Development/AirBatteryHrost/run.sh"
+DEFAULT_PROFILE="$ROOT/Development/AirBatteryHrost/replay-fidelity-profile.json"
+PROFILE="${AIRBATTERY_HROST_COMPARISON_PROFILE:-$DEFAULT_PROFILE}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 PAIR_ROOT="${AIRBATTERY_HROST_REPLAY_OUTPUT:-$ROOT/.hrost/replay-pairs/$STAMP}"
 REPLAY_DIR="$PAIR_ROOT/replay"
@@ -15,23 +23,39 @@ REFERENCE_DIR="$PAIR_ROOT/reference"
 COMPARISON_DIR="$PAIR_ROOT/comparison"
 ARCHIVE="$PAIR_ROOT.zip"
 
-mkdir -p "$REPLAY_DIR" "$REFERENCE_DIR" "$COMPARISON_DIR"
+[[ -f "$PROFILE" ]] || {
+    printf 'AirBatteryHrost: comparison profile not found: %s\n' "$PROFILE" >&2
+    exit 2
+}
 
-printf '\n=== Production host (record presentation state) ===\n'
-AIRBATTERY_HROST_CASES="$CASES" \
-    bash "$REFERENCE" "$@" \
-    --capture-arg --record-state \
-    --output-dir "$REFERENCE_DIR"
+if (( ! COMPARE_ONLY )); then
+    mkdir -p "$REPLAY_DIR" "$REFERENCE_DIR" "$COMPARISON_DIR"
 
-printf '\n=== Hrost host (replay recorded state) ===\n'
-AIRBATTERY_HROST_CASES="$CASES" \
-    bash "$REPLAY" "$@" \
-    --replay-reference-dir "$REFERENCE_DIR" \
-    --output-dir "$REPLAY_DIR"
+    printf '\n=== Production host (record presentation state) ===\n'
+    AIRBATTERY_HROST_CASES="$CASES" \
+        bash "$REFERENCE" "$@" \
+        --capture-arg --record-state \
+        --output-dir "$REFERENCE_DIR"
 
-# Prepare a fresh local Hrost host for comparison. The isolated replay app has
-# already been built above, but refreshing here also makes this script robust to
-# future changes in how capture-screen-sharing stages its app bundle.
+    printf '\n=== Hrost host (replay recorded state) ===\n'
+    AIRBATTERY_HROST_CASES="$CASES" \
+        bash "$REPLAY" "$@" \
+        --replay-reference-dir "$REFERENCE_DIR" \
+        --output-dir "$REPLAY_DIR"
+else
+    [[ -d "$REPLAY_DIR" ]] || {
+        printf 'AirBatteryHrost: replay directory not found: %s\n' "$REPLAY_DIR" >&2
+        exit 2
+    }
+    [[ -d "$REFERENCE_DIR" ]] || {
+        printf 'AirBatteryHrost: reference directory not found: %s\n' "$REFERENCE_DIR" >&2
+        exit 2
+    }
+    mkdir -p "$COMPARISON_DIR"
+fi
+
+# Prepare a fresh local Hrost host for comparison. This also keeps compare-only
+# from silently evaluating captures with an older Hrost dependency.
 COMPARE_APP="$ROOT/.build/out/Products/Debug/AirBatteryHrost.app"
 COMPARE_EXEC="$COMPARE_APP/Contents/MacOS/AirBatteryHrost"
 HROST_PATH="${HROST_PATH:-../hrost}" bash "$RUNNER" --prepare-only >/dev/null
@@ -49,6 +73,7 @@ run_compare() {
 }
 
 printf '\n=== Replay comparisons ===\n'
+printf 'profile: %s\n' "$PROFILE"
 shopt -s nullglob
 replay_files=("$REPLAY_DIR"/*.hrostcapture)
 (( ${#replay_files[@]} > 0 )) || {
@@ -69,18 +94,13 @@ for replay_file in "${replay_files[@]}"; do
     rm -rf "$artifact_dir"
     mkdir -p "$artifact_dir"
 
-    compare_args=(
-        compare
-        --candidate "$replay_file"
-        --reference "$reference_file"
-        --output-dir "$artifact_dir"
-    )
-    if [[ -n "${AIRBATTERY_HROST_COMPARISON_PROFILE:-}" ]]; then
-        compare_args+=(--profile "$AIRBATTERY_HROST_COMPARISON_PROFILE")
-    fi
-
     printf '\n%s\n' "$name"
-    run_compare "${compare_args[@]}"
+    run_compare \
+        compare \
+        --candidate "$replay_file" \
+        --reference "$reference_file" \
+        --output-dir "$artifact_dir" \
+        --profile "$PROFILE"
 done
 
 rm -f "$ARCHIVE"
@@ -90,4 +110,5 @@ printf '\n=== Record/replay pair ===\n'
 printf 'replay:     %s\n' "$REPLAY_DIR"
 printf 'reference:  %s\n' "$REFERENCE_DIR"
 printf 'comparison: %s\n' "$COMPARISON_DIR"
+printf 'profile:    %s\n' "$PROFILE"
 printf 'archive:    %s\n' "$ARCHIVE"
