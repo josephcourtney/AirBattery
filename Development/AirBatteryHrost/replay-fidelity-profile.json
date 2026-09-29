@@ -1,0 +1,26 @@
+{
+  "name": "native-replay",
+  "geometry": {
+    "pointTolerance": 0,
+    "pixelTolerance": 0,
+    "backingScaleTolerance": 0,
+    "mismatchSeverity": "failure"
+  },
+  "pixels": {
+    "differenceThreshold": 1,
+    "maximumChangedPixelFraction": 0,
+    "mismatchSeverity": "failure",
+    "missingSeverity": "failure"
+  },
+  "accessibility": {
+    "ignoredFields": [],
+    "frameTolerance": 0,
+    "mismatchSeverity": "failure",
+    "missingSeverity": "failure"
+  },
+  "viewStructure": {
+    "useNormalizedComparison": true,
+    "mismatchSeverity": "informational",
+    "missingSeverity": null
+  }
+}
