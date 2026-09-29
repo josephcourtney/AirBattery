@@ -42,7 +42,7 @@ final class ApplicationCoordinator: NSObject, UNUserNotificationCenterDelegate {
         scheduleInitialRefreshes()
     }
 
-    func applicationDidFinishLaunching() {
+    func applicationDidFinishLaunching(showLaunchTips: Bool = true) {
         StatusBarController.shared.install()
         SurfaceController.shared.apply(AppPreferences.showOn, settingsVisible: false)
         NSApp.dockTile.contentView = NSHostingView(rootView: MultiBatteryView())
@@ -52,7 +52,9 @@ final class ApplicationCoordinator: NSObject, UNUserNotificationCenterDelegate {
             options: [.automaticTerminationDisabled, .suddenTerminationDisabled],
             reason: "AirBattery menu bar monitoring"
         )
-        showLaunchTipsIfNeeded()
+        if showLaunchTips {
+            showLaunchTipsIfNeeded()
+        }
     }
 
     func applicationWillTerminate() {
