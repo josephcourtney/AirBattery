@@ -2,7 +2,7 @@ import Combine
 import Foundation
 
 @MainActor
-final class BLEDiscoveryPolicyStore: ObservableObject {
+package final class BLEDiscoveryPolicyStore: ObservableObject {
     static let shared = BLEDiscoveryPolicyStore()
 
     @Published private(set) var rules: [BLEDeviceRule]
