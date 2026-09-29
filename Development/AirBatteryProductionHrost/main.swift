@@ -10,6 +10,7 @@ private struct CaptureOptions {
     let variantID: String
     let appearance: HrostAppearance
     let output: URL
+    let recordPresentationState: Bool
 }
 
 private struct CLIError: LocalizedError {
@@ -29,6 +30,9 @@ struct AirBatteryProductionHrost {
             runAirBatteryDisplaySettingsProductionFixture { window in
                 Task { @MainActor in
                     do {
+                        let presentationState = try options.recordPresentationState
+                            ? recordedPresentationState(scenarioID: options.scenarioID)
+                            : nil
                         let identity = HrostCaptureIdentity(
                             applicationName: "AirBattery",
                             surfaceID: options.surfaceID,
@@ -38,7 +42,8 @@ struct AirBatteryProductionHrost {
                             scenarioTitle: try scenarioTitle(options.scenarioID),
                             variantID: options.variantID,
                             variantTitle: options.variantID == "default" ? "Default" : options.variantID,
-                            environment: HrostEnvironment(appearance: options.appearance)
+                            environment: HrostEnvironment(appearance: options.appearance),
+                            presentationState: presentationState
                         )
                         let bundle = try await HrostProductionCapture.window(
                             window,
@@ -69,6 +74,7 @@ struct AirBatteryProductionHrost {
         var variantID = "default"
         var appearance: HrostAppearance = .system
         var output: String?
+        var recordPresentationState = false
         var index = 1
 
         func value(after option: String) throws -> String {
@@ -100,6 +106,9 @@ struct AirBatteryProductionHrost {
             case "--output":
                 output = try value(after: option)
                 index += 2
+            case "--record-state":
+                recordPresentationState = true
+                index += 1
             default:
                 throw CLIError(message: "unknown capture option '\(option)'")
             }
@@ -133,7 +142,25 @@ struct AirBatteryProductionHrost {
             scenarioID: scenarioID,
             variantID: variantID,
             appearance: appearance,
-            output: destination
+            output: destination,
+            recordPresentationState: recordPresentationState
+        )
+    }
+
+    @MainActor
+    private static func recordedPresentationState(
+        scenarioID: String
+    ) throws -> HrostPresentationState {
+        let snapshot = AirBatterySettingsPresentationSnapshot.capture(
+            scenarioID: scenarioID
+        )
+        return HrostPresentationState(
+            id: try snapshot.stableID(),
+            origin: .fixture,
+            schemaIdentifier: AirBatterySettingsPresentationSnapshot.schemaIdentifier,
+            schemaVersion: AirBatterySettingsPresentationSnapshot.schemaVersion,
+            mediaType: "application/json",
+            payload: try snapshot.encoded()
         )
     }
 
