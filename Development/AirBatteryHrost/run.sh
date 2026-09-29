@@ -65,6 +65,16 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <string>26.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+
+    <!-- Keep runtime privacy/lifecycle declarations used by the real app.
+         Fixture-only Hrost targets do not exercise them, but live-state capture
+         starts AirBattery's normal monitoring graph, including CoreBluetooth. -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>AirBattery uses Bluetooth to discover nearby devices and read their battery status.</string>
+    <key>NSDisableAutomaticTermination</key>
+    <true/>
+    <key>NSSupportsSuddenTermination</key>
+    <false/>
 </dict>
 </plist>
 PLIST
