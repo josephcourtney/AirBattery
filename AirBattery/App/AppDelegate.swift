@@ -15,21 +15,43 @@ package func runAirBatteryDisplaySettingsProductionFixture(
     AppDelegate.fixtureMain(onReady: onReady)
 }
 
+/// Development-only package seam for observing the Display settings surface
+/// after the normal production coordinator and live monitoring graph have
+/// started. Unlike the deterministic fixture path, this does not reset defaults,
+/// suppress services, or substitute fixture state.
+@MainActor
+package func runAirBatteryDisplaySettingsLiveObservation(
+    onReady: @escaping @MainActor (NSWindow) -> Void
+) {
+    AppDelegate.liveObservationMain(onReady: onReady)
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator: ApplicationCoordinator?
     private let fixtureReady: (@MainActor (NSWindow) -> Void)?
+    private let liveReady: (@MainActor (NSWindow) -> Void)?
     private var fixtureSettingsController: SettingsWindowController?
+    private var liveSettingsController: SettingsWindowController?
 
     init(environment: AppEnvironment) {
         coordinator = ApplicationCoordinator(environment: environment)
         fixtureReady = nil
+        liveReady = nil
         super.init()
     }
 
     private init(fixtureReady: @escaping @MainActor (NSWindow) -> Void) {
         coordinator = nil
         self.fixtureReady = fixtureReady
+        liveReady = nil
+        super.init()
+    }
+
+    private init(liveReady: @escaping @MainActor (NSWindow) -> Void) {
+        coordinator = ApplicationCoordinator(environment: .shared)
+        fixtureReady = nil
+        self.liveReady = liveReady
         super.init()
     }
 
@@ -49,6 +71,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let delegate = AppDelegate(fixtureReady: onReady)
         application.delegate = delegate
         application.setActivationPolicy(.regular)
+        withExtendedLifetime(delegate) {
+            application.run()
+        }
+    }
+
+    fileprivate static func liveObservationMain(
+        onReady: @escaping @MainActor (NSWindow) -> Void
+    ) {
+        let application = NSApplication.shared
+        let delegate = AppDelegate(liveReady: onReady)
+        application.delegate = delegate
         withExtendedLifetime(delegate) {
             application.run()
         }
@@ -84,6 +117,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         coordinator?.applicationDidFinishLaunching()
+
+        if let liveReady {
+            let controller = SettingsWindowController.liveObservation(section: .display)
+            liveSettingsController = controller
+            controller.present()
+            guard let window = controller.window else {
+                NSApp.terminate(nil)
+                return
+            }
+            // The coordinator is fully live at this point. Yield once so the
+            // settings selection and native window ordering settle before state
+            // is sampled and WindowServer evidence is collected.
+            Task { @MainActor in
+                await Task.yield()
+                liveReady(window)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
