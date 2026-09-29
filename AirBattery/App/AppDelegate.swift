@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 
 @MainActor
 public func runAirBatteryApplication() {
@@ -82,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let application = NSApplication.shared
         let delegate = AppDelegate(liveReady: onReady)
         application.delegate = delegate
+
+        // Mark this development-only lifecycle so the synchronous Bluetooth
+        // system_profiler prefetch can be omitted without changing production
+        // startup. The real monitor services themselves still start normally.
+        setenv("AIRBATTERY_HROST_LIVE_OBSERVATION", "1", 1)
 
         // The development harness is wrapped in a minimal SwiftPM-generated app
         // bundle rather than launched through AirBattery's Xcode target. Make the
