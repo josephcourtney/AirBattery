@@ -13,6 +13,11 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
     case manyDevices = "many-devices"
     case longNames = "long-names"
     case noBattery = "no-battery"
+    case liveSettings = "live-settings"
+
+    static var fixtureCases: [Self] {
+        allCases.filter { $0 != .liveSettings }
+    }
 
     var id: String { rawValue }
 
@@ -25,12 +30,13 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
         case .manyDevices: "Many Devices"
         case .longNames: "Long Names"
         case .noBattery: "No Battery Data"
+        case .liveSettings: "Live Settings"
         }
     }
 
     var devices: [Device] {
         switch self {
-        case .empty:
+        case .empty, .liveSettings:
             []
 
         case .singleDevice:
@@ -175,7 +181,7 @@ enum AirBatteryHrostScenario: String, CaseIterable, HrostScenario {
 @MainActor
 struct AirBatteryHrostManifest: HrostManifest {
     let name = "AirBattery"
-    let scenarios = AirBatteryHrostScenario.allCases
+    let scenarios = AirBatteryHrostScenario.fixtureCases
     let surfaces: [HrostSurface<AirBatteryHrostScenario>]
 
     var capturePresets: [HrostCapturePreset] {
