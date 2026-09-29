@@ -82,6 +82,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let application = NSApplication.shared
         let delegate = AppDelegate(liveReady: onReady)
         application.delegate = delegate
+
+        // The development harness is wrapped in a minimal SwiftPM-generated app
+        // bundle rather than launched through AirBattery's Xcode target. Make the
+        // GUI lifecycle explicit instead of depending on inferred activation
+        // policy from that wrapper. SurfaceController may still adjust activation
+        // later according to the live user's normal AirBattery preferences.
+        application.setActivationPolicy(.regular)
+
         withExtendedLifetime(delegate) {
             application.run()
         }
