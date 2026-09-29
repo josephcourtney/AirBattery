@@ -206,6 +206,21 @@ final class BLEDiscoveryPolicyStore: ObservableObject {
         }
     }
 
+    /// Replaces the discovery state used by a recorded settings presentation.
+    /// This is package-scoped so development/replay tooling can reproduce the
+    /// production sidebar state without exposing a general mutation API.
+    package func replacePresentationState(
+        rules: [BLEDeviceRule],
+        logicalRules: [BLELogicalDeviceRule],
+        candidates: [BLEDiscoveryCandidate]
+    ) {
+        self.rules = rules
+        self.logicalRules = logicalRules
+        self.candidates = candidates
+        saveRules()
+        saveLogicalRules()
+    }
+
     private func trimCandidateHistoryIfNeeded() {
         while candidates.count > 100 {
             let removable = candidates.indices.filter {
