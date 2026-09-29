@@ -63,6 +63,7 @@ package struct AirBatterySettingsPresentationSnapshot: Codable, Sendable {
     package let logicalDiscoveryRules: [LogicalDiscoveryRule]
     package let discoveryCandidates: [DiscoveryCandidate]
 
+    @MainActor
     package static func capture(scenarioID: String) -> Self {
         let defaults = UserDefaults.standard
         let discovery = BLEDiscoveryPolicyStore.shared
@@ -112,6 +113,7 @@ package struct AirBatterySettingsPresentationSnapshot: Codable, Sendable {
         )
     }
 
+    @MainActor
     package func restore() throws {
         guard selectedSection == SettingsSection.display.rawValue else {
             throw SnapshotError.unsupportedSection(selectedSection)
