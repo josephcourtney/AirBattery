@@ -124,9 +124,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        coordinator?.applicationDidFinishLaunching()
-
         if let liveReady {
+            // Run the real post-launch surface/status setup, but suppress
+            // first-launch tip dialogs that would block unattended evidence
+            // collection. Monitoring and external services were already started
+            // by applicationWillFinishLaunching above.
+            coordinator?.applicationDidFinishLaunching(showLaunchTips: false)
+
             let controller = SettingsWindowController.liveObservation(section: .display)
             liveSettingsController = controller
             controller.present()
@@ -141,7 +145,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await Task.yield()
                 liveReady(window)
             }
+            return
         }
+
+        coordinator?.applicationDidFinishLaunching()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
