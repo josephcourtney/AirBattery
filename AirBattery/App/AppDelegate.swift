@@ -1,9 +1,90 @@
 import AppKit
 import Darwin
+import Foundation
 
 @MainActor
 public func runAirBatteryApplication() {
-    AppDelegate.main()
+    let environment = ProcessInfo.processInfo.environment
+    guard let mode = environment["AIRBATTERY_HROST_XCUITEST"] else {
+        AppDelegate.main()
+        return
+    }
+
+    guard mode == "1" else {
+        failHrostXCUITestLaunch("AIRBATTERY_HROST_XCUITEST must be '1' when present")
+    }
+
+    do {
+        try configureHrostXCUITestFixture(environment: environment)
+        AppDelegate.fixtureMain { _ in }
+    } catch {
+        failHrostXCUITestLaunch(error.localizedDescription)
+    }
+}
+
+private struct HrostXCUITestLaunchError: LocalizedError {
+    let detail: String
+    var errorDescription: String? { detail }
+}
+
+@MainActor
+private func configureHrostXCUITestFixture(environment: [String: String]) throws {
+    let scenario = environment["AIRBATTERY_HROST_SCENARIO"] ?? ""
+    let supportedScenarios: Set<String> = [
+        "empty",
+        "single-device",
+        "airpods",
+        "charging",
+        "many-devices",
+        "long-names",
+        "no-battery",
+    ]
+    guard supportedScenarios.contains(scenario) else {
+        throw HrostXCUITestLaunchError(
+            detail: "AIRBATTERY_HROST_SCENARIO must name a deterministic fixture scenario"
+        )
+    }
+
+    let appearance = environment["AIRBATTERY_HROST_APPEARANCE"] ?? ""
+    switch appearance {
+    case "system":
+        NSApplication.shared.appearance = nil
+    case "light":
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+    case "dark":
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+    default:
+        throw HrostXCUITestLaunchError(
+            detail: "AIRBATTERY_HROST_APPEARANCE must be system, light, or dark"
+        )
+    }
+
+    let defaults = UserDefaults.standard
+    defaults.set(false, forKey: "nearCast")
+    defaults.set(true, forKey: "twsMergeEnabled")
+    defaults.set(5, forKey: "twsMerge")
+    defaults.set("both", forKey: "showOn")
+    defaults.set("auto", forKey: "appearance")
+    defaults.set("icon", forKey: "showThisMac")
+    defaults.set(true, forKey: "carouselMode")
+    defaults.set(true, forKey: "intBattOnStatusBar")
+    defaults.set(true, forKey: "colorfulBattery")
+    defaults.set(false, forKey: "iosBatteryStyle")
+    defaults.set("outside", forKey: "batteryPercent")
+    defaults.set(90, forKey: "hideLevel")
+    defaults.set(false, forKey: "showDebug")
+    defaults.removeObject(forKey: "bleDevicePolicyRules")
+    defaults.removeObject(forKey: "bleLogicalDevicePolicyRulesV1")
+    defaults.set(false, forKey: "readBLEDevice")
+    defaults.set(false, forKey: "ideviceOverBLE")
+    defaults.set("review", forKey: "bleDiscoveryMode")
+}
+
+private func failHrostXCUITestLaunch(_ detail: String) -> Never {
+    FileHandle.standardError.write(
+        Data("AirBattery: invalid Hrost XCUITest launch: \(detail)\n".utf8)
+    )
+    Darwin.exit(64)
 }
 
 /// Development-only package seam for launching the real AirBattery AppKit host
