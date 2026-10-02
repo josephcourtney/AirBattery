@@ -41,12 +41,17 @@ available, no fixture process remains, and the broker is healthy afterward.
 
 ## What was reusable
 
-The synthetic Hrost smoke and this real AirBattery integration share one
-substantial piece of provider machinery: execution of an already-built
-`.xctestrun`, discovery of the XCTest sandbox relay, broker handoff, result
-publication, and bounded Xcode/relay cleanup. That machinery now lives in Hrost
-as `scripts/hrost-xcuitest-provider`; this directory's `provider.sh` supplies
-only AirBattery-specific paths and the selected test identifier.
+The real integration needs the same provider mechanics that were proven by the
+accepted synthetic Hrost smoke: execution of an already-built `.xctestrun`,
+discovery of the XCTest sandbox relay, broker handoff, result publication, and
+bounded Xcode/relay cleanup. That accepted logic was extracted into Hrost as
+`scripts/hrost-xcuitest-provider`; this directory's `provider.sh` supplies only
+AirBattery-specific paths and the selected test identifier.
+
+The original synthetic provider is deliberately left unchanged as the P12
+acceptance baseline. Migrating examples and additional hosts onto the extracted
+runner is integration-polish work, not a prerequisite for proving the real-host
+vertical slice.
 
 The following remain host-specific and were intentionally not generalized:
 
