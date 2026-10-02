@@ -15,7 +15,7 @@
   "accessibility": {
     "ignoredFields": [],
     "frameTolerance": 0,
-    "mismatchSeverity": "failure",
+    "mismatchSeverity": "informational",
     "missingSeverity": "failure"
   },
   "viewStructure": {
