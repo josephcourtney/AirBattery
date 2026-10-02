@@ -39,11 +39,22 @@ AppKit processes must enter the authoritative session through normal
 LaunchServices/session machinery rather than direct execution through
 `sudo launchctl bsexec`.
 
+The P13 profile treats geometry and pixels as exact failure gates. Accessibility
+must be present, but a cross-host semantic mismatch is informational rather than
+a P13 failure because the production reference is observed externally through
+AX while the Hrost-host candidate currently records its in-process
+`NSAccessibility` hierarchy. Those are different evidence channels even when
+they describe the same visible UI. The mismatch remains in the comparison
+report; later fidelity work can add a normalized external-AX candidate channel
+if accessibility parity needs to become a blocking dimension. View-tree
+mismatch is likewise informational.
+
 The validator accepts the run only when the reference driver is
-`hrost-xcuitest`, the comparison passes, reference/candidate roles are
-`production-host`/`hrost-host`, both archives identify AirBattery, their pairing
-keys match, required production-reference evidence is available, no fixture
-process remains, and the broker is healthy afterward.
+`hrost-xcuitest`, the comparison profile does not evaluate to failure,
+reference/candidate roles are `production-host`/`hrost-host`, both archives
+identify AirBattery, their pairing keys match, required production-reference
+evidence is available, no fixture process remains, and the broker is healthy
+afterward.
 
 ## What was reusable
 
